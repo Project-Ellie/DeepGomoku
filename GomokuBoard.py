@@ -42,7 +42,7 @@ class GomokuBoard:
         axis.set_xlim([0, size+1])
         axis.set_ylim([0, size+1])
         plt.xticks(range(1,size+1),['A','B','C','D','E','F','G','H',
-                         'I','J','K','L','M','N','O','P', 'Q', 'R', 'S', 'T', 'U'][:size+1])
+                         'I','J','K','L','M','N','O','P', 'Q', 'R', 'S', 'T', 'U'][:size])
         plt.yticks(range(1,size+1))
         axis.set_facecolor('#8080FF')
         xlines = [[ [1, size], [y,y], '#E0E0E0'] for y in range(1, size+1)]

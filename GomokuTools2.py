@@ -6,13 +6,13 @@ class GomokuTools:
     @staticmethod
     def dirs():
         return {
-            'e' : (0, [0, 1]),
+            'e': (0, [0, 1]),
             'ne': (1, [-1, 1]),
-            'n' : (2, [-1, 0]),
+            'n': (2, [-1, 0]),
             'nw': (3, [-1, -1]),
-            'w' : (4, [0, -1]),
+            'w': (4, [0, -1]),
             'sw': (5, [1, -1]),
-            's' : (6, [1, 0]),
+            's': (6, [1, 0]),
             'se': (7, [1, 1])}
 
     @staticmethod
@@ -21,7 +21,7 @@ class GomokuTools:
     
     @staticmethod
     def as_bit(direction, distance):
-        return (1<<(distance+3) if direction//4 else 1<<(4-distance))# << (8*(direction%4))
+        return 1 << (distance+3) if direction//4 else 1 << (4-distance)  # << (8*(direction%4)
         
     @staticmethod
     def m2b(m, size):
@@ -89,8 +89,15 @@ class NH9x9:
     nw : 0 0 0 0   0 0 0 0
     
     """
-    def __init__(self, black=[0,0,0,0], white=[0,0,0,0], edges=[0,0,0,0]):
+    def __init__(self, black=None, white=None, edges=None):
+        black = black or [0, 0, 0, 0]
+        white = white or [0, 0, 0, 0]
+        edges = edges or [0, 0, 0, 0]
+
         for n in [black, white, edges]:
+
+            if isinstance(n, np.int32):
+                print("oops")
             for i in range(4):
                 assert(n[i] >= 0 and n[i] < 256)
         self.b = black

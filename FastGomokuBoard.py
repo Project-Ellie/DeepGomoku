@@ -1,13 +1,14 @@
 import numpy as np
 import pandas as pd
 from GomokuBoard import GomokuBoard
-#from LineScores import LineScoresHelper
-#from HeuristicScore import HeuristicScore, HeuristicScore2
-from GomokuTools2 import NH9x9, Heuristics, LineScoresHelper
+# from LineScores import LineScoresHelper
+# from HeuristicScore import HeuristicScore, HeuristicScore2
+from GomokuTools2 import NH9x9, LineScoresHelper
+
 
 class FastGomokuBoard(GomokuBoard):
     
-    def __init__(self, size=15, disp_width=6, stones=[]):
+    def __init__(self, size=15, disp_width=6, stones=None):
         """
         Fast variant of GomokuBoard. Uses vectorized computations and precomputed scores.
 
@@ -18,21 +19,23 @@ class FastGomokuBoard(GomokuBoard):
             lsh: LineScoresHelper instance with pre-computed scores.
             
         """
+        if stones is None:
+            stones = []
         self.lsh = LineScoresHelper()
         self.size = size
-        self.current_color=0
+        self.current_color = 0
 
-        self.board=[ # impacts of all stones on the board
-            np.zeros([size,size], dtype=np.int32), # black
-            np.zeros([size,size], dtype=np.int32), # white
-            np.zeros([size,size], dtype=np.int32)] # borders
-        self.impact9x9=[
+        self.board = [  # impacts of all stones on the board
+            np.zeros([size,size], dtype=np.int32),  # black
+            np.zeros([size,size], dtype=np.int32),  # white
+            np.zeros([size,size], dtype=np.int32)]  # borders
+        self.impact9x9 = [
             [ 
-                0x1 << c if r == 4 and c<4 
-                else 0x1 << (c-1) if c>4 and r==4
+                0x1 << c if r == 4 and c < 4
+                else 0x1 << (c-1) if c > 4 and r == 4
 
-                else 0x100 << c if c == 8-r and c<4
-                else 0x100 << (c-1) if c == 8-r and c>4
+                else 0x100 << c if c == 8-r and c < 4
+                else 0x100 << (c-1) if c == 8-r and c > 4
 
                 else 0x10000 << 8-r-1 if r<4 and c == 4  
                 else 0x10000 << 8-r if r>4 and c==4
