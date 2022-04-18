@@ -3,7 +3,7 @@ import setuptools
 long_description = "A collection of Gomoku heuristics"
 
 setuptools.setup(
-    name="wgomoku",
+    name="wgomoku_build",
     version="0.0.1",
     author="Wolfgang Giersche",
     author_email="wgiersche@gmail.com",

@@ -9,6 +9,7 @@ pandas = "*"
 seaborn = "*"
 numpy = "*"
 jupyter = "*"
+tensorflow = "*"
 
 [dev-packages]
 
