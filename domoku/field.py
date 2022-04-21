@@ -1,7 +1,7 @@
 import numpy as np
-from .GomokuTools import GomokuTools as gt
-from .NH9x9 import NH9x9
-from .Heuristics import Heuristics
+from domoku.tools import GomokuTools as gt
+from domoku.nh import NH9x9
+from domoku.heuristics import Heuristics
 
 BLACK=0
 WHITE=1
@@ -27,20 +27,20 @@ __IMPACT9x9__=[
 ]
 
 
-def impact_from(N, r,c):
+def impact_from(n, r, c):
     """
     Construct a complete nxn impact representation of a stone at row=r, col=c
     """
     src=np.hstack([
-        np.zeros((N+10,c+1),dtype=np.int),
+        np.zeros((n + 10, c + 1), dtype=int),
         np.vstack([
             np.zeros((r+1,9), dtype=np.int32), 
             __IMPACT9x9__, 
-            np.zeros((N-1-r+1,9), dtype=np.int32)
+            np.zeros((n - 1 - r + 1, 9), dtype=np.int32)
         ]),
-        np.zeros((N+10,N-1-c+1),dtype=np.int)
+        np.zeros((n + 10, n - 1 - c + 1), dtype=int)
     ])
-    return (src[5:-5].T[5:-5].T).copy()
+    return src[5:-5].T[5:-5].T.copy()
 
 
 def as_bytes(l):
@@ -52,8 +52,6 @@ def as_bytes(l):
     l2=(l & 0xFF0000) >> 16     # north
     l3=(l & 0xFF000000) >> 24   # north west
     return np.array([l0, l1, l2, l3])
-
-
 
 
 class GomokuField:

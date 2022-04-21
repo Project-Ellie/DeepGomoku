@@ -1,15 +1,15 @@
 import numpy as np
-from .GomokuTools import GomokuTools as gt
+from .GomokuTools import GomokuTools as gtools
 from .GomokuBoard import GomokuBoard
-from .HeuristicPolicy import HeuristicGomokuPolicy
 from .QFunction import heuristic_QF
 
-BLACK=0
-WHITE=1
-EDGES=2
-STYLE_MIXED=2
+BLACK = 0
+WHITE = 1
+EDGES = 2
+STYLE_MIXED = 2
 
-def roll_out(board, policy, max_n = 40):
+
+def roll_out(board, policy, max_n=40):
     """
     takes the board and subsequently applies the given policy to black and white
     until the game is decided or max_n moves have been played.
@@ -18,10 +18,10 @@ def roll_out(board, policy, max_n = 40):
     board.compute_all_scores()
     move = policy.suggest(board)
     while move.status == 0 and n < max_n:
-        board.set(move.x,move.y)
+        board.set(move.x, move.y)
         board.compute_all_scores()
         move = policy.suggest(board)
-        n+=1
+        n += 1
     return board
 
 
@@ -35,7 +35,7 @@ def variants_for(board):
     array=np.zeros([8,2,N,N], dtype=float)
     color = np.arange(len(stones)) % 2
     for l, pos in list(zip(color, stones)):
-        r, c = gt.b2m(pos, 15)
+        r, c = gtools.b2m(pos, 15)
         array[0][l][r][c] = 1.0
         array[6][l][c][r] = 1.0
 
@@ -51,55 +51,59 @@ def variants_for(board):
     return array
 
 
-def transform(stones, N, quarters, reflect=False):
+def transform(stones, n, quarters, reflect=False):
     """
     return stones' coordinates after rotation and reflection
     """
-    coords = [gt.b2m(stone, N) for stone in stones]
+    coords = [gtools.b2m(stone, n) for stone in stones]
     if quarters == 0:
         res = coords
 
-    if quarters == 1:
-        res = [(N-c-1, r) for r,c in coords]
+    elif quarters == 1:
+        res = [(n - c - 1, r) for r, c in coords]
 
-    if quarters == 2:
-        res = [(N-r-1, N-c-1) for r,c in coords]
+    elif quarters == 2:
+        res = [(n - r - 1, n - c - 1) for r, c in coords]
 
-    if quarters == 3:
-        res = [(c, N-r-1) for r,c in coords]
+    elif quarters == 3:
+        res = [(c, n - r - 1) for r, c in coords]
+
+    else:
+        raise ValueError("quaters can only be 0, 1, 2, or 3")
 
     if reflect:
-        res = [(r, N-c-1) for r,c in res]
+        res = [(r, n - c - 1) for r, c in res]
         
-    stones = [gt.m2b(coord, N) for coord in res]
+    stones = [gtools.m2b(coord, n) for coord in res]
     return stones
 
 
-def create_sample(stones, N, viewpoint):
+def create_sample(stones, n, viewpoint, borders=True):
     
-    sample = np.zeros([2, N, N], dtype=np.uint8)
+    sample = np.zeros([2, n, n], dtype=np.uint8)
 
-    current = 0
+    current = WHITE
     for move in stones:
-        r,c=gt.b2m(move,N)
-        sample[current][r][c]=1
-        current = 1-current
+        r, c = gtools.b2m(move, n)
+        sample[current][r][c] = 1
+        current = 1 - current
+    if not borders:
+        return np.rollaxis(sample, 0, 3)
 
-        
     offensive = np.hstack([
-        np.zeros([N+2,1], dtype=np.uint8), 
-        np.vstack([np.zeros(N, dtype=np.uint8), 
-                   sample[viewpoint], 
-                   np.zeros(N, dtype=np.uint8)]),
-        np.zeros([N+2,1], dtype=np.uint8)
+        np.zeros([n + 2, 1], dtype=np.uint8),
+        np.vstack([np.zeros(n, dtype=np.uint8),
+                   sample[viewpoint],
+                   np.zeros(n, dtype=np.uint8)]),
+        np.zeros([n + 2, 1], dtype=np.uint8)
     ])
     
     defensive = np.hstack([
-        np.ones([N+2,1], dtype=np.uint8), 
-        np.vstack([np.ones(N, dtype=np.uint8), 
-                   sample[1-viewpoint], 
-                   np.ones(N, dtype=np.uint8)]),
-        np.ones([N+2,1], dtype=np.uint8)
+        np.ones([n + 2, 1], dtype=np.uint8),
+        np.vstack([np.ones(n, dtype=np.uint8),
+                   sample[1-viewpoint],
+                   np.ones(n, dtype=np.uint8)]),
+        np.ones([n + 2, 1], dtype=np.uint8)
     ])
     both = np.array([offensive, defensive])
     return np.rollaxis(both, 0, 3)

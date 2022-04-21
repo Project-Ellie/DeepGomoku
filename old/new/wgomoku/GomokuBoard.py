@@ -55,7 +55,7 @@ class GomokuBoard(GomokuField):
         """
         checks the array indexes (not the board coordinates!)
         """
-        return index[0] >= 0 and index[0] < self.N and index[1] >= 0 and index[1] < self.N
+        return 0 <= index[0] < self.N and 0 <= index[1] < self.N
     
  
     def ctoggle(self):
@@ -66,7 +66,7 @@ class GomokuBoard(GomokuField):
         return self.current_color
         
         
-    def set(self, x,y, compute_scores=True):
+    def set(self, x, y, compute_scores=True):
         """
         x,y: 1-based indices of the board, x may be an uppercase letter
         """
@@ -74,11 +74,11 @@ class GomokuBoard(GomokuField):
 
         if self.cursor != len(self.stones)-1:
             raise(ValueError("Cursor not at end position."))
-        if (x,y) in self.stones:
+        if (x, y) in self.stones:
             print(self.stones)
-            raise(ValueError("Position (%s, %s) is occupied." % (x,y)))
+            raise ValueError(f"Position ({x}, {y}) is occupied.")
         if not self._is_valid((self.N-y, x-1)):
-            raise(ValueError("Not a valid move: (%s, %s). Beyond board boundary."  % (x,y)))
+            raise ValueError(f"Not a valid move: ({x}, {y}). Beyond board boundary.")
         
         self.stones.append((x,y))        
         c = self.current_color
