@@ -91,7 +91,25 @@ def create_binary_rep(board: GomokuBoard, pad_r=0, pad_l=0, pad_t=0, pad_b=0):
         sample[current][r][c] = 1
         current = 1 - current
 
-    return np.rollaxis(sample, 0, 3)
+    black_layer = np.hstack([
+        np.zeros([n + pad_l + pad_r, pad_t], dtype=np.uint8),
+        np.vstack([np.zeros([pad_l, n], dtype=np.uint8),
+                   sample[BLACK],
+                   np.zeros([pad_r, n], dtype=np.uint8)]),
+        np.zeros([n + pad_l + pad_r, pad_b], dtype=np.uint8)
+    ])
+
+    white_layer = np.hstack([
+        np.zeros([n + pad_l + pad_r, pad_t], dtype=np.uint8),
+        np.vstack([np.zeros([pad_l, n], dtype=np.uint8),
+                   sample[WHITE],
+                   np.zeros([pad_r, n], dtype=np.uint8)]),
+        np.zeros([n + pad_l + pad_r, pad_b], dtype=np.uint8)
+    ])
+
+    both = np.array([black_layer, white_layer])
+
+    return np.rollaxis(both, 0, 3)
 
 
 def create_sample(stones, n, viewpoint):
