@@ -35,13 +35,18 @@ class NH9x9:
     
     """
     def __init__(self, black=None, white=None, edges=None):
+
+        if black is None:
+            black = [0, 0, 0, 0]
+        if white is None:
+            white = [0, 0, 0, 0]
+        if edges is None:
+            edges = [0, 0, 0, 0]
+
         for n in [black, white, edges]:
             for i in range(4):
                 assert 0 <= n[i] < 256
 
-        black = black or [0, 0, 0, 0]
-        white = white or [0, 0, 0, 0]
-        edges = edges or [0, 0, 0, 0]
         self.b = black
         self.w = white
         self.e = edges

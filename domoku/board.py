@@ -93,7 +93,7 @@ class GomokuBoard(GomokuField):
     def undo(self, compute_scores=True):
         if self.cursor != len(self.stones)-1:
             raise(ValueError("Cursor not at end position."))
-        x,y = self.stones[-1]
+        x, y = self.stones[-1]
         self.stones = self.stones[:-1]
         self.compute_neighbourhoods(x, y, 'u')
         self.ctoggle()
@@ -105,7 +105,7 @@ class GomokuBoard(GomokuField):
     
     
     def bwd(self, n=1):
-        if ( n > 1 ):
+        if n > 1:
             self.bwd()
             self.bwd(n-1)
             return self
@@ -119,13 +119,12 @@ class GomokuBoard(GomokuField):
 
     
     def fwd(self, n=1):
-        if ( n > 1 ):
+        if n > 1:
             self.fwd()
             self.fwd(n-1)
             return self
         if self.cursor < len(self.stones)-1:
             self.cursor += 1
-            c = self.current_color
             self.ctoggle()
             self.compute_neighbourhoods(*self.stones[self.cursor], action='r')
         return self
@@ -141,7 +140,7 @@ class GomokuBoard(GomokuField):
         plt.xticks(range(1, size+1), [chr(asci) for asci in range(65, 65+size)])
         plt.yticks(range(1, size+1))
         axis.set_facecolor('#404080')
-        xlines = [[[1, size], [y,y], '#E0E0E0'] for y in range(1, size+1)]
+        xlines = [[[1, size], [y, y], '#E0E0E0'] for y in range(1, size+1)]
         ylines = [[[x, x], [1, size], '#E0E0E0'] for x in range(1, size+1)]
         ylines = np.reshape(
             np.array(xlines + ylines, dtype=object), [-1])
@@ -149,7 +148,7 @@ class GomokuBoard(GomokuField):
         self.display_helpers(axis)
 
         if self.cursor >= 0:
-            self.display_stones(self.stones, axis)
+            self.display_stones(axis)
 
         if viewpoint is not None:
             self.display_scores(axis, viewpoint)
@@ -162,43 +161,43 @@ class GomokuBoard(GomokuField):
             axis.scatter([4, 4, 4, 10, 16, 16, 16, 10, 10], 
                          [4, 10, 16, 16, 16, 10, 4, 4, 10], 
                          s=self.disp_width**2, c='#E0E0E0')
-        elif self.N==20:
+        elif self.N == 20:
             axis.scatter([6, 6, 15, 15], [6, 15, 15, 6], 
                          s=self.disp_width**2, c='#E0E0E0')
 
     def display_cursor(self):
-        x,y = self.stones[self.cursor]
+        x, y = self.stones[self.cursor]
         box = np.array(
-            [[-0.6,  0.6,  0.6, -0.6, -0.6],
-            [-0.6, -0.6,  0.6,  0.6, -0.6]])
+            [[-0.6, 0.6, 0.6, -0.6, -0.6],
+             [-0.6, -0.6, 0.6, 0.6, -0.6]])
         box = box + [[x], [y]]
         plt.plot(*box, color='w', zorder=30)
 
-    def display_stones(self, stones, axis):
+    def display_stones(self, axis):
         colors = ['white', 'black']
         for i in range(1, self.cursor + 2):
             x, y = self.stones[i-1][0:2]
             stc = colors[i % 2]
             fgc = colors[1 - i % 2]
-            axis.scatter([x],[y], c=stc, s=self.stones_size(), zorder=10)
+            axis.scatter([x], [y], c=stc, s=self.stones_size(), zorder=10)
             self.display_cursor()
             plt.text(x, y, i, color=fgc, fontsize=12, zorder=20,
                      horizontalalignment='center', verticalalignment='center')
 
     def display_scores(self, axis, viewpoint):
         
-        for v in [0,1]:
+        for v in [0, 1]:
             self.compute_scores(v)
 
         for c in range(self.N):
             for r in range(self.N):
-                x,y=GomokuTools.m2b((r,c), self.N)
-                if (x,y) not in self.stones[:self.cursor+1]:
+                x, y = GomokuTools.m2b((r, c), self.N)
+                if (x, y) not in self.stones[:self.cursor+1]:
                     offensive = self.scores[viewpoint][r][c]
                     defensive = self.scores[1-viewpoint][r][c]
                     color = self.color_for(offensive, defensive)
                     if offensive >= 1.5 or defensive >= 1.5:
-                        axis.scatter([x],[y], color=color, s=self.stones_size()/4.0, zorder=10)
+                        axis.scatter([x], [y], color=color, s=self.stones_size()/4.0, zorder=10)
             
                 
     def stones_size(self):
@@ -226,9 +225,9 @@ class GomokuBoard(GomokuField):
             
         cp = self.scores.copy()
         for pos in self.stones:
-            r, c = GomokuTools.b2m(pos,self.N)
-            for color in [0,1]:
-                cp[color][r][c]=tag
+            r, c = GomokuTools.b2m(pos, self.N)
+            for color in [0, 1]:
+                cp[color][r][c] = tag
         return cp
         
         
