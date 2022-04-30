@@ -78,38 +78,66 @@ def transform(stones, n, quarters, reflect=False):
     return stones
 
 
-def create_binary_rep(board: GomokuBoard, pad_r=0, pad_l=0, pad_t=0, pad_b=0):
+def create_binary_action(board_size, padding, position, switch=False):
+    x, y = np.array([padding, padding]) + gtools.b2m(position, board_size)
+    size = 2 * padding + board_size
+    action = np.zeros([size, size, 2])
+    layer = 1 if switch else 0
+    action[x, y, layer] = 1
+    return action
+
+
+def create_binary_rep(board: GomokuBoard, pad_r=0, pad_l=0, pad_t=0, pad_b=0,
+                      padding=None, border=False, switch=False):
     """
     Creates a NxNx2 NDArray from the stones of the board. Black is in the 0-plane
     """
+    pad_r = pad_r if padding is None else padding
+    pad_l = pad_l if padding is None else padding
+    pad_t = pad_t if padding is None else padding
+    pad_b = pad_b if padding is None else padding
+
+    assert not (padding is None and border), "must have padding > 0 when requesting border"
+
     n = board.N
     sample = np.zeros([2, n, n], dtype=np.uint8)
 
-    current = WHITE
+    current = board.current_color
+    if switch:
+        current = 1 - current
     for move in board.stones:
         r, c = gtools.b2m(move, n)
         sample[current][r][c] = 1
         current = 1 - current
 
-    black_layer = np.hstack([
+    # next moving player is always on layer 0
+    current_layer = np.hstack([
         np.zeros([n + pad_l + pad_r, pad_t], dtype=np.uint8),
         np.vstack([np.zeros([pad_l, n], dtype=np.uint8),
-                   sample[BLACK],
+                   sample[0],
                    np.zeros([pad_r, n], dtype=np.uint8)]),
         np.zeros([n + pad_l + pad_r, pad_b], dtype=np.uint8)
     ])
 
-    white_layer = np.hstack([
+    other_layer = np.hstack([
         np.zeros([n + pad_l + pad_r, pad_t], dtype=np.uint8),
         np.vstack([np.zeros([pad_l, n], dtype=np.uint8),
-                   sample[WHITE],
+                   sample[1],
                    np.zeros([pad_r, n], dtype=np.uint8)]),
         np.zeros([n + pad_l + pad_r, pad_b], dtype=np.uint8)
     ])
 
-    both = np.array([black_layer, white_layer])
+    if border:
+        size = board.N
+        a_border = (padding - 1) * [0] + (size + 2) * [1] + (padding - 1) * [0]
+        other_layer[padding - 1] = a_border
+        other_layer[size + padding] = a_border
+        other_layer[:, padding - 1] = a_border
+        other_layer[:, size + padding] = a_border
 
-    return np.rollaxis(both, 0, 3)
+    both = np.array([current_layer, other_layer])
+
+    return np.rollaxis(both, 0, 3).astype(float)
 
 
 def create_sample(stones, n, viewpoint):

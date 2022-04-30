@@ -59,13 +59,13 @@ class GomokuField:
     A GomokuField represents the empty positions and what they "see" in each direction
     """
     
-    def __init__(self, N, heuristics):
-        self.N = N
-        self.lines = np.zeros([3, N, N, 4], dtype=int)
+    def __init__(self, n, heuristics):
+        self.N = n
+        self.lines = np.zeros([3, n, n, 4], dtype=int)
 
-        impacts_int32 = np.array([[impact_from(N, r,c) 
-                         for c in range(N)] 
-                        for r in range(N)])        
+        impacts_int32 = np.array([[impact_from(n, r, c)
+                                   for c in range(n)]
+                                  for r in range(n)])
         self.impacts = np.rollaxis(as_bytes(impacts_int32), 0, 5)
         
         self.compute_edges()

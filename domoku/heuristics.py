@@ -40,7 +40,7 @@ def is_terminated(board):
     
 class Heuristics:
     
-    def __init__(self, kappa):
+    def __init__(self, kappa=3.0):
         
         self.kappa = kappa
 

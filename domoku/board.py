@@ -14,12 +14,12 @@ def maybe_convert(x):
             
 class GomokuBoard(GomokuField):
     
-    def __init__(self, heuristics, n, disp_width=6, stones=None):
+    def __init__(self, n, heuristics=None, disp_width=6, stones=None):
         stones = stones or []
         GomokuField.__init__(self, n, heuristics=heuristics)
         self.disp_width = disp_width
         self.stones = []
-        self.current_color = WHITE
+        self.current_color = BLACK
         self.cursor = -1
         for stone in stones:
             self.set(*stone, compute_scores=False)
@@ -174,7 +174,7 @@ class GomokuBoard(GomokuField):
         plt.plot(*box, color='w', zorder=30)
 
     def display_stones(self, axis):
-        colors = ['white', 'black']
+        colors = ['black', 'white']
         for i in range(1, self.cursor + 2):
             x, y = self.stones[i-1][0:2]
             stc = colors[i % 2]

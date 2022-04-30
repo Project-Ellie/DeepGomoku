@@ -53,9 +53,9 @@ class NH9x9:
         
         
     def register(self, color, direction, distance):
-        assert(color==0 or color==1)
-        assert(direction>=0 and direction<8)
-        assert(distance>=1 and distance <=4)
+        assert(color == 0 or color == 1)
+        assert(0 <= direction < 8)
+        assert(1 <= distance <= 4)
         
         if color==0:
             self.b[direction%4] |= GomokuTools.as_bit(direction, distance)

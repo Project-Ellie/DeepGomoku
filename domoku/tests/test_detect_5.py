@@ -9,7 +9,6 @@ from domoku.constants import *
 class MyTestCase(unittest.TestCase):
 
     def setUp(self) -> None:
-        self.heuristics = Heuristics(kappa=3.0)
         self.board_size = 6
 
     def test_diag_5_detected(self):
@@ -26,7 +25,7 @@ class MyTestCase(unittest.TestCase):
         moves = [[B, 1], [D, 4], [C, 2], [C, 5], [D, 3],
                  [E, 3], [E, 4], [F, 2], [F, 5], [B, 6],
                  [A, 1], [B, 5], [C, 1], [B, 4], [D, 1], [B, 3], [E, 1], [B, 2], ]
-        self.board = GomokuBoard(self.heuristics, n=self.board_size, disp_width=4)
+        self.board = GomokuBoard(n=self.board_size, disp_width=4)
         for move in moves:
             self.board.set(move[0], move[1])
 
