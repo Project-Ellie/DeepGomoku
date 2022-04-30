@@ -28,11 +28,13 @@ class InfluenceReward(tf.keras.Model):
         self.input_size = 2 * self.range_i + board_size
         # geometric coefficient
         self.tau = tau
+        self.max_reward = 10
 
         assert len(current_influence) == len(other_influence) == self.range_i, \
             f"Influence rays must have length {self.range_i}"
 
         self.filters = self.create_influence_filters(current_influence, other_influence)
+        print(self.filters.shape)
         kernel_init = tf.constant_initializer(self.filters)
 
         self.input_layer = tf.keras.layers.Conv2D(filters=4, kernel_size=(2 * self.range_i + 1, 2 * self.range_i + 1),
@@ -45,6 +47,36 @@ class InfluenceReward(tf.keras.Model):
                                                kernel_initializer=comb_init,
                                                activation=tf.nn.relu)
 
+        self.terminated = self.create_termination_detector()
+
+    def create_termination_detector(self):
+        five = [0, 0, 1, 1, 1, 1, 1, 0, 0]
+        empty = np.zeros([9, 9], dtype=float)
+        horiz = empty.copy()
+        horiz[4, :] = five
+        vert = empty.copy()
+        vert[:, 4] = five
+
+        filters = np.array([
+            np.array([np.diag(five), empty]),
+            np.array([np.diag(five)[::-1], empty]),
+            np.array([horiz, empty]),
+            np.array([vert, empty]),
+
+            # np.array([empty, np.diag(five)]),
+            # np.array([empty, np.diag(five)[::-1]]),
+            # np.array([empty, horiz]),
+            # np.array([empty, vert])
+        ])
+        filters = np.rollaxis(np.rollaxis(filters, 1, 4), 0, 4)
+        kernel_init = tf.constant_initializer(filters)
+        bias_init = tf.constant_initializer(-4.)
+
+        return tf.keras.layers.Conv2D(filters=4, kernel_size=(9, 9),
+                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
+                                      activation=tf.nn.relu, input_shape=(self.input_size, self.input_size, 2))
+
+
     def reshape(self, s, a):
         s = np.reshape(s, [-1, self.input_size, self.input_size, 2])
         a = np.reshape(a, [-1, self.input_size, self.input_size, 2])
@@ -56,11 +88,20 @@ class InfluenceReward(tf.keras.Model):
         current_player_after = self.input_layer(s + a)
         current_player_before = self.input_layer(s)
         combined = self.combine(current_player_after) - self.combine(current_player_before)
-        return tf.squeeze(tf.reduce_sum(combined))
 
+        if self.is_terminated(s):
+            return -self.max_reward
+        if self.is_terminated(s + a):
+            return self.max_reward
+        else:
+            return tf.squeeze(tf.reduce_sum(combined)).numpy()
+
+    def is_terminated(self, state):
+        s = np.reshape(state, [-1, self.input_size, self.input_size, 2])
+        return tf.reduce_sum(self.terminated(s)) >= 1
 
     def combine(self, influences):
-        return self.combiner(influences ** self.tau) ** (1/self.tau)
+        return self.combiner(influences ** self.tau)  # ** (1/self.tau)
 
 
     def influence_of(self, s, a):
