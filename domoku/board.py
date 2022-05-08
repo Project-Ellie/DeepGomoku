@@ -23,7 +23,8 @@ class GomokuBoard(GomokuField):
         self.cursor = -1
         for stone in stones:
             self.set(*stone, compute_scores=False)
-        self.compute_all_scores()
+        if heuristics:
+            self.compute_all_scores()
         self.color_scheme = [  # visualize the offensive/defensive score
             ['#F0F0F0', '#FFC0C0', '#FF9090', '#FF6060', '#FF0000'],
             ['#A0FFA0', '#E8D088', '#FFA080', '#F86040', '#F01808'],
@@ -150,7 +151,7 @@ class GomokuBoard(GomokuField):
         if self.cursor >= 0:
             self.display_stones(axis)
 
-        if viewpoint is not None:
+        if viewpoint is not None and self.heuristics is not None:
             self.display_scores(axis, viewpoint)
 
     def display_helpers(self, axis):

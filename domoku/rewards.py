@@ -4,7 +4,7 @@ import tensorflow as tf
 from domoku.data import create_binary_rep, create_binary_action
 
 
-class InfluenceReward(tf.keras.Model):
+class InfluenceModel(tf.keras.Model):
     """
     This function rewards an action a on state s with a scalar representing the gained total influence
     of the own stones vs the oppenent's stones' influence by that move
@@ -34,7 +34,7 @@ class InfluenceReward(tf.keras.Model):
         # geometric coefficient
         self.curr_tau = curr_tau
         self.other_tau = other_tau
-        self.max_reward = 10
+        self.max_reward = 100
 
         assert len(current_influence[0]) == len(other_influence[0]) == self.range_i, \
             f"Influence rays must have length {self.range_i}"
@@ -55,6 +55,8 @@ class InfluenceReward(tf.keras.Model):
 
         self.terminated = self.create_termination_detector()
 
+        self.terminal_threat = self.create_lo4_detector()
+
 
     def create_termination_detector(self):
         five = [0, 0, 1, 1, 1, 1, 1, 0, 0]
@@ -73,6 +75,33 @@ class InfluenceReward(tf.keras.Model):
         filters = np.rollaxis(np.rollaxis(filters, 1, 4), 0, 4)
         kernel_init = tf.constant_initializer(filters)
         bias_init = tf.constant_initializer(-4.)
+
+        return tf.keras.layers.Conv2D(filters=4, kernel_size=(9, 9),
+                                      kernel_initializer=kernel_init, bias_initializer=bias_init,
+                                      activation=tf.nn.relu, input_shape=(self.input_size, self.input_size, 2))
+
+
+    def create_lo4_detector(self):
+        """
+        Detects lines of 4 on a non-terminated board
+        """
+        five = [0, 0, 1, 1, 1, 1, 1, 0, 0]
+        no_adv = -np.array(five)
+        empty = np.zeros([9, 9], dtype=float)
+        horiz = empty.copy()
+        horiz[4, :] = five
+        vert = empty.copy()
+        vert[:, 4] = five
+
+        filters = np.array([
+            np.array([np.diag(five), np.diag(no_adv)]),
+            np.array([np.diag(five)[::-1], np.diag(no_adv)[::-1]]),
+            np.array([horiz, -horiz]),
+            np.array([vert, -vert]),
+        ])
+        filters = np.rollaxis(np.rollaxis(filters, 1, 4), 0, 4)
+        kernel_init = tf.constant_initializer(filters)
+        bias_init = tf.constant_initializer(-3.)
 
         return tf.keras.layers.Conv2D(filters=4, kernel_size=(9, 9),
                                       kernel_initializer=kernel_init, bias_initializer=bias_init,
@@ -107,16 +136,22 @@ class InfluenceReward(tf.keras.Model):
         return tf.reduce_sum(self.terminated(s)) >= 1
 
 
+    def is_lo4_threat(self, state):
+        s = np.reshape(state, [-1, self.input_size, self.input_size, 2])
+        return tf.reduce_sum(self.terminal_threat(s)) >= 1
+
+
     def combine(self, influences, tau):
         return self.combiner(influences ** tau)  # ** (1/self.tau)
 
 
-    def influence_of(self, s, a=None, for_humans=True):
+    def influence_of(self, state, for_humans=True):
         """
         Utility method to display the direct influence from the current player's point of view
+        :param state: The two-layer binary representation of the board
+        :param for_humans: if true, projects values to integers of the range [0, 9]
         """
-        s, a = self.reshape(s, a)
-        state = s + a if a is not None else s
+        state, _ = self.reshape(state, None)
         current_player_after = self.input_layer(state)
         combined = self.combine(current_player_after, self.curr_tau)
         orig = tf.squeeze(combined)
@@ -167,8 +202,8 @@ class RewardContext:
     def __init__(self, the_board, reward_model, offensiveness=0.5):
         self.board = the_board
         self.model = reward_model
-        self.selector = InfluenceReward(board_size=self.board.N, curr_tau=2, other_tau=2,
-                                        current_influence=[[1, 2, 4, 8], [1, 2, 4, 8]])
+        self.selector = InfluenceModel(board_size=self.board.N, curr_tau=2, other_tau=2,
+                                       current_influence=[[1, 2, 4, 8], [1, 2, 4, 8]])
         self.offensiveness = offensiveness
         self.cut_off_offensive = 2
         self.cut_off_defensive = 2
@@ -184,6 +219,10 @@ class RewardContext:
         state_adv = create_binary_rep(self.board, padding=4, border=True, switch=True)
         action_adv = create_binary_action(self.board.N, 4, move, switch=True)
         defensive_reward, terminated_adv = self.model(state_adv, action_adv)
+
+        dangerous = self.model.is_lo4_threat(state_adv + action_adv)
+        if dangerous and not terminated:
+            return -self.model.max_reward, False
 
         o = self.offensiveness
         return 2 * o * offensive_reward - 2 * (1 - o) * defensive_reward, terminated or terminated_adv

@@ -1,29 +1,28 @@
 import numpy as np
 from domoku.tools import GomokuTools as gt
 from domoku.nh import NH9x9
-from domoku.heuristics import Heuristics
 
-BLACK=0
-WHITE=1
-EDGES=2
+BLACK = 0
+WHITE = 1
+EDGES = 2
 
-__IMPACT9x9__=[
-    [ 
-        0x1 << c if r == 4 and c<4 
-        else 0x1 << (c-1) if c>4 and r==4
+__IMPACT9x9__ = [
+    [
+        0x1 << c if r == 4 and c < 4
+        else 0x1 << (c - 1) if c > 4 and r == 4
 
-        else 0x100 << c if c == 8-r and c<4
-        else 0x100 << (c-1) if c == 8-r and c>4
+        else 0x100 << c if c == 8 - r and c < 4
+        else 0x100 << (c - 1) if c == 8 - r and c > 4
 
-        else 0x10000 << 8-r-1 if r<4 and c == 4  
-        else 0x10000 << 8-r if r>4 and c==4
+        else 0x10000 << 8 - r - 1 if r < 4 and c == 4
+        else 0x10000 << 8 - r if r > 4 and c == 4
 
-        else 0x1000000 << 8-c-1 if c == r and c<4
-        else 0x1000000 << 8-c if c == r and c>4
+        else 0x1000000 << 8 - c - 1 if c == r and c < 4
+        else 0x1000000 << 8 - c if c == r and c > 4
 
         else 0
-         for c in range(9) 
-    ] for r in range(9) 
+        for c in range(9)
+    ] for r in range(9)
 ]
 
 
@@ -31,11 +30,11 @@ def impact_from(n, r, c):
     """
     Construct a complete nxn impact representation of a stone at row=r, col=c
     """
-    src=np.hstack([
+    src = np.hstack([
         np.zeros((n + 10, c + 1), dtype=int),
         np.vstack([
-            np.zeros((r+1,9), dtype=np.int32), 
-            __IMPACT9x9__, 
+            np.zeros((r + 1, 9), dtype=np.int32),
+            __IMPACT9x9__,
             np.zeros((n - 1 - r + 1, 9), dtype=np.int32)
         ]),
         np.zeros((n + 10, n - 1 - c + 1), dtype=int)
@@ -47,10 +46,10 @@ def as_bytes(l):
     """
     returns an array of 4 bytes representing l, with the LSB at pos 0
     """
-    l0=(l & 0xFF)               # east
-    l1=(l & 0xFF00) >> 8        # north east
-    l2=(l & 0xFF0000) >> 16     # north
-    l3=(l & 0xFF000000) >> 24   # north west
+    l0 = (l & 0xFF)  # east
+    l1 = (l & 0xFF00) >> 8  # north east
+    l2 = (l & 0xFF0000) >> 16  # north
+    l3 = (l & 0xFF000000) >> 24  # north west
     return np.array([l0, l1, l2, l3])
 
 
@@ -70,7 +69,7 @@ class GomokuField:
         
         self.compute_edges()
         
-        self.heuristics = heuristics if heuristics is not None else Heuristics()
+        self.heuristics = heuristics if heuristics is not None else None  # Heuristics()
         
         self.scores = [[],[]]
         
@@ -92,11 +91,11 @@ class GomokuField:
         
 
     def compute_edges(self):
-        edges_sn=[impact_from(self.N, r, c) 
-                    for r in [-1, self.N] 
+        edges_sn = [impact_from(self.N, r, c)
+                    for r in [-1, self.N]
                     for c in range(-1, self.N)]
-        edges_ew=[impact_from(self.N, r, c) 
-                    for c in [-1, self.N] 
+        edges_ew = [impact_from(self.N, r, c)
+                    for c in [-1, self.N]
                     for r in range(-1, self.N)]
 
         for edges in edges_sn + edges_ew:
@@ -105,21 +104,22 @@ class GomokuField:
 
 
     def compute_all_scores(self):
-        for viewpoint in [BLACK, WHITE]:
-            self.compute_scores(viewpoint)
+        if self.heuristics:
+            for viewpoint in [BLACK, WHITE]:
+                self.compute_scores(viewpoint)
             
     def compute_scores(self, viewpoint, upto=None):
-        o = self.lines[viewpoint]
-        d = self.lines[1-viewpoint] | self.lines[2]
-        lines = self.heuristics.lookup_line_score(o, d)
-        self.scores[viewpoint] = self.heuristics.lookup_total_scores(lines)
+        if self.heuristics:
+            o = self.lines[viewpoint]
+            d = self.lines[1-viewpoint] | self.lines[2]
+            lines = self.heuristics.lookup_line_score(o, d)
+            self.scores[viewpoint] = self.heuristics.lookup_total_scores(lines)
 
-        return
-        # Don't correct for positions occupied by stones        
-        for stone in stones:
-            r, c = gt.b2m(stone,self.N)
-            self.scores[viewpoint][r][c]=0
-            
+        # Don't correct for positions occupied by stones
+        # for stone in stones:
+        #    r, c = gt.b2m(stone, self.N)
+        #    self.scores[viewpoint][r][c] = 0
+
         
     def get_score(self, viewpoint, x,y):
         r, c = gt.b2m((x,y),self.N)
