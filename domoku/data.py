@@ -31,22 +31,22 @@ def variants_for(board):
     that can be created from the stones by reflection and rotation.
     """
     stones = board.stones.copy()
-    N = board.N
-    array=np.zeros([8,2,N,N], dtype=float)
+    n = board.N
+    array = np.zeros([8, 2, n, n], dtype=float)
     color = np.arange(len(stones)) % 2
-    for l, pos in list(zip(color, stones)):
+    for ll, pos in list(zip(color, stones)):
         r, c = gtools.b2m(pos, 15)
-        array[0][l][r][c] = 1.0
-        array[6][l][c][r] = 1.0
+        array[0][ll][r][c] = 1.0
+        array[6][ll][c][r] = 1.0
 
-        array[1][l][c][N-r] = 1.0
-        array[4][l][N-r][c] = 1.0
+        array[1][ll][c][n-r] = 1.0
+        array[4][ll][n-r][c] = 1.0
 
-        array[3][l][N-c][r] = 1.0
-        array[7][l][r][N-c] = 1.0
+        array[3][ll][n-c][r] = 1.0
+        array[7][ll][r][n-c] = 1.0
 
-        array[2][l][N-r][N-c] = 1.0
-        array[5][l][N-c][N-r] = 1.0
+        array[2][ll][n-r][n-c] = 1.0
+        array[5][ll][n-c][n-r] = 1.0
 
     return array
 
@@ -170,13 +170,13 @@ def create_sample(stones, n, viewpoint):
 
 
 def wrap_sample(array, value):
-    N = np.shape(array)[0]
+    n = np.shape(array)[0]
     return np.hstack([
-        np.zeros([N+2,1], dtype=np.float32) + value, 
-        np.vstack([np.zeros(N, dtype=np.float32) + value, 
+        np.zeros([n+2, 1], dtype=np.float32) + value,
+        np.vstack([np.zeros(n, dtype=np.float32) + value,
                    array, 
-                   np.zeros(N, dtype=np.float32) + value]),
-        np.zeros([N+2,1], dtype=np.float32) + value
+                   np.zeros(n, dtype=np.float32) + value]),
+        np.zeros([n+2, 1], dtype=np.float32) + value
     ])
 
 
@@ -194,9 +194,9 @@ def create_samples_and_qvalues(board, policy, heuristics):
         if policy.suggest(dcp).status == 2:
             board.undo().undo()
 
-    all_stones_t = [transform(board.stones.copy(), board.N, rot, ref) 
-        for rot in range(4)
-        for ref in [False, True]]
+    all_stones_t = [transform(board.stones.copy(), board.N, rot, ref)
+                    for rot in range(4)
+                    for ref in [False, True]]
 
     samples = []
     qvalues = []
@@ -222,24 +222,87 @@ def data_from_game(board, policy, heuristics):
     # Don't want to see fours (my heuristics don't work well when the game is essentially done anyway.)
     board.undo(False).undo(False)
 
-    s,q,a = create_samples_and_qvalues(board, policy, heuristics)
+    s, q, a = create_samples_and_qvalues(board, policy, heuristics)
     while board.cursor > 6:
         board.undo()
         s1, q1, a1 = create_samples_and_qvalues(board, policy, heuristics)
-        s = np.concatenate((s,s1))
-        q = np.concatenate((q,q1))
-        a = np.concatenate((a,a1))
-    return s,q,a
+        s = np.concatenate((s, s1))
+        q = np.concatenate((q, q1))
+        a = np.concatenate((a, a1))
+    return s, q, a
+
 
 def to_matrix12(sample):
-    field = np.rollaxis(sample.reshape(22,22,2), 2, 0).astype(np.int)
+    field = np.rollaxis(sample.reshape(22, 22, 2), 2, 0).astype(np.int)
     unwrapped = (field[0]+field[1]*2)[1:-1].T[1:-1].T
     return unwrapped
 
+
 def to_matrix_xo(sample):
-    if np.sum(to_matrix12(sample)>0) % 2 == 0:
+    if np.sum(to_matrix12(sample) > 0) % 2 == 0:
         symbols = ['. ', 'x ', 'o ']
     else:
         symbols = ['. ', 'o ', 'x ']
     im12 = to_matrix12(sample)
-    return "\n".join(["".join([symbols[c] for c in im12[r]]) for r in range(20) ])
+    return "\n".join(["".join([symbols[c] for c in im12[r]]) for r in range(20)])
+
+#########################################################################################################
+#
+#               NEW STUFF BELOW!!
+#
+#########################################################################################################
+
+
+def create_nxnx4(size: int, stones=None, pad_r=0, pad_l=0, pad_t=0, pad_b=0,
+                 padding=None, border=False, switch=False):
+    """
+    Creates a NxNx4 NDArray from the stones of the board. Black is in the 0-plane
+    """
+    stones = [] if stones is None else stones
+    pad_r = pad_r if padding is None else padding
+    pad_l = pad_l if padding is None else padding
+    pad_t = pad_t if padding is None else padding
+    pad_b = pad_b if padding is None else padding
+
+    assert not (padding is None and border), "must have padding > 0 when requesting border"
+
+    n = size
+    sample = np.zeros([2, n, n], dtype=np.uint8)
+
+    current = len(stones) % 2
+    if switch:
+        current = 1 - current
+    for move in stones:
+        r, c = gtools.b2m(move, n)
+        sample[current][r][c] = 1
+        current = 1 - current
+
+    # next moving player is always on layer 0
+    current_layer = np.hstack([
+        np.zeros([n + pad_l + pad_r, pad_t], dtype=np.uint8),
+        np.vstack([np.zeros([pad_l, n], dtype=np.uint8),
+                   sample[0],
+                   np.zeros([pad_r, n], dtype=np.uint8)]),
+        np.zeros([n + pad_l + pad_r, pad_b], dtype=np.uint8)
+    ])
+
+    other_layer = np.hstack([
+        np.zeros([n + pad_l + pad_r, pad_t], dtype=np.uint8),
+        np.vstack([np.zeros([pad_l, n], dtype=np.uint8),
+                   sample[1],
+                   np.zeros([pad_r, n], dtype=np.uint8)]),
+        np.zeros([n + pad_l + pad_r, pad_b], dtype=np.uint8)
+    ])
+
+    if border:
+        a_border = (padding - 1) * [0] + (size + 2) * [1] + (padding - 1) * [0]
+        other_layer[padding - 1] = a_border
+        other_layer[size + padding] = a_border
+        other_layer[:, padding - 1] = a_border
+        other_layer[:, size + padding] = a_border
+
+    both = np.array([current_layer, other_layer])
+    sample = np.rollaxis(both, 0, 3).astype(float)
+    sample = np.stack([sample, np.zeros((size, size, 2))], axis=2).reshape((size, size, 4))
+
+    return sample

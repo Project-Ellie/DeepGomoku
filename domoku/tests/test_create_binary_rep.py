@@ -14,7 +14,7 @@ class MyTestCase(unittest.TestCase):
 
     def test_padding(self):
         moves = [[A, 1], [F, 6], [A, 6], [F, 1]]
-        self.board = GomokuBoard(self.heuristics, n=self.board_size, disp_width=4)
+        self.board = GomokuBoard(n=self.board_size, disp_width=4)
         for move in moves:
             self.board.set(move[0], move[1])
 

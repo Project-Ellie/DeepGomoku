@@ -7,13 +7,12 @@ from domoku.board import GomokuBoard
 from domoku.data import create_binary_rep
 
 
-NONE = np.zeros([5, 5], dtype=float)
 DOWNDIAG = np.eye(5, dtype=float)
 UPDIAG = DOWNDIAG[::-1]
 
+NONE = np.zeros([5, 5], dtype=float)
 HOR = NONE.copy()
 HOR[2] = 1
-
 VER = NONE.copy()
 VER[:, 2] = 1
 

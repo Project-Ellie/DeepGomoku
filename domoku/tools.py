@@ -100,7 +100,7 @@ class GomokuTools:
 
         free_length=np.sum([(mask>>i)&1 for i in range(8)], axis=0)
         l_offset = np.sum([(l>>i)&1 for i in range(8)], axis=0)
-        #free_length = (free_length > 5) * 5 + (free_length <= 5) * free_length
+        # free_length = (free_length > 5) * 5 + (free_length <= 5) * free_length
         return free_stones << l_offset, free_length, l_offset    
 
     
@@ -134,6 +134,8 @@ class GomokuTools:
     def b2m(p, size):
         """board position to matrix index"""
         x, y = p
+        if isinstance(x, str):
+            x = ord(x) - 64
         return np.array([size-y, x-1])
         
     

@@ -10,8 +10,10 @@ seaborn = "*"
 numpy = "*"
 jupyter = "*"
 tensorflow = "*"
+tensorflow_probability = "*"
 flask = "*"
 Flask_SocketIO = "*"
+pydantic = "*"
 
 [dev-packages]
 
