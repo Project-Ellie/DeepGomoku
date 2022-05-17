@@ -196,7 +196,7 @@ class PolicyAdapter:
     def evaluate(self, state):
         board = GomokuBoard(heuristics=self.heuristic, stones=state.stones, n=state.size)
         distr = self.policy.distr(board, self.topn, self.bias)
-        value_estimate = self.policy.value(board) / 200.0
+        value_estimate = self.policy.value_function(board) / 200.0
         return distr, value_estimate, won_or_lost(board)
     
     

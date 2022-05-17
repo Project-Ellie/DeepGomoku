@@ -1,8 +1,11 @@
+from typing import Optional
+
 import numpy as np
 from pydantic import BaseModel
 import tensorflow as tf
 
-from domoku.tools import GomokuTools as gt
+from domoku.policies.heuristic import GomokuHeuristics
+from domoku.policies.maximal_criticality import MaxCriticalityPolicy
 from domoku.policies.radial import radial_2xnxn
 
 
@@ -14,7 +17,7 @@ class MaxInfluencePolicyParams(BaseModel):
     iota: float  # The greed. Higher values make exploitation less likely. 50 is a good start
 
 
-class MaxInfluencePolicy(tf.keras.Model):
+class MaxInfluencePolicy(tf.keras.Model, GomokuHeuristics):
     """
     A policy that vaguely *feels* where the action is. This may help create reasonable
     trajectories in Deep RL approaches. The underlying CNN *measures* the radial influence
@@ -23,8 +26,31 @@ class MaxInfluencePolicy(tf.keras.Model):
     To be enable this policy to fight, you can supply a Criticality Model to override the soft advice produced here.
     """
 
+    def winner(self, sample) -> Optional[int]:
+        """
+        :param sample: a board state sample
+        :return: the winning channel if there is one else None
+        """
+        return self.crit_model.winner(sample)
 
-    def __init__(self, params: MaxInfluencePolicyParams, criticality_model: tf.keras.Model = None):
+
+    def value(self, state: np.array):
+        """
+        :param state: nxnx4 np array containing the stones
+        :return: Naive value: 1 if won, -1 if lost, 0 otherwise
+        """
+        winning_channel = self.crit_model.winner(state)
+        if winning_channel is None:
+            return 0
+
+        current_player_channel = np.sum(state, axis=None) % 2
+        if current_player_channel == winning_channel:
+            return 1.0
+        else:
+            return -1
+
+
+    def __init__(self, params: MaxInfluencePolicyParams, criticality_model: MaxCriticalityPolicy = None):
         super().__init__()
         self.params = params
         self.n = params.n
@@ -74,7 +100,7 @@ class MaxInfluencePolicy(tf.keras.Model):
                     self.potential(reshaped))))
 
         if self.crit_model is not None:
-            hard = self.crit_model(sample)
+            hard = self.crit_model.call(sample)
             return hard * 10 + soft
         else:
             return soft
@@ -84,7 +110,7 @@ class MaxInfluencePolicy(tf.keras.Model):
         """
         Draw a sample from the distribution of moves provided by this policy.
         :param state: The NxNx4 board as provided by create_sample(board)
-        :return: A move to be played on that board
+        :return: A move to be played on that board (matrix - NOT board representation)
         """
         policy_result = self.call(state)
         n_choices = self.n * self.n
@@ -94,11 +120,8 @@ class MaxInfluencePolicy(tf.keras.Model):
         field = np.random.choice(elements, 1, p=probabilities)
         field = field[0]
         r, c = divmod(field, self.n)
-        x, y = gt.m2b((r, c), self.n)
-        x = chr(64 + x)
-        # print(f'Chosen: {field}: r/c:{(r, c)}, x/y: {x,y}')
 
-        return x, y
+        return r, c
 
 
     def construct_filters(self):

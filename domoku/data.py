@@ -306,3 +306,32 @@ def create_nxnx4(size: int, stones=None, pad_r=0, pad_l=0, pad_t=0, pad_b=0,
     sample = np.stack([sample, np.zeros((size, size, 2))], axis=2).reshape((size, size, 4))
 
     return sample
+
+
+def get_winning_color(sample, winning_channel):
+    """
+    :param sample: A any nxnx4 board numpy board representation
+    :param winning_channel: the channel containing the winning pattern, usually a line of 5
+    :return: 0 (black) if the first player owns the winning channel, else 1 (white)
+    """
+    if winning_channel is None:
+        return None
+    current_player_color = np.sum(sample, axis=None).astype(int) % 2
+    winning_color = (current_player_color + winning_channel) % 2
+    return winning_color
+
+
+def after(sample, move):
+    """
+    Basically a move in matrix coordinates.
+    :param sample: a nxnx4 np array rep of the board
+    :param move: a move in matrix coords - NOT board coords!!
+    :return: A new sample, with that stone, current and other players' channels reversed
+    """
+    sample = sample.copy()
+    row, column = move
+    sample[row][column][0] = 1
+    n = sample.shape[0]
+    zeros = np.zeros((n, n))
+    new_board = np.rollaxis(np.stack([sample[:, :, 1], sample[:, :, 0], zeros, zeros]), 0, 3)
+    return new_board

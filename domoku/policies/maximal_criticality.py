@@ -5,10 +5,12 @@ from domoku.policies.radial import all_2xnxn
 
 # Criticality Categories
 TERMINAL = 0
-FIN_IN_2 = 1
+WIN_IN_1 = 1
+WIN_IN_2 = 2
+OPEN_3 = 3
 
 CRITICALITIES = [
-    TERMINAL, FIN_IN_2
+    TERMINAL, WIN_IN_1, WIN_IN_2, OPEN_3
 ]
 
 CURRENT = 0
@@ -22,12 +24,21 @@ class MaxCriticalityPolicy(tf.keras.Model):
     """
     A policy that doesn't miss any sure-win or must-defend
     """
-    def __init__(self, input_size, **kwargs):
+    def __init__(self, input_size, overconfidence=1., **kwargs):
+        """
+        :param input_size: size of the board
+        :param overconfidence: Any value above 1 prefers offensive play to to defender's benefit.
+        :param kwargs:
+        """
 
         self.input_size = input_size
         super().__init__(**kwargs)
 
         self.patterns = [
+            # terminal_pattern
+            [
+                [[0, 0, 1, 1, 1, 1, 1, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0], -4, [1000, 500]],
+            ],
             # win-in-1 patterns
             [
                 [[1, 1, 1, 1, -1, 0, 0, 0, 0], [0, 0, 0, 0, -1, 0, 0, 0, 0], -3, [99, 50]],
@@ -44,16 +55,17 @@ class MaxCriticalityPolicy(tf.keras.Model):
                 [[0, 0, 0, -1, -1, 1, 1, 1, -1], [0, 0, 0, -1, -1, 0, 0, 0, -1], -2, [10, 5]],
             ],
             # open 3 patterns - not so critical
+            # Here, the over-confidence may help us to produce terminating trajectories
             [
-                [[-1,  1, -1,  1, -1, -1,  0,  0,  0], [-1, -1, -1, -1, -1, -1,  0,  0,  0], -1, [5, 1]],
-                [[+0, -1,  1, -1, -1,  1, -1,  0,  0], [+0, -1, -1, -1, -1, -1, -1,  0,  0], -1, [5, 1]],
-                [[+0,  0, -1,  1, -1, -1,  1, -1,  0], [+0,  0, -1, -1, -1, -1, -1, -1,  0], -1, [5, 1]],
-                [[+0,  0,  0, -1, -1,  1, -1,  1, -1], [+0,  0,  0, -1, -1, -1, -1, -1, -1], -1, [5, 1]],
+                [[-1,  1, -1,  1, -1, -1,  0,  0,  0], [-1, -1, -1, -1, -1, -1,  0,  0,  0], -1, [overconfidence, 1]],
+                [[+0, -1,  1, -1, -1,  1, -1,  0,  0], [+0, -1, -1, -1, -1, -1, -1,  0,  0], -1, [overconfidence, 1]],
+                [[+0,  0, -1,  1, -1, -1,  1, -1,  0], [+0,  0, -1, -1, -1, -1, -1, -1,  0], -1, [overconfidence, 1]],
+                [[+0,  0,  0, -1, -1,  1, -1,  1, -1], [+0,  0,  0, -1, -1, -1, -1, -1, -1], -1, [overconfidence, 1]],
 
-                [[-1,  1,  1, -1, -1, -1,  0,  0,  0], [-1, -1, -1, -1, -1, -1,  0,  0,  0], -1, [5, 1]],
-                [[+0, -1,  1,  1, -1, -1, -1,  0,  0], [+0, -1, -1, -1, -1, -1, -1,  0,  0], -1, [5, 1]],
-                [[+0,  0, -1,  1, -1,  1, -1, -1,  0], [+0,  0, -1, -1, -1, -1, -1, -1,  0], -1, [5, 1]],
-                [[+0,  0,  0, -1, -1,  1,  1, -1, -1], [+0,  0,  0, -1, -1, -1, -1, -1, -1], -1, [5, 1]],
+                [[-1,  1,  1, -1, -1, -1,  0,  0,  0], [-1, -1, -1, -1, -1, -1,  0,  0,  0], -1, [overconfidence, 1]],
+                [[+0, -1,  1,  1, -1, -1, -1,  0,  0], [+0, -1, -1, -1, -1, -1, -1,  0,  0], -1, [overconfidence, 1]],
+                [[+0,  0, -1,  1, -1,  1, -1, -1,  0], [+0,  0, -1, -1, -1, -1, -1, -1,  0], -1, [overconfidence, 1]],
+                [[+0,  0,  0, -1, -1,  1,  1, -1, -1], [+0,  0,  0, -1, -1, -1, -1, -1, -1], -1, [overconfidence, 1]],
             ]
         ]
 
@@ -80,9 +92,14 @@ class MaxCriticalityPolicy(tf.keras.Model):
         res = self.combine(self.detector(sample))
         return res
 
+    def winner(self, sample):
+        max_crit = np.max(self.call(sample), axis=None)
+        return 1 if max_crit == 500 else 0 if max_crit == 1000 else None
+
     #
     #  All about constructing the convolutional filters down from here
     #
+
 
     def select_patterns(self, channel: int = None, criticality: int = None):
         channels = [channel] if channel is not None else CHANNELS
