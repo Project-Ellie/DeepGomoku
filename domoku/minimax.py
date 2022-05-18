@@ -1,17 +1,20 @@
-from typing import List, Tuple
+from typing import List, Tuple, Any
+
+from domoku.interfaces import AbstractGanglion, Game
 
 
 class MinimaxSearch:
 
-    def __init__(self, policy, value, max_depth, max_breadth):
+    def __init__(self, game: Game, policy: AbstractGanglion, max_depth, max_breadth):
+        self.game = game
         self.policy = policy
-        self.value_function = value
+        self.value_function = policy
         self.max_depth = max_depth
         self.max_breadth = max_breadth
 
-    def minimax(self, state, depth, alpha, beta, is_max: bool, verbose: bool = False) -> Tuple[float, List[int]]:
+    def minimax(self, state: Any, depth, alpha, beta, is_max: bool, verbose: bool = False) -> Tuple[float, List[int]]:
 
-        if depth == 0 or self.policy.is_terminated(state):
+        if depth == 0 or self.policy.winner(state) is not None:
             if verbose:
                 print(f"Terminal state. Value = {self.value_function.eval(state)}")
             return self.value_function.eval(state), []
@@ -19,12 +22,12 @@ class MinimaxSearch:
         if verbose:
             print(f"M{'ax' if is_max else 'in'}imizing at depth: {depth}")
 
-        moves = self.policy.sample(state)
-        successors = {move: state.move(move) for move in moves}
+        moves = self.policy.sample(state, self.max_breadth)
+        successors = {move: self.game.successor(state, move) for move in moves}
 
         if verbose:
-            print(f"Left : {successors[0]}")
-            print(f"Right: {successors[1]}")
+            for key in successors:
+                print(f"{key}: {successors[key]}")
 
         chosen = None
         chosen_history = []

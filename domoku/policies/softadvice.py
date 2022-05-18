@@ -4,7 +4,7 @@ import numpy as np
 from pydantic import BaseModel
 import tensorflow as tf
 
-from domoku.policies.heuristic import GomokuHeuristics
+from domoku.interfaces import AbstractGanglion
 from domoku.policies.maximal_criticality import MaxCriticalityPolicy
 from domoku.policies.radial import radial_2xnxn
 
@@ -17,7 +17,7 @@ class MaxInfluencePolicyParams(BaseModel):
     iota: float  # The greed. Higher values make exploitation less likely. 50 is a good start
 
 
-class MaxInfluencePolicy(tf.keras.Model, GomokuHeuristics):
+class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
     """
     A policy that vaguely *feels* where the action is. This may help create reasonable
     trajectories in Deep RL approaches. The underlying CNN *measures* the radial influence
