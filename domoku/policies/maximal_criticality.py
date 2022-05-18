@@ -83,13 +83,13 @@ class MaxCriticalityPolicy(tf.keras.Model):
             filters=1, kernel_size=(1, 1),
             kernel_initializer=tf.constant_initializer(weights))
 
-    def call(self, sample):
+    def call(self, state):
         # Allow other representations here by ignoring their additional channels
-        if sample.shape[-1] == 4:
-            sample = sample[:, :, :2]
+        if state.shape[-1] == 4:
+            state = state[:, :, :2]
 
-        sample = np.reshape(sample, [-1, self.input_size, self.input_size, 2])
-        res = self.combine(self.detector(sample))
+        state = np.reshape(state, [-1, self.input_size, self.input_size, 2])
+        res = self.combine(self.detector(state))
         return res
 
     def winner(self, sample):

@@ -12,7 +12,8 @@ class MinimaxSearch:
         self.max_depth = max_depth
         self.max_breadth = max_breadth
 
-    def minimax(self, state: Any, depth, alpha, beta, is_max: bool, verbose: bool = False) -> Tuple[float, List[int]]:
+    def minimax(self, state: Any, depth, alpha=-float('inf'), beta=float('inf'),
+                is_max: bool = True, verbose: bool = False) -> Tuple[float, List[int]]:
 
         if depth == 0 or self.policy.winner(state) is not None:
             if verbose:

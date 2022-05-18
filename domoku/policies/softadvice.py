@@ -34,7 +34,7 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
         return self.crit_model.winner(sample)
 
 
-    def value(self, state: np.array):
+    def eval(self, state: np.array):
         """
         :param state: nxnx4 np array containing the stones
         :return: Naive value: 1 if won, -1 if lost, 0 otherwise
@@ -106,10 +106,11 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
             return soft
 
 
-    def draw(self, state):
+    def sample(self, state, n=1):
         """
         Draw a sample from the distribution of moves provided by this policy.
         :param state: The NxNx4 board as provided by create_sample(board)
+        :param n: The number of samples to return
         :return: A move to be played on that board (matrix - NOT board representation)
         """
         policy_result = self.call(state)
@@ -117,11 +118,11 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
         choices = tf.nn.softmax(tf.reshape(policy_result, n_choices) * self.params.iota).numpy()
         elements = range(n_choices)
         probabilities = choices
-        field = np.random.choice(elements, 1, p=probabilities)
-        field = field[0]
-        r, c = divmod(field, self.n)
+        fields = np.random.choice(elements, n, p=probabilities)
 
-        return r, c
+        fields = [divmod(field, self.n) for field in fields]
+
+        return fields
 
 
     def construct_filters(self):
