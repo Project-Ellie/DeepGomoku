@@ -12,13 +12,16 @@ class MinimaxSearch:
         self.max_depth = max_depth
         self.max_breadth = max_breadth
 
-    def minimax(self, state: Any, depth, alpha=-float('inf'), beta=float('inf'),
+    def minimax(self, state: Any, depth=None, alpha=-float('inf'), beta=float('inf'),
                 is_max: bool = True, verbose: bool = False) -> Tuple[float, List[int]]:
 
+        depth = self.max_depth if depth is None else depth
+
         if depth == 0 or self.policy.winner(state) is not None:
+            value = self.value_function.eval(state)
             if verbose:
-                print(f"Terminal state. Value = {self.value_function.eval(state)}")
-            return self.value_function.eval(state), []
+                print(f"Terminal state. Value = {value}")
+            return value, []
 
         if verbose:
             print(f"M{'ax' if is_max else 'in'}imizing at depth: {depth}")

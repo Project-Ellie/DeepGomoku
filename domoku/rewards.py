@@ -211,12 +211,14 @@ class RewardContext:
 
     def reward(self, move):
         # current player's point of view
-        state = create_binary_rep(self.board, padding=4, border=True)
+        state = create_binary_rep(self.board.N, self.board.stones, self.board.current_color,
+                                  padding=4, border=True)
         action = create_binary_action(self.board.N, 4, move)
         offensive_reward, terminated = self.model(state, action)
 
         # adversary's point of view
-        state_adv = create_binary_rep(self.board, padding=4, border=True, switch=True)
+        state_adv = create_binary_rep(self.board.N, self.board.stones, self.board.current_color,
+                                      padding=4, border=True, switch=True)
         action_adv = create_binary_action(self.board.N, 4, move, switch=True)
         defensive_reward, terminated_adv = self.model(state_adv, action_adv)
 

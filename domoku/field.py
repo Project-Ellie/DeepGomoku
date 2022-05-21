@@ -1,9 +1,8 @@
 import numpy as np
 from domoku.tools import GomokuTools as gt
 from domoku.nh import NH9x9
+from domoku.constants import BLACK, WHITE
 
-BLACK = 0
-WHITE = 1
 EDGES = 2
 
 __IMPACT9x9__ = [

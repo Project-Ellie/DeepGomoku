@@ -4,9 +4,11 @@ import numpy as np
 from pydantic import BaseModel
 import tensorflow as tf
 
+from domoku.constants import Move
 from domoku.interfaces import AbstractGanglion
 from domoku.policies.maximal_criticality import MaxCriticalityPolicy
 from domoku.policies.radial import radial_2xnxn
+from domoku.tools import GomokuTools as gt
 
 
 class MaxInfluencePolicyParams(BaseModel):
@@ -43,16 +45,17 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
         if winning_channel is None:
             return 0
 
-        current_player_channel = np.sum(state, axis=None) % 2
-        if current_player_channel == winning_channel:
-            return 1.0
+        if np.sum(state, axis=None) % 2 == self.pov:
+            return -1.
         else:
-            return -1
+            return 1.
 
 
-    def __init__(self, params: MaxInfluencePolicyParams, criticality_model: MaxCriticalityPolicy = None):
+    def __init__(self, params: MaxInfluencePolicyParams, pov: int,  # point of view - for valueu function
+                 criticality_model: MaxCriticalityPolicy = None):
         super().__init__()
         self.params = params
+        self.pov = pov
         self.n = params.n
         self.kernel_size = 2 * len(self.params.radial_constr) + 1
         self.filters = None
@@ -91,7 +94,7 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
         return potential, aggregate
 
 
-    def call(self, sample):
+    def call(self, sample, move: Move = None):
 
         reshaped = np.reshape(sample, [-1, self.n, self.n, 4])
         soft = self.aggregate(
@@ -101,9 +104,15 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
 
         if self.crit_model is not None:
             hard = self.crit_model.call(sample)
-            return hard * 10 + soft
+            res = hard * 10 + soft
         else:
-            return soft
+            res = soft
+
+        if move is not None:
+            r, c = gt.b2m(move, self.n)
+            return np.squeeze(res)[r][c]
+        else:
+            return res
 
 
     def sample(self, state, n=1):

@@ -1,5 +1,7 @@
-import numpy as np
 import matplotlib.pyplot as plt
+
+from domoku.data import create_nxnx4
+from domoku.ddpg import NxNx4Game
 from domoku.field import GomokuField
 from domoku.tools import GomokuTools
 from domoku.constants import *
@@ -22,34 +24,9 @@ class GomokuBoard(GomokuField):
         self.current_color = BLACK
         self.cursor = -1
         for stone in stones:
-            self.set(*stone, compute_scores=False)
-        if heuristics:
-            self.compute_all_scores()
-        self.color_scheme = [  # visualize the offensive/defensive score
-            ['#F0F0F0', '#FFC0C0', '#FF9090', '#FF6060', '#FF0000'],
-            ['#A0FFA0', '#E8D088', '#FFA080', '#F86040', '#F01808'],
-            ['#00FF00', '#B0D818', '#EFB060', '#F07040', '#E03010'],
-            ['#00CF00', '#80B014', '#C0A048', '#E08050', '#D04820'],
-            ['#00A000', '#307810', '#607020', '#907828', '#C06030']
-        ]
+            self.set(*stone)
 
-    def color_for(self, offensive, defensive):
-        def _color_for(c):
-            if c < 1.5:
-                return 0
-            elif c <= 4:
-                return 1
-            elif c < 6:
-                return 2
-            elif c < 11:
-                return 3
-            else:
-                return 4
-        return self.color_scheme[
-            _color_for(defensive)][ 
-            _color_for(offensive)]
-    
-        
+
     def _is_valid(self, index):
         """
         checks the array indexes (not the board coordinates!)
@@ -65,10 +42,13 @@ class GomokuBoard(GomokuField):
         return self.current_color
         
         
-    def set(self, x, y, compute_scores=True):
+    def set(self, x, y=None):
         """
         x,y: 1-based indices of the board, x may be an uppercase letter
         """
+        if y is None and isinstance(x, Move):
+            x, y = x.x, x.y
+
         x = maybe_convert(x)
 
         if self.cursor != len(self.stones)-1:
@@ -83,15 +63,10 @@ class GomokuBoard(GomokuField):
         self.ctoggle()
         self.cursor = len(self.stones)-1
         
-        self.compute_neighbourhoods(x, y, 'r')
-        
-        if compute_scores:
-            self.compute_all_scores()
-        
         return self
 
 
-    def undo(self, compute_scores=True):
+    def undo(self):
         if self.cursor != len(self.stones)-1:
             raise(ValueError("Cursor not at end position."))
         x, y = self.stones[-1]
@@ -99,9 +74,7 @@ class GomokuBoard(GomokuField):
         self.compute_neighbourhoods(x, y, 'u')
         self.ctoggle()
         self.cursor = len(self.stones)-1
-        if compute_scores:
-            self.compute_all_scores()
-        
+
         return self
     
     
@@ -112,9 +85,7 @@ class GomokuBoard(GomokuField):
             return self
             
         if self.cursor >= 0:
-            stone = self.stones[self.cursor]
             self.cursor -= 1
-            self.compute_neighbourhoods(*stone, action='u')
             self.ctoggle()
         return self
 
@@ -127,14 +98,11 @@ class GomokuBoard(GomokuField):
         if self.cursor < len(self.stones)-1:
             self.cursor += 1
             self.ctoggle()
-            self.compute_neighbourhoods(*self.stones[self.cursor], action='r')
         return self
 
-    def display(self, viewpoint=None):
+    def display(self):
         size = self.N
-        if viewpoint == 'current':
-            viewpoint = self.current_color
-        
+
         fig, axis = plt.subplots(figsize=(self.disp_width, self.disp_width))
         axis.set_xlim([0, size+1])
         axis.set_ylim([0, size+1])
@@ -151,8 +119,7 @@ class GomokuBoard(GomokuField):
         if self.cursor >= 0:
             self.display_stones(axis)
 
-        if viewpoint is not None and self.heuristics is not None:
-            self.display_scores(axis, viewpoint)
+        self.display_heuristics(axis)
 
     def display_helpers(self, axis):
         if self.N == 15:
@@ -185,20 +152,32 @@ class GomokuBoard(GomokuField):
             plt.text(x, y, i, color=fgc, fontsize=12, zorder=20,
                      horizontalalignment='center', verticalalignment='center')
 
-    def display_scores(self, axis, viewpoint):
-        
-        for v in [0, 1]:
-            self.compute_scores(v)
+    @staticmethod
+    def heatmap(q):
+        image = np.squeeze((np.log((1 + q.numpy()))*99))
+        image = (image / np.max(image, axis=None) * 255).astype(int)
+        return image
+
+    def game(self):
+        state = create_nxnx4(self.N, stones=self.stones)
+        return NxNx4Game(state)
+
+    def display_heuristics(self, axis, cut_off=50):
+
+        if self.heuristics is None:
+            return
+
+        position = create_nxnx4(15, stones=self.stones)
+        q = self.heuristics(position)
+        heatmap = np.squeeze(self.heatmap(q))
 
         for c in range(self.N):
             for r in range(self.N):
+                value = heatmap[r][c]
                 x, y = GomokuTools.m2b((r, c), self.N)
-                if (x, y) not in self.stones[:self.cursor+1]:
-                    offensive = self.scores[viewpoint][r][c]
-                    defensive = self.scores[1-viewpoint][r][c]
-                    color = self.color_for(offensive, defensive)
-                    if offensive >= 1.5 or defensive >= 1.5:
-                        axis.scatter([x], [y], color=color, s=self.stones_size()/4.0, zorder=10)
+                if value >= cut_off:
+                    color = f"#{value:02x}0000"
+                    axis.scatter([x], [y], color=color, s=self.stones_size(), zorder=10)
             
                 
     def stones_size(self):

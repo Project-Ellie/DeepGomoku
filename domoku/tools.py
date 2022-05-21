@@ -1,7 +1,27 @@
 import numpy as np
 
+from domoku.constants import Move
+
 
 class GomokuTools:
+
+    @staticmethod
+    def print_bin(binary_sample, combine=False):
+        binary_sample = np.squeeze(binary_sample)
+        print(f'shape: {binary_sample.shape}')
+        if combine:
+            print(np.rollaxis(binary_sample, 2, 0)[0] + 2 * np.rollaxis(binary_sample, 2, 0)[1])
+        else:
+            print(np.rollaxis(binary_sample, 2, 0)[0])
+            print()
+            print(np.rollaxis(binary_sample, 2, 0)[1])
+
+
+    @staticmethod
+    def vis(tensor, scale=1):
+        npa = np.squeeze(tensor[0, :, :, 0].numpy())
+        print((npa*scale).astype(int))
+
 
     @staticmethod    
     def string_to_stones(encoded):
@@ -131,14 +151,22 @@ class GomokuTools:
         return np.array([c+1, size-r])
 
     @staticmethod
+    def m2b2(m, size):
+        """matrix index to board position"""
+        r, c = m
+        return chr(c+65), size-r
+
+    @staticmethod
     def b2m(p, size):
         """board position to matrix index"""
-        x, y = p
+        if isinstance(p, Move):
+            x, y = p.x, p.y
+        else:
+            x, y = p
         if isinstance(x, str):
             x = ord(x) - 64
         return np.array([size-y, x-1])
-        
-    
+
         
     @staticmethod
     def as_bit_array(n):

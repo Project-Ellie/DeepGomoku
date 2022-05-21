@@ -1,6 +1,8 @@
 import abc
 from typing import Any, Optional, List
 
+from domoku.constants import Move
+
 
 class Game(abc.ABC):
     """
@@ -29,11 +31,20 @@ class Player(abc.ABC):
         self.other = None
 
     @abc.abstractmethod
-    def your_move(self, game: Game):
+    def your_action(self, game: Game) -> Any:
         """
         The player's definite move. No probabilistics
         :param game: any Game State
-        :return: the players move
+        :return: the players move in machine coordinates
+        """
+        pass
+
+    @abc.abstractmethod
+    def your_move(self, game: Game) -> Move:
+        """
+        The player's definite move. No probabilistics
+        :param game: any Game State
+        :return: the players move in human coordinates
         """
         pass
 
