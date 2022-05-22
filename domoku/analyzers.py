@@ -71,7 +71,7 @@ class Analyzer:
         :param board: the board to be analyzed
         """
         # create a padding to simplify detection near the borders
-        sample = create_binary_rep(board, pad_r=2, pad_t=2, pad_b=2, pad_l=2)
+        sample = create_binary_rep(board.N, board.stones, board.current_color, pad_r=2, pad_t=2, pad_b=2, pad_l=2)
         sample = np.reshape(sample, [-1, self.n + 4, self.n + 4, 2])
         recognized = self.model(sample)
         detected = np.squeeze(recognized.numpy())
