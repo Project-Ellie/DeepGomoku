@@ -3,7 +3,7 @@ import tensorflow as tf
 import numpy as np
 
 
-class HeuristicDetector(keras.Model):
+class HeuristicLearner(keras.Model):
 
     def __init__(self, input_size, *args, **kwargs):
         """
@@ -36,8 +36,8 @@ class HeuristicDetector(keras.Model):
         detector = tf.keras.layers.Conv2D(
             name='detector',
             filters=4, kernel_size=(3, 3),
-            kernel_initializer=tf.constant_initializer(self.filters),
-            bias_initializer=tf.constant_initializer(-2),
+            kernel_initializer=tf.random_normal_initializer(),
+            bias_initializer=tf.random_normal_initializer(),
             padding='same',
             activation=tf.nn.relu,
             input_shape=(self.input_size, self.input_size, 2))
@@ -45,8 +45,8 @@ class HeuristicDetector(keras.Model):
         combiner = tf.keras.layers.Conv2D(
             name='combiner',
             filters=1, kernel_size=(1, 1),
-            kernel_initializer=tf.constant_initializer([1., 1., 1., 1.]),
-            bias_initializer=tf.constant_initializer(0))
+            kernel_initializer=tf.random_normal_initializer(),
+            bias_initializer=tf.random_normal_initializer())
 
         return detector, combiner
 

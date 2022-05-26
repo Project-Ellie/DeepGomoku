@@ -31,5 +31,5 @@ def new_dataset(size: int, sampler: Callable, labeler: tf.keras.Model):
     for i in range(size):
         a_sample = sampler()
         samples.append(a_sample)
-        labels.append(np.squeeze(labeler(a_sample)))
+        labels.append((labeler(a_sample)))
     return tf.data.Dataset.from_tensor_slices((samples, labels))
