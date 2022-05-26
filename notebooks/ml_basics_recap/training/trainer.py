@@ -3,14 +3,13 @@ import tensorflow as tf
 
 class Trainer:
 
-    def __init__(self, the_model, train_data, test_data):
+    def __init__(self, the_model, train_data, test_data, loss_object=None):
 
         self.model = the_model
         self.train_ds = train_data
         self.test_ds = test_data
 
-        self.loss_object = tf.keras.losses.MeanSquaredError()
-        # loss_object = BalancedMSE(ratio=.6) # more weight to upwards corrections
+        self.loss_object = loss_object if loss_object is not None else tf.keras.losses.MeanSquaredError()
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=.01)
 
         self.train_loss = tf.keras.metrics.Mean(name='train_loss')
