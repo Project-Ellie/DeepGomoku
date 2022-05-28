@@ -27,7 +27,6 @@ class SimpleConvQFunction(keras.Model):
         for conv in self.conv_chain:
             y = conv(y)
         y = self.conv_head(y)
-        y = tf.reduce_max(y, axis=4)
         return y
 
 
@@ -43,7 +42,7 @@ class SimpleConvQFunction(keras.Model):
             for _ in range(self.n_layers)]
 
         conv_head = tf.keras.layers.Conv2D(
-            filters=self.n_filters, kernel_size=(3, 3),
+            filters=1, kernel_size=(3, 3),
             kernel_initializer=tf.random_normal_initializer(),
             bias_initializer=tf.random_normal_initializer(),
             padding='same',

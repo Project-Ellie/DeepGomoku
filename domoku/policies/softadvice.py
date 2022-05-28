@@ -51,7 +51,7 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
             return 1.
 
 
-    def __init__(self, params: MaxInfluencePolicyParams, pov: int,  # point of view - for valueu function
+    def __init__(self, params: MaxInfluencePolicyParams, pov: int,  # point of view - for value function
                  criticality_model: MaxCriticalityPolicy = None):
         super().__init__()
         self.params = params
