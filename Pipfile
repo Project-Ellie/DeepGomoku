@@ -16,6 +16,7 @@ tensorflow_probability = "*"
 flask = "*"
 Flask_SocketIO = "*"
 pydantic = "*"
+tqdm = "*"
 
 [dev-packages]
 
