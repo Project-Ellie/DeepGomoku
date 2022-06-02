@@ -18,7 +18,7 @@ class InfluenceModel(tf.keras.Model):
             first array of 4 is for vertical/horizontal, the second for diagonal directions
         :param other_influence: The array of the other player's influence values from remote to close,
             defaults to current_influence
-        :param board_size: The size of the original board
+        :param board_size: The n of the original board
         :param curr_tau: The geometric coefficient to compute combined influence, example: 2.0 for cartesion
         :param other_tau: The geometric coefficient to compute combined influence, example: 2.0 for cartesion
         :param kwargs: anything that needs to go to keras.Model

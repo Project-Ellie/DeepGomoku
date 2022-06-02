@@ -9,7 +9,7 @@ from domoku.constants import BLACK, WHITE
 def new_sample(board_size: int, num_blacks: int = 0, num_whites: int = 0):
     """
     Creates a board rep
-    :param board_size: The size of the board
+    :param board_size: The n of the board
     :param num_blacks:
     :param num_whites:
     :return:

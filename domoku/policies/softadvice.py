@@ -12,7 +12,7 @@ from domoku.tools import GomokuTools as gt
 
 
 class MaxInfluencePolicyParams(BaseModel):
-    n: int  # board size
+    n: int  # board n
     radial_constr: list[float]
     radial_obstr: list[float]
     sigma: float  # Preference for offensive play, 1 >= lambda > 0

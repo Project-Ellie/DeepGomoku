@@ -27,7 +27,7 @@ class MaxCriticalityPolicy(tf.keras.Model):
     """
     def __init__(self, input_size, overconfidence=1., **kwargs):
         """
-        :param input_size: size of the board
+        :param input_size: n of the board
         :param overconfidence: Any value above 1 prefers offensive play to to defender's benefit.
         :param kwargs:
         """

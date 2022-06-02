@@ -48,7 +48,7 @@ def move(message):
 @socketio.on('board_size', namespace='/test')
 def set_board_size(message):    
     board = session['board']
-    board['size'] = message['size']
+    board['n'] = message['n']
     board['squares'] = message['squares']
     emit('update', {'board': session['board'], 'stones': session['stones']})
 
@@ -57,7 +57,7 @@ def set_board_size(message):
 def test_connect():
     emit('my_response', {'data': 'Connected', 'count': 0})
     session['stones'] = [{'x':10 , 'y': 10},{'x':11 , 'y':11 },{'x': 9, 'y': 11},{'x': 11, 'y': 9}]
-    session['board'] = {'size': 600, 'squares': 19}
+    session['board'] = {'n': 600, 'squares': 19}
     h = Heuristics(kappa=3.0)
     session['gomokuBoard'] = GomokuBoard(h, n=19, disp_width=10, stones=[(10, 10),(11, 11),(9, 11),(11, 9)])
     session['adversary'] = HeuristicGomokuPolicy(style = 1, bias=2.0, topn=5, threat_search=ThreatSearch(3,3))

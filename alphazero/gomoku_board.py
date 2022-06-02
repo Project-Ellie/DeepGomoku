@@ -1,94 +1,208 @@
+from typing import List, Union
+
 import numpy as np
 from domoku.tools import GomokuTools as Gt
 
 
-class Board:
-    def __init__(self, n, stones=None):
-        """Set up initial board configuration."""
-        self.n = n
-        # Create the empty board array.
-        self.pieces = create_nxnx2_with_border(n, stones)
+EMPTY_BOARDS = {
+    n: np.rollaxis(
+        np.array(2 * [[[0] * (n + 2)] * (n + 2)] + [[[1]*(n+2)] + n * [[1] + n*[0] + [1]] + [[1]*(n+2)]]), 0, 3)
+    for n in [15, 19]
+}
 
-    # add [][] indexer syntax to the Board
-    def __getitem__(self, index):
-        raise NotImplementedError("You may want to implement __getitem__?")
-        #  return self.pieces[index]
+
+def create_fresh_board(n: int):
+    fresh_board = 2 * [[[0] * (n + 2)] * (n + 2)] + [[[1] * (n + 2)] + n * [[1] + n * [0] + [1]] + [[1] * (n + 2)]]
+    return np.rollaxis(np.array(fresh_board), 0, 3)
+
+
+class Board:
+    """
+    Bounded Gomoku Board.
+    The boundary stones in the third channel are there to support the learning process
+    """
+
+    def __init__(self, n, stones: str = None):
+
+        self.n = n
+
+        class Stone:
+            """
+            Stones only make sense in the context of a board instance!
+            """
+
+            n = self.n
+
+            def __init__(self, r_x: Union[int, str], c_y: int = None):
+                """
+                We allow matrix coordinates between (1, 1) = left upper and (n, n) = right lower
+                or board coordinates where the first argument is a string representing an uppercase letter.
+                :param r_x: Row or x coordinate, or ordinal
+                :param c_y: Col or y coordinate, or None ir r_x is ordinal
+                """
+                if c_y is None:
+                    assert isinstance(r_x, int), "A single argument must be the ordinal representation"
+                    assert self.n + 1 <= r_x <= self.n * self.n, \
+                        f"Expecting a number between {self.n+1} and {self.n*self.n}"
+                    r, c = divmod(r_x, self.n)
+                    x, y = None, None
+
+                elif isinstance(r_x, str):
+                    r, c, x, y = None, None, r_x, c_y
+
+                else:
+                    x, y, r, c = None, None, r_x, c_y
+
+                if r is not None and c is not None:
+                    assert x is None and y is None, \
+                        "Please provide either r,c matrix coordinates or x, y, n board coordinates"
+                    assert self.n >= r > 0, "row out of range 1 <= r <= n"
+                    assert self.n >= c > 0, "col out of range 1 <= c <= n"
+
+                    self.r, self.c = r, c
+                if x is not None and y is not None and n is not None:
+                    assert r is None and c is None, \
+                        "Please provide either r,c matrix coordinates or x, y, n board coordinates"
+                    if isinstance(x, str):
+                        x = ord(x) - 63
+                    self.n, self.r, self.c = n, n-y+1, x-1
+
+                # single-digit representation for vector operations in the ML context
+                self.i = self.r * self.n + self.c
+
+            def __str__(self):
+                return f"{chr(self.c+64)}{self.n-self.r+1}"
+
+            __repr__ = __str__
+
+            def __eq__(self, other):
+                if not isinstance(other, Stone):
+                    return False
+                elif self.r == other.r and self.c == other.c and self.n == other.n:
+                    return True
+                else:
+                    return False
+
+            def __hash__(self):
+                return int(self.i)
+
+            # End of class Stone =============================================
+
+        self.Stone = Stone
+
+        """Set up initial board configuration."""
+        # The mathematical representation of the board as (n+2) x (n+2) x 3 tensor
+        # Use preconstructed standard fields for performance reasons
+        self.math_rep = EMPTY_BOARDS[n].copy() if n in [15, 19] else create_fresh_board(n)
+
+        # Set the stones/bits on the math. representation
+        # whoever made the last move is now on channel = 1
+        channel = 1
+        if isinstance(stones, str):
+            stones = self._string_to_stones(stones)
+
+        self._assert_valid(stones)
+        self.stones = stones
+
+        if stones is not None:
+            for stone in stones[::-1]:
+                self.math_rep[stone.r + 1, stone.c + 1, channel] = 1
+                channel = 1 - channel
+
+    def _string_to_stones(self, encoded):
+        """
+        returns an array of pairs for a string-encoded sequence
+        e.g. [('A',1), ('M',14)] for 'a1m14'
+        """
+        x, y = encoded[0].upper(), 0
+        stones = []
+        for c in encoded[1:]:
+            if c.isdigit():
+                y = 10 * y + int(c)
+            else:
+                try:
+                    stones.append(self.Stone(*Gt.b2m((x, y), self.n)))
+                except AssertionError:
+                    raise AssertionError(f"{x}{y} is not a valid position on this board.")
+                x = c.upper()
+                y = 0
+        try:
+            stones.append(self.Stone(*Gt.b2m((x, y), self.n)))
+        except AssertionError:
+            raise AssertionError(f"({x},{y}) is not a valid position on this board.")
+
+        return stones
+
+    def _assert_valid(self, stones: List):
+        assert len(set(stones)) == len(stones), f"Stones are not unique: {stones}"
+        assert all([self.n > s.r >= 0 for s in stones]), "Not all stones in valid range"
+        assert all([self.n > s.c >= 0 for s in stones]), "Not all stones in valid range"
+
+    def plot(self, x_is_next=False):
+        def ch(index):
+            return [' . ', ' 0 ', ' X ', '   '][index]
+
+        def row(r):
+            return f"{self.n-r:2}" if r in range(self.n) else "  "
+
+        rep = self.math_rep
+        if x_is_next and len(self.stones) % 2 == 1:
+            rep = rep.copy()
+            rep[:, :, [0, 1]] = rep[:, :, [1, 0]]
+
+        array = sum([np.rollaxis(rep, -1, 0)[i] * (i+1) for i in range(3)])
+        print(f"\n".join([f"{row(i-1)}" + "".join([ch(c) for c in r]) for i, r in enumerate(array)]))
+        print("      " + "  ".join([chr(i+65) for i in range(self.n)]))
+
+    def __str__(self):
+        return "".join([chr(64+s[0])+str(s[1]) for s in self.stones])
+
+    __repr__ = __str__
 
     def get_legal_moves(self):
-        """Returns all the legal moves for the current player
-        (1 for white, -1 for black
         """
-        moves = set()  # stores the legal moves.
-
-        # Get all empty locations of the current player's plane
-        for y in range(self.n):
-            for x in range(self.n):
-                if self.pieces[x][y][0] == 0:
-                    moves.add((x, y))
-        return list(moves)
+        Returns all the legal moves for the current player
+        """
+        positions = np.argwhere(np.sum(self.math_rep, axis=-1) == 0)
+        return [r * self.n + c for r, c in positions]
 
     def has_legal_moves(self):
         """Returns True if has legal move else False
         """
-        # Get all empty locations.
-        for y in range(self.n):
-            for x in range(self.n):
-                if self[x][y][0] == 0:
-                    return True
-        return False
+        return len(self.get_legal_moves()) > 0
 
-    def execute_move(self, move):
-        """Perform the given move on the board; swaps planes
-        """
-        (x, y) = move
-        assert self[x][y] == 0
-        self[x][y] = color
+    def put(self, *args):
+        if isinstance(args[0], self.Stone):
+            stone = args[0]
+        else:
+            stone = self.Stone(*args)
+        m = self.math_rep
+        assert m[stone.r, stone.c, 0] == m[stone.r, stone.c, 1] == 0, f"{stone} is occupied."
+        m[stone.r, stone.c, 0] = 1
+        m[:, :, [0, 1]] = m[:, :, [1, 0]]
+        self.stones.append(stone)
+        return self
 
 
-def create_nxnx2_with_border(size: int, stones=None):
-    """
-    Creates a NxNx4 NDArray from the stones of the board. Black is in the 0-plane
-    :param size: The side length of the square board
-    :param stones: a representation of the current stones on the board: Either string or array of board coordinates
-    """
-    if isinstance(stones, str):
-        stones = Gt.string_to_stones(stones)
+# convenience for playing on the console
 
-    stones = [] if stones is None else stones
+A = 'A'
+B = 'B'
+C = 'C'
+D = 'D'
+E = 'E'
+F = 'F'
+G = 'G'
+H = 'H'
+I = 'I'  # noqa
+J = 'J'
+K = 'K'
+L = 'L'
+M = 'M'
+N = 'N'
+O = 'O'  # noqa
+P = 'P'
+Q = 'Q'
+R = 'R'
+S = 'S'
 
-    n = size
-    board = np.zeros([2, n, n], dtype=np.uint8)
-
-    current = len(stones) % 2
-    for move in stones:
-        r, c = Gt.b2m(move, n)
-        board[current][r][c] = 1
-        current = 1 - current
-
-    # next moving player is always on layer 0
-    current_layer = np.hstack([
-        np.zeros([n + 2, 1], dtype=np.uint8),
-        np.vstack([np.zeros([1, n], dtype=np.uint8),
-                   board[0],
-                   np.zeros([1, n], dtype=np.uint8)]),
-        np.zeros([n + 2, 1], dtype=np.uint8)
-    ])
-
-    other_layer = np.hstack([
-        np.zeros([n + 2, 1], dtype=np.uint8),
-        np.vstack([np.zeros([1, n], dtype=np.uint8),
-                   board[1],
-                   np.zeros([1, n], dtype=np.uint8)]),
-        np.zeros([n + 2, 1], dtype=np.uint8)
-    ])
-
-    a_border = (size + 2) * [1]
-    other_layer[0] = a_border
-    other_layer[size + 1] = a_border
-    other_layer[:, 0] = a_border
-    other_layer[:, size + 1] = a_border
-
-    both = np.array([current_layer, other_layer])
-    board = np.rollaxis(both, 0, 3)
-
-    return board

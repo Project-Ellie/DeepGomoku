@@ -7,7 +7,7 @@ class SimpleConvQFunction(keras.Model):
         """
         A simple 2-layer convolutional neural network for a Q-Function on a 2xNxN
         Gomoku board representation.
-        :param input_size: The size of the square board
+        :param input_size: The n of the square board
         """
         super().__init__(*args, **kwargs)
         self.input_size = input_size

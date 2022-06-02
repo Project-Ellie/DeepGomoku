@@ -35,7 +35,7 @@ class GomokuGame(Game):
 
     # modified
     def get_valid_moves(self, board, player):
-        # return a fixed size binary vector
+        # return a fixed n binary vector
         valids = [0] * self.get_action_size()
         b = Board(self.n)
         b.pieces = np.copy(board)

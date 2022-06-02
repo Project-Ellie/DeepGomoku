@@ -81,7 +81,7 @@ class FastGomokuBoard(GomokuBoard):
     def impact_from_edges(self, r,c):
         """
         Construct a complete nxn impact representation of an edge stone
-        That means stones with any of r=-1 or r=size or c=-1 or c=size.
+        That means stones with any of r=-1 or r=n or c=-1 or c=n.
         These edge stone naturally model the "defensive" impact of the edges.
         """
         src=np.hstack([

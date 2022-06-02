@@ -1,9 +1,11 @@
 import abc
-
-
 from typing import Tuple
-
 from pydantic import BaseModel
+
+
+class IllegalMoveException(Exception):
+    def __int__(self, message):
+        super().__init__(message)
 
 
 class TrainParams(BaseModel):
@@ -177,7 +179,7 @@ class Game(abc.ABC):
         """
         Input:
             board: current board
-            pi: policy vector of size self.get_action_size()
+            pi: policy vector of n self.get_action_size()
 
         Returns:
             symmForms: a list of [(board,pi)] where each tuple is a symmetrical
