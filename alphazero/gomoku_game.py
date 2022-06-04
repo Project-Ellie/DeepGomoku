@@ -1,87 +1,48 @@
 import numpy as np
-from alphazero.interfaces import Game
-from alphazero.gomoku_board import Board
+from alphazero.interfaces import Game, TerminalDetector
+from alphazero.gomoku_board import GomokuBoard
 
 
 class GomokuGame(Game):
-    def __init__(self, n=15, nir=5):
+    def __init__(self, board_size, detector: TerminalDetector):
         super().__init__()
-        self.n = n
-        self.n_in_row = nir
+        self.board_size = board_size
+        self.board = None
+        self.n_in_row = 5
+        self.detector = detector
 
     def get_initial_board(self):
-        # return initial board (numpy board)
-        b = Board(self.n)
-        return np.array(b.pieces)
+        self.board = GomokuBoard(self.board_size)
+        return self.board.math_rep
 
     def get_board_size(self):
-        # (a,b) tuple
-        return self.n, self.n
+        return self.board_size ** 2
 
     def get_action_size(self):
         # return number of actions
-        return self.n * self.n + 1
+        return self.board_size ** 2
 
-    def get_next_state(self, board, player, action):
-        # if player takes action on board, return next (board,player)
-        # action must be a valid move
-        if action == self.n * self.n:
-            return board, -player
-        b = Board(self.n)
-        b.pieces = np.copy(board)
-        move = (int(action / self.n), action % self.n)
-        b.execute_move(move, player)
-        return b.pieces, -player
+    def get_next_state(self, action):
+        self.board.act(action)
+        return self.board.math_rep
 
-    # modified
-    def get_valid_moves(self, board, player):
-        # return a fixed n binary vector
-        valids = [0] * self.get_action_size()
-        b = Board(self.n)
-        b.pieces = np.copy(board)
-        legal_moves = b.get_legal_actions(player)
-        if len(legal_moves) == 0:
-            valids[-1] = 1
-            return np.array(valids)
-        for x, y in legal_moves:
-            valids[self.n * x + y] = 1
-        return np.array(valids)
+    def get_valid_moves(self):
+        return self.board.get_legal_actions()
 
-    # modified
-    def get_game_ended(self, board, player):
-        # return 0 if not ended, 1 if player 1 won, -1 if player 1 lost
-        # player = 1
-        b = Board(self.n)
-        b.pieces = np.copy(board)
-        n = self.n_in_row
+    def get_game_ended(self):
+        return self.detector.get_winner(self.board.canonical_representation())
 
-        for w in range(self.n):
-            for h in range(self.n):
-                if (w in range(self.n - n + 1) and board[w][h] != 0 and
-                        len(set(board[i][h] for i in range(w, w + n))) == 1):
-                    return board[w][h]
-                if (h in range(self.n - n + 1) and board[w][h] != 0 and
-                        len(set(board[w][j] for j in range(h, h + n))) == 1):
-                    return board[w][h]
-                if (w in range(self.n - n + 1) and h in range(self.n - n + 1) and board[w][h] != 0 and
-                        len(set(board[w + k][h + k] for k in range(n))) == 1):
-                    return board[w][h]
-                if (w in range(self.n - n + 1) and h in range(n - 1, self.n) and board[w][h] != 0 and
-                        len(set(board[w + l][h - l] for l in range(n))) == 1):  # noqa: Going to replace this method.
-                    return board[w][h]
-        if b.has_legal_moves():
-            return 0
-        return 1e-4
-
-    def get_canonical_form(self, board, player):
-        # return state if player==1, else return -state if player==-1
-        return player * board
+    def get_canonical_form(self):
+        return self.board.canonical_representation()
 
     # modified
     def get_symmetries(self, board, pi):
+
+        # TODO: Implement this function according to spec
+
         # mirror, rotational
-        assert(len(pi) == self.n**2 + 1)  # 1 for pass
-        pi_board = np.reshape(pi[:-1], (self.n, self.n))
+        assert(len(pi) == self.board_size**2 + 1)  # 1 for pass
+        pi_board = np.reshape(pi[:-1], (self.board_size, self.board_size))
         symmetries = []
 
         for i in range(1, 5):
@@ -94,30 +55,9 @@ class GomokuGame(Game):
                 symmetries += [(new_b, list(new_pi.ravel()) + [pi[-1]])]
         return symmetries
 
-    def string_representation(self, board):
+    def string_representation(self):
         # 8x8 numpy array (canonical board)
-        return board.tostring()
+        return "".join(self.board.get_stones())
 
-    @staticmethod
-    def display(board):
-        n = board.shape[0]
-
-        for y in range(n):
-            print(y, "|", end="")
-        print("")
-        print(" -----------------------")
-        for y in range(n):
-            print(y, "|", end="")    # print the row #
-            for x in range(n):
-                piece = board[y][x]    # get the piece to print
-                if piece == -1:
-                    print("b ", end="")
-                elif piece == 1:
-                    print("W ", end="")
-                else:
-                    if x == n:
-                        print("-", end="")
-                    else:
-                        print("- ", end="")
-            print("|")
-        print("   -----------------------")
+    def display(self):
+        self.board.plot()

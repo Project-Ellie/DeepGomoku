@@ -2,6 +2,7 @@ import numpy as np
 
 import tensorflow as tf
 from domoku.policies.radial import all_2xnxn, all_3xnxn
+from alphazero.interfaces import TerminalDetector
 
 # Criticality Categories
 TERMINAL = 0  # detects existing 5-rows
@@ -21,7 +22,7 @@ CHANNELS = [
 ]
 
 
-class MaxCriticalityPolicy(tf.keras.Model):
+class MaxCriticalityPolicy(tf.keras.Model, TerminalDetector):
     """
     A policy that doesn't miss any sure-win or must-defend
     """
@@ -149,7 +150,7 @@ class MaxCriticalityPolicy(tf.keras.Model):
         return res
 
 
-    def winner(self, sample):
+    def get_winner(self, sample):
         max_crit = np.max(self.call(sample), axis=None)
         return 0 if max_crit > 900 else 1 if max_crit > 400 else None
 

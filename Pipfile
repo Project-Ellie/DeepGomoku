@@ -17,6 +17,7 @@ flask = "*"
 Flask_SocketIO = "*"
 pydantic = "*"
 tqdm = "*"
+coloredlogs = "*"
 
 [dev-packages]
 

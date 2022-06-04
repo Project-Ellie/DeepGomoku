@@ -24,6 +24,39 @@ class TrainParams(BaseModel):
     num_iters_for_train_examples_history: int
 
 
+class Board(abc.ABC):
+
+    @abc.abstractmethod
+    def get_legal_actions(self):
+        """
+        Returns all the legal moves for the current player
+        """
+        pass
+
+    @abc.abstractmethod
+    def get_legal_moves(self):
+        pass
+
+    @abc.abstractmethod
+    def has_legal_moves(self):
+        pass
+
+    @abc.abstractmethod
+    def act(self, *args):
+        pass
+
+    @abc.abstractmethod
+    def canonical_representation(self):
+        pass
+
+
+class TerminalDetector(abc.ABC):
+
+    @abc.abstractmethod
+    def get_winner(self, board: Board):
+        pass
+
+
 class NeuralNet(abc.ABC):
     """
     This class specifies the base NeuralNet class. To define your own neural
@@ -116,7 +149,7 @@ class Game(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_next_state(self, board, player, action):
+    def get_next_state(self, action):
         """
         Input:
             board: current board
@@ -130,11 +163,10 @@ class Game(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_valid_moves(self, board, player):
+    def get_valid_moves(self):
         """
         Input:
             board: current board
-            player: current player
 
         Returns:
             validMoves: a binary vector of length self.get_action_size(), 1 for
@@ -144,7 +176,7 @@ class Game(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_game_ended(self, board, player):
+    def get_game_ended(self):
         """
         Input:
             board: current board
@@ -158,7 +190,7 @@ class Game(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_canonical_form(self, board, player):
+    def get_canonical_form(self):
         """
         Input:
             board: current board
@@ -189,7 +221,7 @@ class Game(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def string_representation(self, board):
+    def string_representation(self):
         """
         Input:
             board: current board

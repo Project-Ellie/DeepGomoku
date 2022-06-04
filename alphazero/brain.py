@@ -4,10 +4,8 @@ import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
 
-from alphazero.utils import DotDict
+from alphazero.utils import DotDict, AverageMeter
 from alphazero.interfaces import NeuralNet
-
-from alphazero.network import GomokuNet
 
 args = DotDict({
     'lr': 0.001,
@@ -19,8 +17,8 @@ args = DotDict({
 
 
 class GomokuBrain(NeuralNet):
-    def __init__(self, game):
-        pass
+    def __init__(self, game, *args):
+        super().__init__(*args)
         # self.nnet = GomokuNet(game, params)
         # self.board_x, self.board_y = game.get_board_size()
         # self.action_size = game.get_action_size()

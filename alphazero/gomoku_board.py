@@ -1,7 +1,7 @@
 from typing import List, Union
 
 import numpy as np
-
+from alphazero.interfaces import Board
 
 EMPTY_BOARDS = {
     n: np.rollaxis(
@@ -15,11 +15,12 @@ def create_fresh_board(n: int):
     return np.rollaxis(np.array(fresh_board), 0, 3)
 
 
-class Board:
+class GomokuBoard(Board):
     """
     Bounded Gomoku Board.
     The boundary stones in the third channel are there to support the learning process
     """
+
 
     def __init__(self, board_size, stones: str = None, x_means='black'):
         """
@@ -203,7 +204,7 @@ class Board:
         """
         return len(self.get_legal_actions()) > 0
 
-    def put(self, *args):
+    def act(self, *args):
         if isinstance(args[0], self.Stone):
             stone = args[0]
         else:
@@ -214,6 +215,9 @@ class Board:
         m[:, :, [0, 1]] = m[:, :, [1, 0]]
         self.stones.append(stone)
         return self
+
+    def canonical_representation(self):
+        return self.math_rep
 
 
 # convenience for playing on the console
