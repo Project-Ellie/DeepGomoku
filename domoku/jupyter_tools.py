@@ -5,11 +5,12 @@ def print_bin(binary_sample, combine=False):
     binary_sample = np.squeeze(binary_sample)
     print(f'shape: {binary_sample.shape}')
     if combine:
-        print(np.rollaxis(binary_sample, 2, 0)[0] + 2 * np.rollaxis(binary_sample, 2, 0)[1])
+        image = sum([(i+1) * np.rollaxis(binary_sample, 2, 0)[i] for i in range(binary_sample.shape[-1])])
+        print(image)
     else:
-        print(np.rollaxis(binary_sample, 2, 0)[0])
-        print()
-        print(np.rollaxis(binary_sample, 2, 0)[1])
+        for i in range(binary_sample.shape[-1]):
+            print(np.rollaxis(binary_sample, 2, 0)[i])
+            print()
 
 
 def vis(tensor, scale=1):

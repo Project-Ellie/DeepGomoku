@@ -116,7 +116,7 @@ class GomokuField:
 
         # Don't correct for positions occupied by stones
         # for stone in stones:
-        #    r, c = gt.b2m(stone, self.N)
+        #    r, c = Gt.b2m(stone, self.N)
         #    self.scores[viewpoint][r][c] = 0
 
         

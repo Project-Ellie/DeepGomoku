@@ -39,7 +39,7 @@ class GomokuGame(Game):
         valids = [0] * self.get_action_size()
         b = Board(self.n)
         b.pieces = np.copy(board)
-        legal_moves = b.get_legal_moves(player)
+        legal_moves = b.get_legal_actions(player)
         if len(legal_moves) == 0:
             valids[-1] = 1
             return np.array(valids)
