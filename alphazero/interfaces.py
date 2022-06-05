@@ -70,6 +70,7 @@ class NeuralNet(abc.ABC):
     def __init__(self, *args):
         pass
 
+    @abc.abstractmethod
     def train(self, examples):
         """
         This function trains the neural network with examples obtained from
@@ -83,6 +84,7 @@ class NeuralNet(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
     def predict(self, board):
         """
         Input:
@@ -95,6 +97,7 @@ class NeuralNet(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
     def save_checkpoint(self, folder, filename):
         """
         Saves the current neural network (with its parameters) in
@@ -102,6 +105,7 @@ class NeuralNet(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
     def load_checkpoint(self, folder, filename):
         """
         Loads parameters of the neural network from folder/filename

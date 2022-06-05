@@ -6,6 +6,7 @@ from domoku.field import GomokuField
 from domoku.tools import GomokuTools
 from domoku.constants import *
 import pandas as pd
+import alphazero.gomoku_board as new_board
 
 
 def maybe_convert(x):
@@ -167,7 +168,7 @@ class GomokuBoard(GomokuField):
         if self.heuristics is None:
             return
 
-        position = create_nxnx4(15, stones=self.stones)
+        position = new_board.GomokuBoard(15, stones=GomokuTools.stones_to_string(self.stones))
         q = self.heuristics(position)
         heatmap = np.squeeze(self.heatmap(q))
 

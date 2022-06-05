@@ -3,6 +3,8 @@ import math
 
 import numpy as np
 
+from alphazero.interfaces import TrainParams, Game, NeuralNet
+
 EPS = 1e-8
 
 log = logging.getLogger(__name__)
@@ -13,7 +15,7 @@ class MCTS:
     This class handles the MCTS tree.
     """
 
-    def __init__(self, game, nnet, args):
+    def __init__(self, game: Game, nnet: NeuralNet, args: TrainParams):
         self.game = game
         self.nnet = nnet
         self.args = args
@@ -34,10 +36,10 @@ class MCTS:
             probs: a policy vector where the probability of the ith action is
                    proportional to Nsa[(s,a)]**(1./temperature)
         """
-        for i in range(self.args.numMCTSSims):
+        for i in range(self.args.num_simulations):
             self.search(canonical_board)
 
-        s = self.game.string_representation(canonical_board)
+        s = self.game.string_representation()
         counts = [self.Nsa[(s, a)] if (s, a) in self.Nsa else 0 for a in range(self.game.get_action_size())]
 
         if temperature == 0:
@@ -72,18 +74,22 @@ class MCTS:
             v: the negative of the value of the current canonical_board
         """
 
-        s = self.game.string_representation(canonical_board)
+        s = self.game.string_representation()
 
         if s not in self.Es:
-            self.Es[s] = self.game.get_game_ended(canonical_board, 1)
-        if self.Es[s] != 0:
+            self.Es[s] = self.game.get_game_ended()
+        if self.Es[s] is not None:
             # terminal node
             return -self.Es[s]
 
         if s not in self.Ps:
             # leaf node
             self.Ps[s], v = self.nnet.predict(canonical_board)
-            valids = self.game.get_valid_moves(canonical_board, player=1)
+
+            #
+            #     TODO: Continue debugging from here
+            #
+            valids = self.game.get_valid_moves()
             self.Ps[s] = self.Ps[s] * valids  # masking invalid moves
             sum_ps_s = np.sum(self.Ps[s])
             if sum_ps_s > 0:

@@ -4,6 +4,7 @@ import numpy as np
 from pydantic import BaseModel
 import tensorflow as tf
 
+from alphazero.interfaces import NeuralNet
 from domoku.interfaces import AbstractGanglion
 from domoku.policies.maximal_criticality import MaxCriticalityPolicy
 from domoku.policies.radial import radial_3xnxn, radial_2xnxn
@@ -38,8 +39,9 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
         self.occupied_suppression = -10.
         self.crit_model = criticality_model
 
-        pot, agg = self.create_model()
+        pot, peel, agg = self.create_model()
         self.potential = pot
+        self.peel = peel
         self.aggregate = agg
 
 
@@ -57,7 +59,7 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
 
         if self.crit_model is not None:
             hard = self.crit_model.call(sample)
-            res = hard * 10 + soft
+            res = hard * 10 + 0.01 * soft
         else:
             res = soft
 
@@ -100,6 +102,13 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
             padding='same',
             input_shape=(self.input_size, self.input_size, 5))
 
+        special_filter = np.array([[0., 0., 0.], [0., 1., 0.], [0., 0., 0.]]).reshape([3, 3, 1, 1])
+        peel_boundary = tf.keras.layers.Conv2D(
+            filters=1, kernel_size=3,
+            kernel_initializer=tf.constant_initializer(special_filter),
+            bias_initializer=tf.constant_initializer(0.),
+            input_shape=(self.input_size, self.input_size, 1))
+
         sigma = self.params.sigma  # offensiveness
         aggregate = tf.keras.layers.Conv2D(
             filters=1, kernel_size=1,
@@ -108,9 +117,9 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
             bias_initializer=tf.constant_initializer(0.),
             activation=tf.nn.relu,
             padding='same',
-            input_shape=(self.input_size, self.input_size, 5))
+            input_shape=(self.input_size-1, self.input_size-1, 5))
 
-        return potential, aggregate
+        return potential, peel_boundary, aggregate
 
 
     def sample(self, state, n=1, board=None):
@@ -181,3 +190,34 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
         self.biases = [0.] * len(filters)
         filters = np.stack(filters, axis=3)
         self.filters = np.reshape(filters, (self.kernel_size, self.kernel_size, 5, 5))
+
+
+class NeuralNetAdapter(NeuralNet):
+
+    def __init__(self, policy: MaxInfluencePolicy, *args):
+        super().__init__(*args)
+        self.policy = policy
+
+
+    def train(self, examples):
+        raise NotImplementedError
+
+
+    def predict(self, board):
+        output = self.policy(board)  # noqa
+        logits = tf.nn.tanh(output)
+        logits = self.policy.peel(logits)
+
+        board_size = self.policy.params.board_size
+        logits = np.reshape(logits, [board_size * board_size])
+        probs = tf.nn.softmax(logits)
+        value = tf.reduce_max(logits)
+        return np.squeeze(probs), float(np.squeeze(value))
+
+
+    def save_checkpoint(self, folder, filename):
+        raise NotImplementedError
+
+
+    def load_checkpoint(self, folder, filename):
+        raise NotImplementedError

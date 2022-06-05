@@ -1,8 +1,8 @@
 import numpy as np
-
 import tensorflow as tf
-from domoku.policies.radial import all_2xnxn, all_3xnxn
+
 from alphazero.interfaces import TerminalDetector
+from domoku.policies.radial import all_2xnxn, all_3xnxn
 
 # Criticality Categories
 TERMINAL = 0  # detects existing 5-rows
@@ -148,6 +148,12 @@ class MaxCriticalityPolicy(tf.keras.Model, TerminalDetector):
         res = self.combine(self.detector(state))
         res = tf.clip_by_value(res, 0, 1000)
         return res
+
+    def q_p_v(self, state):
+        q = tf.nn.tanh(self.call(state))
+        p = tf.nn.softmax(q)
+        v = tf.reduce_max(q)
+        return q, p, v
 
 
     def get_winner(self, sample):

@@ -4,15 +4,16 @@ from alphazero.gomoku_board import GomokuBoard
 
 
 class GomokuGame(Game):
-    def __init__(self, board_size, detector: TerminalDetector):
+    def __init__(self, board_size, detector: TerminalDetector, initial: str = None):
         super().__init__()
         self.board_size = board_size
         self.board = None
+        self.initial_stones = initial if initial is not None else ""
         self.n_in_row = 5
         self.detector = detector
 
     def get_initial_board(self):
-        self.board = GomokuBoard(self.board_size)
+        self.board = GomokuBoard(self.board_size, stones=self.initial_stones)
         return self.board.math_rep
 
     def get_board_size(self):
@@ -57,7 +58,7 @@ class GomokuGame(Game):
 
     def string_representation(self):
         # 8x8 numpy array (canonical board)
-        return "".join(self.board.get_stones())
+        return "".join([str(stone) for stone in self.board.get_stones()])
 
     def display(self):
         self.board.plot()

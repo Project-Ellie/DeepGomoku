@@ -55,7 +55,7 @@ class Coach:
 
         while True:
             episode_step += 1
-            canonical_board = self.game.get_canonical_form(board, self.current_player)
+            canonical_board = self.game.get_canonical_form()
             temperature = int(episode_step < self.params.temperature_threshold)
 
             pi = self.mcts.get_action_prob(canonical_board, temperature=temperature)

@@ -155,7 +155,7 @@ class Trainer:
 
     def create_default_player(self, point_of_view, tree_search=None):
         params = MaxInfluencePolicyParams(
-            n=self.board_size,
+            board_size=self.board_size,
             sigma=.7,
             iota=10,
             radial_constr=[.0625, .125, .25, .5],

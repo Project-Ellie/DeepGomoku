@@ -135,6 +135,9 @@ class GomokuBoard(Board):
                 self.math_rep[stone.r, stone.c, channel] = 1
                 channel = 1 - channel
 
+    def get_stones(self):
+        return self.stones
+
     def _string_to_stones(self, encoded):
         """
         returns an array of pairs for a string-encoded sequence
