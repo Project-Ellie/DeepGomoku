@@ -4,7 +4,7 @@ import numpy as np
 from pydantic import BaseModel
 import tensorflow as tf
 
-from alphazero.interfaces import NeuralNet
+from alphazero.interfaces import NeuralNet, LeadModel
 from domoku.interfaces import AbstractGanglion
 from domoku.policies.maximal_criticality import MaxCriticalityPolicy
 from domoku.policies.radial import radial_3xnxn, radial_2xnxn
@@ -18,7 +18,7 @@ class MaxInfluencePolicyParams(BaseModel):
     iota: float  # The greed. Higher values make exploitation less likely. 50 is a good start
 
 
-class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
+class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion, LeadModel):
     """
     A policy that vaguely *feels* where the action is. This may help create reasonable
     trajectories in Deep RL approaches. The underlying CNN *measures* the radial influence
@@ -26,6 +26,19 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
 
     To be enable this policy to fight, you can supply a Criticality Model to override the soft advice produced here.
     """
+
+
+    #
+    #   TODO: Implement!
+    #    Consider a policy with a wider exploration margin (possibly temperatur-based) and a cut-off to
+    #    rule out sure-loss or plain-right ridiculous moves.
+    #
+    def get_reasonable_actions(self, state):
+        """
+        Returns a distribution of the most reasonable moves
+        :return:
+        """
+
 
     def __init__(self, params: MaxInfluencePolicyParams, pov: int,  # point of view - for value function
                  criticality_model: MaxCriticalityPolicy = None):
@@ -39,9 +52,8 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
         self.occupied_suppression = -10.
         self.crit_model = criticality_model
 
-        pot, peel, agg = self.create_model()
+        pot, agg = self.create_model()
         self.potential = pot
-        self.peel = peel
         self.aggregate = agg
 
 
@@ -102,13 +114,6 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
             padding='same',
             input_shape=(self.input_size, self.input_size, 5))
 
-        special_filter = np.array([[0., 0., 0.], [0., 1., 0.], [0., 0., 0.]]).reshape([3, 3, 1, 1])
-        peel_boundary = tf.keras.layers.Conv2D(
-            filters=1, kernel_size=3,
-            kernel_initializer=tf.constant_initializer(special_filter),
-            bias_initializer=tf.constant_initializer(0.),
-            input_shape=(self.input_size, self.input_size, 1))
-
         sigma = self.params.sigma  # offensiveness
         aggregate = tf.keras.layers.Conv2D(
             filters=1, kernel_size=1,
@@ -119,7 +124,7 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
             padding='same',
             input_shape=(self.input_size-1, self.input_size-1, 5))
 
-        return potential, peel_boundary, aggregate
+        return potential, aggregate
 
 
     def sample(self, state, n=1, board=None):
@@ -192,7 +197,15 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion):
         self.filters = np.reshape(filters, (self.kernel_size, self.kernel_size, 5, 5))
 
 
-class NeuralNetAdapter(NeuralNet):
+class NeuralNetAdapter(NeuralNet, LeadModel):
+
+    #
+    #   Find a reasonable implementation for reasonable actions...;-)
+    #
+    def get_reasonable_actions(self, state):
+        probs, _ = self.predict(state)
+        max_prob = np.max(probs, axis=None)
+        return probs[[probs > max_prob * 0.8]]
 
     def __init__(self, policy: MaxInfluencePolicy, *args):
         super().__init__(*args)
@@ -203,13 +216,12 @@ class NeuralNetAdapter(NeuralNet):
         raise NotImplementedError
 
 
-    def predict(self, board):
-        output = self.policy(board)  # noqa
+    def predict(self, state):
+        output = self.policy(state)  # noqa
         logits = tf.nn.tanh(output)
-        logits = self.policy.peel(logits)
 
-        board_size = self.policy.params.board_size
-        logits = np.reshape(logits, [board_size * board_size])
+        field_size = self.policy.params.board_size + 2
+        logits = np.reshape(logits, [field_size * field_size])
         probs = tf.nn.softmax(logits)
         value = tf.reduce_max(logits)
         return np.squeeze(probs), float(np.squeeze(value))

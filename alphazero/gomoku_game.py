@@ -1,40 +1,43 @@
+from typing import Tuple
+
 import numpy as np
-from alphazero.interfaces import Game, TerminalDetector
+from alphazero.interfaces import Game, TerminalDetector, LeadModel
 from alphazero.gomoku_board import GomokuBoard
 
 
 class GomokuGame(Game):
-    def __init__(self, board_size, detector: TerminalDetector, initial: str = None):
+    def __init__(self, board_size, detector: TerminalDetector, model: LeadModel, initial: str = None):
         super().__init__()
+        self.model = model
         self.board_size = board_size
-        self.board = None
         self.initial_stones = initial if initial is not None else ""
         self.n_in_row = 5
         self.detector = detector
 
-    def get_initial_board(self):
-        self.board = GomokuBoard(self.board_size, stones=self.initial_stones)
-        return self.board.math_rep
+    def get_initial_board(self) -> GomokuBoard:
+        return GomokuBoard(self.board_size, stones=self.initial_stones)
 
-    def get_board_size(self):
+    def get_board_size(self, board) -> int:
         return self.board_size ** 2
 
-    def get_action_size(self):
+    def get_action_size(self, board: GomokuBoard):
         # return number of actions
         return self.board_size ** 2
 
-    def get_next_state(self, action):
-        self.board.act(action)
-        return self.board.math_rep
+    def get_next_state(self, board: GomokuBoard, action: int) -> Tuple[GomokuBoard, int]:
+        board.act(action)
+        next_player = board.get_current_player()
+        return board, next_player
 
-    def get_valid_moves(self):
-        return self.board.get_legal_actions()
+    def get_valid_moves(self, board: GomokuBoard):
+        field_size = self.board_size + 2
+        bits = np.zeros([field_size * field_size])
+        legal_indices = board.get_legal_actions()
+        bits[legal_indices] = 1
+        return bits
 
-    def get_game_ended(self):
-        return self.detector.get_winner(self.board.canonical_representation())
-
-    def get_canonical_form(self):
-        return self.board.canonical_representation()
+    def get_game_ended(self, board: GomokuBoard):
+        return self.detector.get_winner(board.canonical_representation())
 
     # modified
     def get_symmetries(self, board, pi):
@@ -55,10 +58,3 @@ class GomokuGame(Game):
                     new_pi = np.fliplr(new_pi)
                 symmetries += [(new_b, list(new_pi.ravel()) + [pi[-1]])]
         return symmetries
-
-    def string_representation(self):
-        # 8x8 numpy array (canonical board)
-        return "".join([str(stone) for stone in self.board.get_stones()])
-
-    def display(self):
-        self.board.plot()

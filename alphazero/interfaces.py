@@ -24,7 +24,22 @@ class TrainParams(BaseModel):
     num_iters_for_train_examples_history: int
 
 
+class LeadModel(abc.ABC):
+
+    @abc.abstractmethod
+    def get_reasonable_actions(self, state):
+        pass
+
+
 class Board(abc.ABC):
+
+    @abc.abstractmethod
+    def get_current_player(self):
+        pass
+
+    @abc.abstractmethod
+    def get_string_representation(self):
+        pass
 
     @abc.abstractmethod
     def get_legal_actions(self):
@@ -128,7 +143,7 @@ class Game(abc.ABC):
 
 
     @abc.abstractmethod
-    def get_initial_board(self):
+    def get_initial_board(self) -> Board:
         """
         Returns:
             startBoard: a representation of the board (ideally this is the form
@@ -137,7 +152,7 @@ class Game(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_board_size(self):
+    def get_board_size(self, board: Board):
         """
         Returns:
             (x,y): a tuple of board dimensions
@@ -145,7 +160,7 @@ class Game(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_action_size(self):
+    def get_action_size(self, board: Board):
         """
         Returns:
             actionSize: number of all possible actions
@@ -153,7 +168,7 @@ class Game(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_next_state(self, action):
+    def get_next_state(self, board: Board, action: int) -> Board:
         """
         Input:
             board: current board
@@ -167,7 +182,7 @@ class Game(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_valid_moves(self):
+    def get_valid_moves(self, board: Board):
         """
         Input:
             board: current board
@@ -180,7 +195,7 @@ class Game(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_game_ended(self):
+    def get_game_ended(self, board: Board):
         """
         Input:
             board: current board
@@ -194,24 +209,7 @@ class Game(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_canonical_form(self):
-        """
-        Input:
-            board: current board
-            player: current player (1 or -1)
-
-        Returns:
-            canonical_board: returns canonical form of board. The canonical form
-                            should be independent of player. For e.g. in chess,
-                            the canonical form can be chosen to be from the pov
-                            of white. When the player is white, we can return
-                            board as is. When the player is black, we can invert
-                            the colors and return the board.
-        """
-        pass
-
-    @abc.abstractmethod
-    def get_symmetries(self, board, pi):
+    def get_symmetries(self, board: Board, pi):
         """
         Input:
             board: current board
@@ -221,17 +219,5 @@ class Game(abc.ABC):
             symmForms: a list of [(board,pi)] where each tuple is a symmetrical
                        form of the board and the corresponding pi vector. This
                        is used when training the neural network from examples.
-        """
-        pass
-
-    @abc.abstractmethod
-    def string_representation(self):
-        """
-        Input:
-            board: current board
-
-        Returns:
-            boardString: a quick conversion of board to a string format.
-                         Required by MCTS for hashing.
         """
         pass

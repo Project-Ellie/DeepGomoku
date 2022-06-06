@@ -28,13 +28,13 @@ class MyTestCase(unittest.TestCase):
             temperature_threshold=15
         )
 
+        brain = self.given_heuristic_brain()
+
         detector = MaxCriticalityPolicy(BOARD_SIZE)
 
-        game = Game(15, detector=detector, initial='H8')
+        game = Game(15, detector=detector, initial='H8', model=brain)
 
         game.get_initial_board()
-
-        brain = self.given_heuristic_brain()
 
         coach = Coach(game, brain, params)
 

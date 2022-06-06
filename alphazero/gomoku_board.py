@@ -79,8 +79,6 @@ class GomokuBoard(Board):
                 if r is not None and c is not None:
                     assert x is None and y is None, \
                         "Please provide either r,c matrix coordinates or x, y, n board coordinates"
-                    if c == 10:
-                        print("oops")
                     assert n > r >= 0, f"row {r} out of range 0 <= r < {n}"
                     assert n > c >= 0, f"col {c} out of range 0 <= c < {n}"
 
@@ -127,22 +125,31 @@ class GomokuBoard(Board):
         if isinstance(stones, str):
             stones = self._string_to_stones(stones)
 
-        self.stones = stones if stones is not None else ""
+        self.stones = stones if stones is not None else []
 
-        if stones is not None:
+        if stones is not None and len(stones) > 0:
             self._assert_valid(stones)
             for stone in stones[::-1]:
                 self.math_rep[stone.r, stone.c, channel] = 1
                 channel = 1 - channel
+
+        else:  # add a tiny polution, because the maths (softmax) don't like zeros only
+            self.math_rep[self.board_size // 2 - 1][self.board_size // 2][0] = 1e-5
+
+    def get_current_player(self) -> int:
+        return len(self.get_stones()) % 2
 
     def get_stones(self):
         return self.stones
 
     def _string_to_stones(self, encoded):
         """
-        returns an array of pairs for a string-encoded sequence
-        e.g. [('A',1), ('M',14)] for 'a1m14'
+        returns an array of Stones for a string-encoded sequence
+        e.g. [Stone('A1'), Stone('M14')] for 'a1m14'
         """
+        if encoded is None or encoded == '':
+            return []
+
         x, y = encoded[0].upper(), 0
         stones = []
         for c in encoded[1:]:
@@ -187,9 +194,12 @@ class GomokuBoard(Board):
         print("      " + "  ".join([chr(i+65) for i in range(self.board_size)]))
 
     def __str__(self):
-        return "".join(f"{s} " for s in self.stones)
+        return " ".join(str(s) for s in self.stones)
 
     __repr__ = __str__
+
+    def get_string_representation(self):
+        return "".join(f"{s}" for s in self.stones)
 
     def get_legal_actions(self):
         """

@@ -50,16 +50,15 @@ class Coach:
         """
         train_examples = []
         board = self.game.get_initial_board()
-        self.current_player = 1
+        self.current_player = board.get_current_player()
         episode_step = 0
 
         while True:
             episode_step += 1
-            canonical_board = self.game.get_canonical_form()
             temperature = int(episode_step < self.params.temperature_threshold)
 
-            pi = self.mcts.get_action_prob(canonical_board, temperature=temperature)
-            sym = self.game.get_symmetries(canonical_board, pi)
+            pi = self.mcts.get_action_prob(board, temperature=temperature)
+            sym = self.game.get_symmetries(board, pi)
             for b, p in sym:
                 train_examples.append([b, self.current_player, p, None])
 

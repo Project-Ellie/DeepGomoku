@@ -1,9 +1,10 @@
+import copy
 import logging
 import math
 
 import numpy as np
 
-from alphazero.interfaces import TrainParams, Game, NeuralNet
+from alphazero.interfaces import TrainParams, Game, NeuralNet, Board
 
 EPS = 1e-8
 
@@ -27,7 +28,7 @@ class MCTS:
         self.Es = {}  # stores game.get_game_ended ended for board s
         self.Vs = {}  # stores game.get_valid_moves for board s
 
-    def get_action_prob(self, canonical_board, temperature=1):
+    def get_action_prob(self, board: Board, temperature=1):
         """
         This function performs numMCTSSims simulations of MCTS starting from
         canonical_board.
@@ -36,11 +37,14 @@ class MCTS:
             probs: a policy vector where the probability of the ith action is
                    proportional to Nsa[(s,a)]**(1./temperature)
         """
+        original_board = board
         for i in range(self.args.num_simulations):
-            self.search(canonical_board)
+            board = copy.deepcopy(original_board)
+            self.search(board)
 
-        s = self.game.string_representation()
-        counts = [self.Nsa[(s, a)] if (s, a) in self.Nsa else 0 for a in range(self.game.get_action_size())]
+        s = original_board.get_string_representation()
+        counts = [self.Nsa[(s, a)] if (s, a) in self.Nsa else 0
+                  for a in range(self.game.get_action_size(original_board))]
 
         if temperature == 0:
             best_as = np.array(np.argwhere(counts == np.max(counts))).flatten()
@@ -54,7 +58,7 @@ class MCTS:
         probs = [x / counts_sum for x in counts]
         return probs
 
-    def search(self, canonical_board):
+    def search(self, board: Board):
         """
         This function performs one iteration of MCTS. It is recursively called
         till a leaf node is found. The action chosen at each node is one that
@@ -74,22 +78,25 @@ class MCTS:
             v: the negative of the value of the current canonical_board
         """
 
-        s = self.game.string_representation()
+        s = board.get_string_representation()
 
         if s not in self.Es:
-            self.Es[s] = self.game.get_game_ended()
+            self.Es[s] = self.game.get_game_ended(board)
         if self.Es[s] is not None:
             # terminal node
             return -self.Es[s]
 
         if s not in self.Ps:
             # leaf node
-            self.Ps[s], v = self.nnet.predict(canonical_board)
 
             #
-            #     TODO: Continue debugging from here
+            # TODO:
+            #  rather than merely taken the lead policy's prediction we could perforom a number of rollouts with the
+            #  lead policies and average over the resulting values...;-/
             #
-            valids = self.game.get_valid_moves()
+            self.Ps[s], v = self.nnet.predict(board.canonical_representation())
+
+            valids = self.game.get_valid_moves(board)
             self.Ps[s] = self.Ps[s] * valids  # masking invalid moves
             sum_ps_s = np.sum(self.Ps[s])
             if sum_ps_s > 0:
@@ -109,28 +116,10 @@ class MCTS:
             self.Ns[s] = 0
             return -v
 
-        valids = self.Vs[s]
-        cur_best = -float('inf')
-        best_act = -1
-
-        # pick the action with the highest upper confidence bound
-        for a in range(self.game.get_action_size()):
-            if valids[a]:
-                if (s, a) in self.Qsa:
-                    u = self.Qsa[(s, a)] + self.args.cpuct * self.Ps[s][a] * math.sqrt(self.Ns[s]) / (
-                            1 + self.Nsa[(s, a)])
-                else:
-                    u = self.args.cpuct * self.Ps[s][a] * math.sqrt(self.Ns[s] + EPS)  # Q = 0 ?
-
-                if u > cur_best:
-                    cur_best = u
-                    best_act = a
-
-        a = best_act
-        next_s, next_player = self.game.get_next_state(canonical_board, 1, a)
-        next_s = self.game.get_canonical_form(next_s, next_player)
-
-        v = self.search(next_s)
+        a = self.best_act(board=board, s=s)
+        board_copy = copy.deepcopy(board)
+        next_board, _ = self.game.get_next_state(board_copy, a)
+        v = self.search(next_board)
 
         if (s, a) in self.Qsa:
             self.Qsa[(s, a)] = (self.Nsa[(s, a)] * self.Qsa[(s, a)] + v) / (self.Nsa[(s, a)] + 1)
@@ -142,3 +131,27 @@ class MCTS:
 
         self.Ns[s] += 1
         return -v
+
+    def best_act(self, board: Board, s: str):
+        # pick the action with the highest upper confidence bound
+        valids = self.Vs[s]
+        cur_best = -float('inf')
+        best_act = -1
+
+        #
+        #  TODO: Here, we should cooperate with a lead policy that reduces the action space.
+        #   In the spirit of mu-zero, that could be considered a part of the environment model.
+        #
+        for a in range(self.game.get_action_size(board)):
+            if valids[a]:
+                if (s, a) in self.Qsa:
+                    u = self.Qsa[(s, a)] + self.args.cpuct * self.Ps[s][a] * math.sqrt(self.Ns[s]) / (
+                            1 + self.Nsa[(s, a)])
+                else:
+                    u = self.args.cpuct * self.Ps[s][a] * math.sqrt(self.Ns[s] + EPS)  # Q = 0 ?
+
+                if u > cur_best:
+                    cur_best = u
+                    best_act = a
+
+        return best_act
