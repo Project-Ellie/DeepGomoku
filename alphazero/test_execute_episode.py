@@ -38,7 +38,7 @@ class MyTestCase(unittest.TestCase):
 
         coach = Coach(game, brain, params)
 
-        coach.execute_episode()
+        train_examples = coach.execute_episode()
 
         self.assertTrue(False)
 

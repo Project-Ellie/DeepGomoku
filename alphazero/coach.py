@@ -32,7 +32,7 @@ class Coach:
         self.current_player = None
         self.checkpoint_prefix = 'checkpoint_'
 
-    def execute_episode(self):
+    def execute_episode(self, with_moves=False):
         """
         This function executes one episode of self-play, starting with player 1.
         As the game is played, each turn is added as a training example to
@@ -58,17 +58,41 @@ class Coach:
             temperature = int(episode_step < self.params.temperature_threshold)
 
             pi = self.mcts.get_action_prob(board, temperature=temperature)
-            sym = self.game.get_symmetries(board, pi)
+            sym = self.game.get_symmetries(board.canonical_representation(), pi)
             for b, p in sym:
                 train_examples.append([b, self.current_player, p, None])
 
             action = np.random.choice(len(pi), p=pi)
-            board, self.current_player = self.game.get_next_state(board, self.current_player, action)
+            board, self.current_player = self.game.get_next_state(board, action)
 
-            r = self.game.get_game_ended(board, self.current_player)
+            r = self.game.get_game_ended(board)
 
-            if r != 0:
-                return [(x[0], x[2], r * ((-1) ** (x[1] != self.current_player))) for x in train_examples]
+            if r is not None:
+                train_examples = [(x[0], x[2], r * ((-1) ** (x[1] != self.current_player))) for x in train_examples]
+                if with_moves:
+                    return train_examples, self.recover_moves(train_examples)
+                else:
+                    return train_examples
+
+
+    def recover_moves(self, examples):
+        """
+        Recover the sequence of moves from a trajectory's examples for debugging purposes
+        :param examples:
+        :return:
+        """
+        n_moves = len(examples)//8
+        board = self.game.get_initial_board()
+        moves = board.string_to_stones(self.game.initial_stones)
+        example0 = board.math_rep
+        for i in range(n_moves):
+            example1 = examples[i * 8][0]
+            example1_ = example1[:, :, [1, 0, 2]]
+            move = list(np.argwhere(example1_ - example0 == 1)[0][:2] - [1, 1])
+            example0 = example1
+            moves.append(board.Stone(*move))
+        return moves
+
 
     def learn(self):
         """

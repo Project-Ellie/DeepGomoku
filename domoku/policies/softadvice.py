@@ -226,8 +226,8 @@ class NeuralNetAdapter(NeuralNet, LeadModel):
         output = self.policy(state)  # noqa
         logits = tf.nn.tanh(output)
 
-        field_size = self.policy.params.board_size + 2
-        logits = np.reshape(logits, [field_size * field_size])
+        board_size = self.policy.params.board_size
+        logits = np.reshape(logits, [board_size * board_size])
         probs = tf.nn.softmax(logits)
         value = tf.reduce_max(logits)
         return np.squeeze(probs), float(np.squeeze(value))

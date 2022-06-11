@@ -108,6 +108,13 @@ class GomokuBoard(Board):
             def __hash__(self):
                 return int(self.i)
 
+            def xy(self):
+                """
+                X,Y coordinates as on the physical board, A=1, B=2, etc
+                :return:
+                """
+                return self.board_size - self.r, self.c + 1
+
             # End of class Stone =============================================
 
         self.Stone = Stone
@@ -122,7 +129,7 @@ class GomokuBoard(Board):
         # whoever made the last move is now on channel = 1
         channel = 1
         if isinstance(stones, str):
-            stones = self._string_to_stones(stones)
+            stones = self.string_to_stones(stones)
 
         self.stones = stones if stones is not None else []
 
@@ -141,7 +148,7 @@ class GomokuBoard(Board):
     def get_stones(self):
         return self.stones
 
-    def _string_to_stones(self, encoded):
+    def string_to_stones(self, encoded):
         """
         returns an array of Stones for a string-encoded sequence
         e.g. [Stone('A1'), Stone('M14')] for 'a1m14'
@@ -221,8 +228,8 @@ class GomokuBoard(Board):
         """
         Returns all the legal moves for the current player
         """
-        positions = np.argwhere(np.sum(self.math_rep, axis=-1) == 0)
-        return [r * (self.board_size + 2) + c for r, c in positions]
+        positions = np.argwhere(np.sum(self.math_rep, axis=-1) == 0) - np.array([1, 1])
+        return [r * self.board_size + c for r, c in positions]
 
     def get_legal_moves(self):
         actions = self.get_legal_actions()

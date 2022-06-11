@@ -1,3 +1,4 @@
+import copy
 from typing import Tuple
 
 import numpy as np
@@ -27,11 +28,10 @@ class GomokuGame(Game):
     def get_next_state(self, board: GomokuBoard, action: int) -> Tuple[GomokuBoard, int]:
         board.act(action)
         next_player = board.get_current_player()
-        return board, next_player
+        return copy.deepcopy(board), next_player
 
     def get_valid_moves(self, board: GomokuBoard):
-        field_size = self.board_size + 2
-        bits = np.zeros([field_size * field_size])
+        bits = np.zeros([self.board_size * self.board_size])
         legal_indices = board.get_legal_actions()
         bits[legal_indices] = 1
         return bits
@@ -50,8 +50,8 @@ class GomokuGame(Game):
 
         # mirror, rotational
         n = self.board_size
-        assert np.shape(pi) == n * n or np.shape(pi) == (n, n), "pi should be square or flattened."
-        if np.shape(pi) == n * n:
+        assert np.shape(pi) == (n * n,) or np.shape(pi) == (n, n), "pi should be square or flattened."
+        if np.shape(pi) == (n * n,):
             pi_board = np.reshape(pi, (self.board_size, self.board_size))
         else:
             pi_board = pi
