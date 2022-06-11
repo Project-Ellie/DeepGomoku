@@ -18,6 +18,8 @@ Flask_SocketIO = "*"
 pydantic = "*"
 tqdm = "*"
 coloredlogs = "*"
+bitarray = "*"
+gmpy2 = "*"
 
 [dev-packages]
 

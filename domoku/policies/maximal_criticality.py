@@ -138,6 +138,13 @@ class MaxCriticalityPolicy(tf.keras.Model, TerminalDetector):
             filters=1, kernel_size=(1, 1),
             kernel_initializer=tf.constant_initializer(weights))
 
+        self.peel = tf.keras.layers.Conv2D(
+            filters=1, kernel_size=(3, 3),
+            kernel_initializer=tf.constant_initializer([[0., 0., 0.], [0., 1., 0.], [0., 0., 0.]]),
+            bias_initializer=tf.constant_initializer(0.),
+            trainable=False)
+
+
     def call(self, state):
         """
         :param state: state, representated as (n+2) x (n+2) x 3 board with boundary
@@ -147,6 +154,7 @@ class MaxCriticalityPolicy(tf.keras.Model, TerminalDetector):
         state = np.reshape(state, [-1, self.input_size, self.input_size, 3]).astype(float)
         res = self.combine(self.detector(state))
         res = tf.clip_by_value(res, 0, 1000)
+        res = self.peel(res)
         return res
 
     def q_p_v(self, state):

@@ -26,8 +26,6 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion, LeadModel):
 
     To be enable this policy to fight, you can supply a Criticality Model to override the soft advice produced here.
     """
-
-
     #
     #   TODO: Implement!
     #    Consider a policy with a wider exploration margin (possibly temperatur-based) and a cut-off to
@@ -52,9 +50,10 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion, LeadModel):
         self.occupied_suppression = -10.
         self.crit_model = criticality_model
 
-        pot, agg = self.create_model()
+        pot, agg, peel = self.create_model()
         self.potential = pot
         self.aggregate = agg
+        self.peel = peel
 
 
     def call(self, sample):
@@ -67,7 +66,7 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion, LeadModel):
         y = self.potential(extended)
         y = self.potential(y)
         y = self.potential(y)
-        soft = self.aggregate(y)
+        soft = self.peel(self.aggregate(y))
 
         if self.crit_model is not None:
             hard = self.crit_model.call(sample)
@@ -124,7 +123,13 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion, LeadModel):
             padding='same',
             input_shape=(self.input_size-1, self.input_size-1, 5))
 
-        return potential, aggregate
+        peel = tf.keras.layers.Conv2D(
+            filters=1, kernel_size=(3, 3),
+            kernel_initializer=tf.constant_initializer([[0., 0., 0.], [0., 1., 0.], [0., 0., 0.]]),
+            bias_initializer=tf.constant_initializer(0.),
+            trainable=False)
+
+        return potential, aggregate, peel
 
 
     def sample(self, state, n=1, board=None):
@@ -137,7 +142,8 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion, LeadModel):
         """
 
         policy_result = self.call(state)
-        n_choices = self.input_size * self.input_size
+        n = self.params.board_size
+        n_choices = n * n
         choices = tf.nn.softmax(tf.reshape(policy_result, n_choices) * self.params.iota).numpy()
         elements = range(n_choices)
         probabilities = choices

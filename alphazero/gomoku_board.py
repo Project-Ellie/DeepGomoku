@@ -1,5 +1,6 @@
-from typing import List, Union
+from typing import List, Union, Callable
 
+import bitarray
 import numpy as np
 from alphazero.interfaces import Board
 
@@ -43,10 +44,8 @@ class GomokuBoard(Board):
             board_size = self.board_size
             field_size = self.board_size + 2  # The field includes the border
 
-            ord_min = field_size + 1
-            ord_max = field_size * (field_size - 1) - 2
-
-            all_actions = set([(board_size+2) * r + c + 1 for r in range(1, board_size) for c in range(board_size)])
+            ord_min = 0
+            ord_max = board_size * board_size - 1
 
             def __init__(self, r_x: Union[int, str], c_y: int = None):
                 """
@@ -61,7 +60,7 @@ class GomokuBoard(Board):
                     if isinstance(r_x, int):
                         assert self.ord_min <= r_x <= self.ord_max, \
                             f"Expecting a number between {self.ord_min} and {self.ord_max}"
-                        r, c = divmod(r_x, self.field_size)
+                        r, c = divmod(r_x, self.board_size)
                         x, y = None, None
                     elif isinstance(r_x, str):
                         x, y = r_x[0], int(r_x[1:])
@@ -88,13 +87,13 @@ class GomokuBoard(Board):
                         "Please provide either r,c matrix coordinates or x, y, n board coordinates"
                     if isinstance(x, str):
                         x = ord(x) - 64
-                    self.r, self.c = n-y+1, x
+                    self.r, self.c = n-y, x-1
 
                 # single-digit representation for vector operations in the ML context
-                self.i = self.r * self.field_size + self.c
+                self.i = self.r * self.board_size + self.c
 
             def __str__(self):
-                return f"{chr(self.c+64)}{self.field_size-self.r-1}"
+                return f"{chr(self.c+65)}{self.board_size-self.r}"
 
             __repr__ = __str__
 
@@ -130,7 +129,7 @@ class GomokuBoard(Board):
         if stones is not None and len(stones) > 0:
             self._assert_valid(stones)
             for stone in stones[::-1]:
-                self.math_rep[stone.r, stone.c, channel] = 1
+                self.math_rep[stone.r + 1, stone.c + 1, channel] = 1
                 channel = 1 - channel
 
         else:  # add a tiny polution, because the maths (softmax) don't like zeros only
@@ -179,7 +178,7 @@ class GomokuBoard(Board):
         x_is_next = x_is_next if x_is_next is not None else self.x_is_next
 
         def ch(index):
-            return [' . ', ' X ', ' 0 ', '   '][index]
+            return [' . ', ' X ', ' O ', '   '][index]
 
         def row(r):
             return f"{self.board_size-r:2}" if r in range(self.board_size) else "  "
@@ -193,13 +192,30 @@ class GomokuBoard(Board):
         print(f"\n".join([f"{row(i-1)}" + "".join([ch(c) for c in r]) for i, r in enumerate(array)]))
         print("      " + "  ".join([chr(i+65) for i in range(self.board_size)]))
 
+
+    def print_pi(self, policy: Callable, scale=None):
+        """
+        Print the policy values as upscaled integers
+        :param policy: a policy that takes the math_rep of this board
+        :param scale: any factor that makes the output readable
+        """
+        pi = np.squeeze(policy(self.math_rep))
+        scale = 1000 if scale is None else 999. / np.max(pi, axis=None)
+        print((scale*pi).astype(int))
+
+
     def __str__(self):
         return " ".join(str(s) for s in self.stones)
 
     __repr__ = __str__
 
     def get_string_representation(self):
-        return "".join(f"{s}" for s in self.stones)
+        """
+        :return: hash string of the board bits. Note that we don't use the moves,
+         because the order of the moves must not matter for this method.
+        """
+        bita = bitarray.bitarray(list(self.math_rep.flatten()))
+        return str(hash(str(bita)))
 
     def get_legal_actions(self):
         """
@@ -223,8 +239,8 @@ class GomokuBoard(Board):
         else:
             stone = self.Stone(*args)
         m = self.math_rep
-        assert m[stone.r, stone.c, 0] == m[stone.r, stone.c, 1] == 0, f"{stone} is occupied."
-        m[stone.r, stone.c, 0] = 1
+        assert m[stone.r+1, stone.c+1, 0] == m[stone.r+1, stone.c+1, 1] == 0, f"{stone} is occupied."
+        m[stone.r+1, stone.c+1, 0] = 1
         m[:, :, [0, 1]] = m[:, :, [1, 0]]
         self.stones.append(stone)
         return self

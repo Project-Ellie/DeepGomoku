@@ -1,6 +1,7 @@
 import abc
 from typing import Tuple
 from pydantic import BaseModel
+import numpy as np
 
 
 class IllegalMoveException(Exception):
@@ -209,7 +210,7 @@ class Game(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_symmetries(self, board: Board, pi):
+    def get_symmetries(self, board: np.ndarray, pi):
         """
         Input:
             board: current board

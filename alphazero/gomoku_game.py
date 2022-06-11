@@ -41,20 +41,28 @@ class GomokuGame(Game):
 
     # modified
     def get_symmetries(self, board, pi):
-
+        """
+        :param board: np array with the stones
+        :param pi: np array containing the move probabilities for the current player
+        :return:
+        """
         # TODO: Implement this function according to spec
 
         # mirror, rotational
-        assert(len(pi) == self.board_size**2 + 1)  # 1 for pass
-        pi_board = np.reshape(pi[:-1], (self.board_size, self.board_size))
+        n = self.board_size
+        assert np.shape(pi) == n * n or np.shape(pi) == (n, n), "pi should be square or flattened."
+        if np.shape(pi) == n * n:
+            pi_board = np.reshape(pi, (self.board_size, self.board_size))
+        else:
+            pi_board = pi
         symmetries = []
 
         for i in range(1, 5):
             for j in [True, False]:
-                new_b = np.rot90(board, i)
-                new_pi = np.rot90(pi_board, i)
+                new_b = np.rot90(board, i, axes=(0, 1))
+                new_pi = np.rot90(pi_board, i, axes=(0, 1))
                 if j:
                     new_b = np.fliplr(new_b)
                     new_pi = np.fliplr(new_pi)
-                symmetries += [(new_b, list(new_pi.ravel()) + [pi[-1]])]
+                symmetries += [(new_b, list(new_pi.ravel()))]
         return symmetries
