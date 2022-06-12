@@ -87,7 +87,7 @@ class NeuralNet(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def train(self, examples):
+    def train(self, examples, n_epochs=1):
         """
         This function trains the neural network with examples obtained from
         self-play.

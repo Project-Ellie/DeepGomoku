@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Callable
 
 import numpy as np
 from pydantic import BaseModel
@@ -213,7 +213,7 @@ class NeuralNetAdapter(NeuralNet, LeadModel):
         max_prob = np.max(probs, axis=None)
         return probs[[probs > max_prob * 0.8]]
 
-    def __init__(self, policy: MaxInfluencePolicy, *args):
+    def __init__(self, policy: Callable, *args):
         super().__init__(*args)
         self.policy = policy
 
