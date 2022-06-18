@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from alphazero.arena import Arena
 from alphazero.gomoku_model import NeuralNetAdapter
-from alphazero.interfaces import TrainParams, NeuralNet
+from alphazero.interfaces import TrainParams
 from alphazero.mcts import MCTS
 
 log = logging.getLogger(__name__)
@@ -22,10 +22,8 @@ class Coach:
     in Game and NeuralNet. params are specified in main.py.
     """
 
-    def __init__(self, game, initial_model: NeuralNet, challenger: NeuralNet, params: TrainParams):
+    def __init__(self, game, params: TrainParams):
         self.game = game
-        self.initial_model = initial_model
-        self.other_model = challenger
         self.params = params
         self.iterations_queue = []  # history of examples from params.numItersForTrainExamplesHistory iterations
         self.skip_first_self_play = False  # can be overriden in load_train_examples()
@@ -108,7 +106,7 @@ class Coach:
         if not self.skip_first_self_play or n_it > 1:
             iteration = deque([], maxlen=self.params.max_queue_length)
 
-            for _ in tqdm(range(self.params.num_episodes), desc="Self Play"):
+            for _ in tqdm(range(self.params.num_episodes), desc="   Self Play"):
                 iteration += self.execute_episode(idol)
 
             # save the iteration examples to the history
@@ -138,7 +136,7 @@ class Coach:
         new_nnet = NeuralNetAdapter(input_size=17)
         original.nnet.save_checkpoint(folder=self.params.checkpoint_dir, filename='temperature.pth.tar')
         new_nnet.load_checkpoint(folder=self.params.checkpoint_dir, filename='temperature.pth.tar')
-        new_mcts = MCTS(self.game, new_nnet, self.params)
+        new_mcts = MCTS(self.game, new_nnet, cpuct=original.cpuct, num_simulations=original.num_simulations)
         return new_mcts
 
 
@@ -153,14 +151,17 @@ class Coach:
 
         for iteration in range(1, self.params.num_iterations + 1):
 
+            print(f"Iteraction {iteration} of {self.params.num_iterations+1}")
+
             # add some new examples, keep some old ones, drop the oldest
             trajectories = self.create_trajectories(defender, n_it=iteration)
 
+            print("   Challenger to learn from the results")
             # training new network
-            challenger.nnet.train(trajectories)
+            challenger.nnet.train(trajectories, params=self.params)
 
             # Arena!
-            log.info('PITTING AGAINST PREVIOUS VERSION')
+            print('   Challenger meets Defender in the Arena')
             arena = Arena(lambda x: np.argmax(defender.get_action_prob(x, temperature=0)),
                           lambda x: np.argmax(challenger.get_action_prob(x, temperature=0)), self.game)
             defender_wins, challenger_wins, draws = arena.play_games(self.params.arena_compare)

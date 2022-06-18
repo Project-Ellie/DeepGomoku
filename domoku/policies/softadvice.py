@@ -218,18 +218,25 @@ class NeuralNetAdapter(NeuralNet, LeadModel):
         self.policy = policy
 
 
-    def train(self, examples):
+    def train(self, examples, params):
         raise NotImplementedError
 
 
     def predict(self, state):
         output = self.policy(state)  # noqa
-        logits = tf.nn.tanh(output)
+        board_size = self.policy.params.board_size  # noqa
+        output = np.reshape(output, [board_size * board_size])
+        logits = tf.nn.tanh(output / 100.)
 
-        board_size = self.policy.params.board_size
-        logits = np.reshape(logits, [board_size * board_size])
-        probs = tf.nn.softmax(logits)
+        # This 'Rescaling' produces a somewhat 'reasonable' distribution
+        eps = 1e-8
+        mx = np.max(output, axis=None)
+        mn = np.min(output, axis=None)
+        rescaled = np.log((output - mn) / (mx - mn) * np.e + eps)
+        probs = tf.nn.softmax(rescaled)
+
         value = tf.reduce_max(logits)
+
         return np.squeeze(probs), float(np.squeeze(value))
 
 

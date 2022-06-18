@@ -2,3 +2,4 @@ __pycache__/
 .idea/
 /notebooks/logs/
 /notebooks/external_tutorials/logs/
+/notebooks/temperature/

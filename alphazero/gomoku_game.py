@@ -2,14 +2,13 @@ import copy
 from typing import Tuple
 
 import numpy as np
-from alphazero.interfaces import Game, TerminalDetector, LeadModel
+from alphazero.interfaces import Game, TerminalDetector
 from alphazero.gomoku_board import GomokuBoard
 
 
 class GomokuGame(Game):
-    def __init__(self, board_size, detector: TerminalDetector, model: LeadModel, initial: str = None):
+    def __init__(self, board_size, detector: TerminalDetector, initial: str = None):
         super().__init__()
-        self.model = model
         self.board_size = board_size
         self.initial_stones = initial if initial is not None else ""
         self.n_in_row = 5
@@ -26,9 +25,14 @@ class GomokuGame(Game):
         return self.board_size ** 2
 
     def get_next_state(self, board: GomokuBoard, action: int) -> Tuple[GomokuBoard, int]:
+        """
+        computes the next state from a deep copy. Leaves the passed board unchanged
+        :return:
+        """
+        board = copy.deepcopy(board)
         board.act(action)
         next_player = board.get_current_player()
-        return copy.deepcopy(board), next_player
+        return board, next_player
 
     def get_valid_moves(self, board: GomokuBoard):
         bits = np.zeros([self.board_size * self.board_size])

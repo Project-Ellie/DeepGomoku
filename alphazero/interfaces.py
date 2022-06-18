@@ -13,6 +13,7 @@ class TrainParams(BaseModel):
     update_threshold: float  # During arena play, new neural net will be accepted if threshold or more games are won.
     max_queue_length: int    # Number of game examples to train the neural networks.
 
+    epochs_per_train: int
     num_iterations: int
     num_episodes: int
     num_simulations: int     # Number of games moves for MCTS to simulate.
@@ -33,6 +34,10 @@ class LeadModel(abc.ABC):
 
 
 class Board(abc.ABC):
+
+    @abc.abstractmethod
+    def get_stones(self):
+        pass
 
     @abc.abstractmethod
     def get_current_player(self):
@@ -87,7 +92,7 @@ class NeuralNet(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def train(self, examples, n_epochs=1):
+    def train(self, examples, params: TrainParams):
         """
         This function trains the neural network with examples obtained from
         self-play.

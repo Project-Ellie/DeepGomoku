@@ -65,6 +65,12 @@ class GomokuBoard(Board):
                     elif isinstance(r_x, str):
                         x, y = r_x[0], int(r_x[1:])
                         r, c = None, None
+                    elif isinstance(r_x, List):
+                        r_x = int(np.argmax(r_x))
+                        assert self.ord_min <= r_x <= self.ord_max, \
+                            f"Expecting a number between {self.ord_min} and {self.ord_max}"
+                        r, c = divmod(r_x, self.board_size)
+                        x, y = None, None
                     else:
                         raise ValueError("If a single argument is provided, "
                                          "it must be a string or integer representation of the move.")
@@ -180,12 +186,16 @@ class GomokuBoard(Board):
         assert all([self.board_size >= s.r >= 1 for s in stones]), "Not all stones in valid range"
         assert all([self.board_size >= s.c >= 1 for s in stones]), "Not all stones in valid range"
 
-    def plot(self, x_is_next=None):
+    def plot(self, x_is_next=None, mark=None):
+        mark = self.stones[-1] if mark is None else mark
 
         x_is_next = x_is_next if x_is_next is not None else self.x_is_next
 
-        def ch(index):
-            return [' . ', ' X ', ' O ', '   '][index]
+        def ch(index, i, j):
+            symbol = [' . ', ' X ', ' O ', '   '][index]
+            if mark is not None and (i-1, j-1) == (mark.r, mark.c):
+                symbol = f'[{symbol.strip()}]'
+            return symbol
 
         def row(r):
             return f"{self.board_size-r:2}" if r in range(self.board_size) else "  "
@@ -196,7 +206,8 @@ class GomokuBoard(Board):
             rep[:, :, [0, 1]] = rep[:, :, [1, 0]]
 
         array = sum([np.rollaxis(rep, -1, 0)[i] * (i+1) for i in range(3)])
-        print(f"\n".join([f"{row(i-1)}" + "".join([ch(c) for c in r]) for i, r in enumerate(array)]))
+        print(f"\n".join([f"{row(i-1)}" + "".join([ch(c, i, j)
+                                                   for j, c in enumerate(r)]) for i, r in enumerate(array)]))
         print("      " + "  ".join([chr(i+65) for i in range(self.board_size)]))
 
 
@@ -206,7 +217,7 @@ class GomokuBoard(Board):
         :param policy: a policy that takes the math_rep of this board
         :param scale: any factor that makes the output readable
         """
-        pi = np.squeeze(policy(self.math_rep))
+        pi = np.squeeze(policy(self.math_rep)).reshape((self.board_size,  self.board_size))
         scale = 1000 if scale is None else 999. / np.max(pi, axis=None)
         print((scale*pi).astype(int))
 
@@ -248,15 +259,31 @@ class GomokuBoard(Board):
         m = self.math_rep
         assert m[stone.r+1, stone.c+1, 0] == m[stone.r+1, stone.c+1, 1] == 0, f"{stone} is occupied."
         m[stone.r+1, stone.c+1, 0] = 1
-        m[:, :, [0, 1]] = m[:, :, [1, 0]]
+        self.swap()
         self.stones.append(stone)
         return self
+
+    def undo(self):
+        if not self.stones:
+            return self
+        self.remove(self.stones[-1])
+        self.swap()
+        return self
+
+    def swap(self):
+        self.math_rep[:, :, [0, 1]] = self.math_rep[:, :, [1, 0]]
 
     def canonical_representation(self):
         return self.math_rep
 
 
+    def remove(self, stone):
+        assert isinstance(stone, self.Stone), "Can only remove this board's stones"
+        self.math_rep[stone.r+1, stone.c+1] = [0, 0, 0]
+        self.stones.remove(stone)
+
 # convenience for playing on the console
+
 
 A = 'A'
 B = 'B'

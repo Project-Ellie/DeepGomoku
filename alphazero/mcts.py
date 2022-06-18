@@ -1,10 +1,12 @@
 import copy
 import logging
 import math
+from typing import Dict
 
 import numpy as np
 
-from alphazero.interfaces import TrainParams, Game, NeuralNet, Board
+from alphazero.hr_tree import TreeNode
+from alphazero.interfaces import Game, NeuralNet, Board
 
 EPS = 1e-8
 
@@ -16,10 +18,14 @@ class MCTS:
     This class handles the MCTS tree.
     """
 
-    def __init__(self, game: Game, nnet: NeuralNet, args: TrainParams):
+    def __init__(self, game: Game, nnet: NeuralNet, cpuct: float, num_simulations: int,
+                 model_threshold=.2, verbose=0):
         self.game = game
         self.nnet = nnet
-        self.args = args
+        self.cpuct = cpuct
+        self.num_simulations = num_simulations
+        self.model_threshold = model_threshold
+
         self.Q = {}  # stores Q values for s,a (as defined in the paper)
         self.Nsa = {}  # stores #times edge s,a was visited
         self.Ns = {}  # stores #times board s was visited
@@ -27,6 +33,13 @@ class MCTS:
 
         self.Es = {}  # stores game.get_game_ended ended for board s
         self.Vs = {}  # stores game.get_valid_moves for board s
+        if verbose > 0:
+            self.verbosity = verbose
+            print(f"verbosity: {self.verbosity}")
+
+        board = game.get_initial_board()
+        key = board.get_string_representation()
+        self.tree_nodes: Dict[str, TreeNode] = {key: TreeNode(None, key, None, str(board), None)}
 
     def get_action_prob(self, board: Board, temperature=1):
         """
@@ -38,7 +51,7 @@ class MCTS:
                    proportional to Nsa[(s,a)]**(1./temperature)
         """
         original_board = board
-        for i in range(self.args.num_simulations):
+        for i in range(self.num_simulations):
             board = copy.deepcopy(original_board)
             self.search(board)
 
@@ -96,16 +109,33 @@ class MCTS:
             return -self.initialize_and_estimate_value(board, s)
 
         a = self.best_act(board=board, s=s)
-        board_copy = copy.deepcopy(board)
-        next_board, _ = self.game.get_next_state(board_copy, a)
+        next_board, _ = self.game.get_next_state(board, a)
         v = self.search(next_board)
 
-        self.update_node_stats(s, a, v)
+        new_value = self.update_node_stats(s, a, v)
+        self.update_tree_view(s, a, new_value, next_board)
 
         return -v
 
 
+    def update_tree_view(self, s, a, v, board):
+        """
+        :param s: the canonical string rep of the prev state
+        :param a: the action from prev to curr state
+        :param v: the value of the new state
+        :param board: human-readable string rep of the current state
+        """
+        parent = self.tree_nodes[s]
+        if parent.children.get(a) is not None:
+            parent.children.get(a).v = v
+        else:
+            child = self.tree_nodes[s].add_child(a, board, v)
+            self.tree_nodes[child.key] = child
+
     def update_node_stats(self, s, a, v):
+        """
+        :return: the updated average value for use in documentation and forensics
+        """
         if (s, a) in self.Q:
             self.Q[(s, a)] = (self.Nsa[(s, a)] * self.Q[(s, a)] + v) / (self.Nsa[(s, a)] + 1)
             self.Nsa[(s, a)] += 1
@@ -113,7 +143,7 @@ class MCTS:
             self.Q[(s, a)] = v
             self.Nsa[(s, a)] = 1
         self.Ns[s] += 1
-
+        return self.Q[(s, a)]
 
     def initialize_and_estimate_value(self, board, s: str):
         """
@@ -147,26 +177,39 @@ class MCTS:
         return v
 
 
-    def best_act(self, board: Board, s: str):
-        # pick the action with the highest upper confidence bound
+    def probable_actions(self, board: Board):
+        pi, _ = self.nnet.predict(board.canonical_representation())
+        mx = np.max(pi)
+        return list(np.where(pi >= self.model_threshold * mx)[0])
+
+
+    def best_act(self, board: Board, s: str) -> int:
+        # pick the action with the highest upper confidence bound from the probable actions
+        # We're reducing the action space to those actions deemed probable by the model
         valids = self.Vs[s]
         cur_best = -float('inf')
         best_act = -1
 
-        #
-        #  TODO: Here, we should cooperate with a lead policy that reduces the action space.
-        #   In the spirit of mu-zero, that could be considered a part of the environment model.
-        #
-        for a in range(self.game.get_action_size(board)):
+        probable_actions = self.probable_actions(board)
+        if len(probable_actions) == 1:
+            return int(probable_actions[0])
+
+        # for a in range(self.game.get_action_size(board)):
+        for a in probable_actions:
             if valids[a]:
                 if (s, a) in self.Q:
-                    u = self.Q[(s, a)] + self.args.cpuct * self.Ps[s][a] * math.sqrt(self.Ns[s]) / (
-                            1 + self.Nsa[(s, a)])
+                    q = self.Q[(s, a)]
+                    p = self.Ps[s][a]
+                    sns = math.sqrt(self.Ns[s])
+                    nsa = 1 + self.Nsa[(s, a)]
+                    u = q + self.cpuct * p * sns / nsa
                 else:
-                    u = self.args.cpuct * self.Ps[s][a] * math.sqrt(self.Ns[s] + EPS)  # Q = 0 ?
+                    p = self.Ps[s][a]
+                    sns = math.sqrt(self.Ns[s] + EPS)
+                    u = self.cpuct * p * sns  # Q = 0 ?
 
                 if u > cur_best:
                     cur_best = u
                     best_act = a
 
-        return best_act
+        return int(best_act)

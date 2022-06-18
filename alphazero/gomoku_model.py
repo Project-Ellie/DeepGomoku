@@ -1,8 +1,9 @@
 import datetime as dt
 import numpy as np
 import tensorflow as tf
+from tqdm import tqdm
 
-from alphazero.interfaces import NeuralNet
+from alphazero.interfaces import NeuralNet, TrainParams
 
 
 class GomokuModel(tf.keras.Model):
@@ -105,14 +106,14 @@ class NeuralNetAdapter(NeuralNet):
         raise NotImplementedError
 
     # @tf.function
-    def train(self, examples, n_epochs=1):
+    def train(self, examples, params: TrainParams):
         current_time = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
         train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
         train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
         all_train_ds = self.create_dataset(examples)
 
-        for epoch in range(n_epochs):
+        for epoch in tqdm(range(params.epochs_per_train), desc="   Training"):
             for x_train, pi_train, v_train in all_train_ds:
                 self.train_step(x_train, pi_train, v_train)
             with train_summary_writer.as_default():
@@ -124,10 +125,9 @@ class NeuralNetAdapter(NeuralNet):
             #     tf.summary.scalar('loss', test_loss.result(), step=epoch)
             #     tf.summary.scalar('accuracy', test_accuracy.result(), step=epoch)
 
-            template = 'Epoch {}, Loss: {}'
-            print(template.format(epoch+1, self.train_loss.result()*100))
+        print(f'Epochs: {params.epochs_per_train}, Loss: {self.train_loss.result()}')
 
-            self.train_loss.reset_states()
+        self.train_loss.reset_states()
 
     def train_step(self, x, pi_y, v_y):
         with tf.GradientTape() as tape:
