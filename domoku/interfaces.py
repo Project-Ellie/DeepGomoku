@@ -68,7 +68,7 @@ class AbstractGanglion(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def sample(self, state, n: int) -> List[Any]:
+    def sample(self, state, n: int, **kwargs) -> List[Any]:
         """
         Compute n sample actions from that state
         :param state: any given state

@@ -8,6 +8,7 @@ from alphazero.interfaces import NeuralNet, LeadModel
 from domoku.interfaces import AbstractGanglion
 from domoku.policies.maximal_criticality import MaxCriticalityPolicy
 from domoku.policies.radial import radial_3xnxn, radial_2xnxn
+from domoku.policies.threat_search import ThreatSearchPolicy
 
 
 class MaxInfluencePolicyParams(BaseModel):
@@ -39,7 +40,8 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion, LeadModel):
 
 
     def __init__(self, params: MaxInfluencePolicyParams, pov: int,  # point of view - for value function
-                 criticality_model: MaxCriticalityPolicy = None):
+                 criticality_model: MaxCriticalityPolicy = None,
+                 threat_model: ThreatSearchPolicy = None):
         super().__init__()
         self.params = params
         self.pov = pov
@@ -49,6 +51,7 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion, LeadModel):
         self.biases = None
         self.occupied_suppression = -10.
         self.crit_model = criticality_model
+        self.threat_model = threat_model
 
         pot, agg, peel = self.create_model()
         self.potential = pot
@@ -56,8 +59,7 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion, LeadModel):
         self.peel = peel
 
 
-    def call(self, sample):
-
+    def soft(self, sample):
         # add two more channels filled with zeros. They'll be carrying the 'influence' of the surrounding stones.
         # That allows for arbitrarily deep chaining within our architecture
         n = self.input_size
@@ -67,12 +69,29 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion, LeadModel):
         y = self.potential(y)
         y = self.potential(y)
         soft = self.peel(self.aggregate(y))
+        return soft
 
-        if self.crit_model is not None:
-            hard = self.crit_model.call(sample)
-            res = hard * 10 + 0.01 * soft
-        else:
-            res = soft
+    def call(self, sample, verbose=0, stone: Callable = None):
+
+        soft = self.soft(sample)
+        hard = self.crit_model.call(sample) if self.crit_model is not None else 0.
+        threats = self.threat_model.call(sample) if self.threat_model is not None else 0.
+
+        w_hard = 0.5
+        w_threat = 1.0
+        w_infl = .1
+
+        res = w_hard * hard + w_threat * threats + w_infl * soft
+
+        if verbose > 0:
+            best = stone(int(np.argmax(hard))) if stone else np.argmax(hard)
+            print(f"Critical:  {best} - {np.max(hard, axis=None):.5}, w={w_hard}")
+            best = stone(int(np.argmax(threats))) if stone else np.argmax(threats)
+            print(f"Threats:   {best} - {np.max(threats, axis=None):.5}, w={w_threat}")
+            best = stone(int(np.argmax(soft))) if stone else np.argmax(soft)
+            print(f"Influence: {best} - {np.max(soft, axis=None):.5}, w={w_infl}")
+            best = stone(int(np.argmax(res))) if stone else np.argmax(res)
+            print(f"Total:     {best} - {np.max(res, axis=None):.5}")
 
         return res
 
@@ -132,25 +151,24 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion, LeadModel):
         return potential, aggregate, peel
 
 
-    def sample(self, state, n=1, board=None):
+    def sample(self, state, n_sample=1, stone: Callable = None):
         """
         Draw a sample from the distribution of moves provided by this policy.
-        :param board: if provided, return samples as board.Stone instances
+        :param stone: constructor, if you want a list of stones, rather than integers
         :param state: The NxNx3 math_rep of the board
-        :param n: The number of samples to return
+        :param n_sample: The number of samples to return
         :return: A move to be played on that board (matrix - NOT board representation)
         """
 
         policy_result = self.call(state)
         n = self.params.board_size
         n_choices = n * n
-        choices = tf.nn.softmax(tf.reshape(policy_result, n_choices) * self.params.iota).numpy()
+        probabilities = tf.nn.softmax(tf.reshape(policy_result, n_choices) * self.params.iota).numpy()
         elements = range(n_choices)
-        probabilities = choices
-        fields = np.random.choice(elements, n, p=probabilities)
+        fields = np.random.choice(elements, n_sample, p=probabilities)
 
-        if board:
-            fields = [board.Stone(int(field)) for field in fields]
+        if stone:
+            fields = [stone(int(field)) for field in fields]
 
         return fields
 
