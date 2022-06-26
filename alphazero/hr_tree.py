@@ -1,9 +1,12 @@
+from typing import Dict
+
 from alphazero.interfaces import Board
 
 
 class TreeNode:
 
-    def __init__(self, parent, key: str, action, hrs, value, level=1):
+    def __init__(self, parent, key: str, action, hrs, value, level=1, info=None):
+        self.info = info
         self.parent = parent
         self.level = level
         self.key = key
@@ -12,9 +15,9 @@ class TreeNode:
         self.value = value
         self.children = {}
 
-    def add_child(self, action, board: Board, value):
+    def add_child(self, action, board: Board, value, info: Dict):
         key = board.get_string_representation()
-        child = TreeNode(self, key, board.Stone(action), board.get_stones(), value, level=self.level + 1)  # noqa
+        child = TreeNode(self, key, board.Stone(action), board.get_stones(), value, self.level + 1, info)  # noqa
         self.children[action] = child
         return child
 

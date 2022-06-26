@@ -168,8 +168,8 @@ class GomokuBoard(GomokuField):
         if self.heuristics is None:
             return
 
-        position = new_board.GomokuBoard(15, stones=GomokuTools.stones_to_string(self.stones))
-        q = self.heuristics(position)
+        position = new_board.GomokuBoard(self.N, stones=GomokuTools.stones_to_string(self.stones))
+        q = self.heuristics(position.canonical_representation())
         heatmap = np.squeeze(self.heatmap(q))
 
         for c in range(self.N):
@@ -178,7 +178,7 @@ class GomokuBoard(GomokuField):
                 x, y = GomokuTools.m2b((r, c), self.N)
                 if value >= cut_off:
                     color = f"#{value:02x}0000"
-                    axis.scatter([x], [y], color=color, s=self.stones_size(), zorder=10)
+                    axis.scatter([x], [y], color=color, s=self.stones_size() * .5, zorder=10)
             
                 
     def stones_size(self):
@@ -216,6 +216,3 @@ class GomokuBoard(GomokuField):
     def from_csv(filename, heuristics, size=19, disp_width=10):
         stones = pd.read_csv(filename, header=None).values.tolist()
         return GomokuBoard(heuristics, size, disp_width, stones=stones)
-
-
-#%%

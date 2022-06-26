@@ -218,7 +218,7 @@ class GomokuBoard(Board):
         :param scale: any factor that makes the output readable
         """
         pi = np.squeeze(policy(self.math_rep)).reshape((self.board_size,  self.board_size))
-        scale = 1000 if scale is None else 999. / np.max(pi, axis=None)
+        scale = 999 if scale is None else 999. / np.max(pi, axis=None)
         print((scale*pi).astype(int))
 
 

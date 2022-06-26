@@ -1,7 +1,7 @@
 import copy
 import logging
 import math
-from typing import Dict
+from typing import Dict, Tuple
 
 import numpy as np
 
@@ -108,29 +108,34 @@ class MCTS:
             # we'll create a new leaf node and return the negative of the value estimated by the guiding player
             return -self.initialize_and_estimate_value(board, s)
 
-        a = self.best_act(board=board, s=s)
+        a, info = self.best_act(board=board, s=s)
         next_board, _ = self.game.get_next_state(board, a)
         v = self.search(next_board)
 
-        new_value = self.update_node_stats(s, a, v)
-        self.update_tree_view(s, a, new_value, next_board)
+        self.update_node_stats(s, a, v)
+
+        # Only works in self-play
+        # new_value = self.update_node_stats(s, a, v)
+        # self.update_tree_view(s, a, new_value, next_board, info)
 
         return -v
 
 
-    def update_tree_view(self, s, a, v, board):
+    def update_tree_view(self, s, a, v, board, info=None):
         """
         :param s: the canonical string rep of the prev state
         :param a: the action from prev to curr state
         :param v: the value of the new state
+        :param info: a dictionary with debug info
         :param board: human-readable string rep of the current state
         """
-        parent = self.tree_nodes[s]
-        if parent.children.get(a) is not None:
+        parent = self.tree_nodes.get(s)
+        if parent and parent.children.get(a) is not None:
             parent.children.get(a).v = v
         else:
-            child = self.tree_nodes[s].add_child(a, board, v)
+            child = self.tree_nodes[s].add_child(a, board, v, info)
             self.tree_nodes[child.key] = child
+
 
     def update_node_stats(self, s, a, v):
         """
@@ -144,6 +149,7 @@ class MCTS:
             self.Nsa[(s, a)] = 1
         self.Ns[s] += 1
         return self.Q[(s, a)]
+
 
     def initialize_and_estimate_value(self, board, s: str):
         """
@@ -183,7 +189,7 @@ class MCTS:
         return list(np.where(pi >= self.model_threshold * mx)[0])
 
 
-    def best_act(self, board: Board, s: str) -> int:
+    def best_act(self, board: Board, s: str) -> Tuple[int, Dict]:
         # pick the action with the highest upper confidence bound from the probable actions
         # We're reducing the action space to those actions deemed probable by the model
         valids = self.Vs[s]
@@ -192,9 +198,10 @@ class MCTS:
 
         probable_actions = self.probable_actions(board)
         if len(probable_actions) == 1:
-            return int(probable_actions[0])
+            return int(probable_actions[0]), {'u': float('inf'), 'q': None, 'p': 1, 'nsa': None}
 
         # for a in range(self.game.get_action_size(board)):
+        debug_info = {}
         for a in probable_actions:
             if valids[a]:
                 if (s, a) in self.Q:
@@ -203,13 +210,15 @@ class MCTS:
                     sns = math.sqrt(self.Ns[s])
                     nsa = 1 + self.Nsa[(s, a)]
                     u = q + self.cpuct * p * sns / nsa
+                    debug_info[a] = {'u': u, 'q': q, 'p': p, 'nsa': nsa}
                 else:
                     p = self.Ps[s][a]
                     sns = math.sqrt(self.Ns[s] + EPS)
                     u = self.cpuct * p * sns  # Q = 0 ?
+                    debug_info[a] = {'u': u, 'q': None, 'p': p, 'nsa': None}
 
                 if u > cur_best:
                     cur_best = u
                     best_act = a
 
-        return int(best_act)
+        return int(best_act), debug_info

@@ -39,6 +39,38 @@ def all_3xnxn(pattern):
     return np.rollaxis(np.rollaxis(raw_stack, 1, 4), 0, 4)
 
 
+def all_5xnxn(pattern, pov):
+    """
+    compute the 9x9x5x4 filters for secondary patterns
+    :param pattern:
+    :param pov:
+    :return:
+    """
+    stones, influence, defense = pattern
+    size = len(stones)
+    dont_care = np.zeros((size, size))
+    if pov == 0:
+        raw_stack = np.stack([
+            #                 c                  o                b                        i                j
+            np.stack([hor_1xnxn(stones), hor_1xnxn(defense), hor_1xnxn(defense), hor_1xnxn(influence), dont_care]),
+            np.stack([np.diag(stones), np.diag(defense), np.diag(defense), np.diag(influence), dont_care]),
+            np.stack([ver_1xnxn(stones), ver_1xnxn(defense), ver_1xnxn(defense), ver_1xnxn(influence), dont_care]),
+            np.stack([np.diag(stones)[::-1], np.diag(defense)[::-1], np.diag(defense)[::-1], np.diag(influence)[::-1],
+                      dont_care]),
+        ])
+    else:
+        raw_stack = np.stack([
+            #                 c                  o                b                     i                j
+            np.stack([hor_1xnxn(defense), hor_1xnxn(stones), hor_1xnxn(defense), dont_care, hor_1xnxn(influence)]),
+            np.stack([np.diag(defense), np.diag(stones), np.diag(defense), dont_care, np.diag(influence)]),
+            np.stack([ver_1xnxn(defense), ver_1xnxn(stones), ver_1xnxn(defense), dont_care, ver_1xnxn(influence)]),
+            np.stack([np.diag(defense)[::-1], np.diag(stones)[::-1], np.diag(defense)[::-1], dont_care,
+                      np.diag(influence)[::-1]]),
+        ])
+
+    return np.rollaxis(np.rollaxis(raw_stack, 1, 4), 0, 4)
+
+
 def radial_2xnxn(pattern_curr, pattern_oth=None, center_curr=-1, center_oth=-1, gamma=1.0):
     pattern_oth = pattern_oth if pattern_oth is not None else pattern_curr
     assert pattern_oth is None or len(pattern_oth) == len(pattern_curr), 'Patterns must have same length'
@@ -75,4 +107,3 @@ def radial_3xnxn(pattern_curr, pattern_oth=None, pattern_bnd=None,
     res = np.sum(all_3xnxn([curr, oth, bnd]), axis=-1) * gamma
     res[lp, lp, :] = [center_curr, center_oth, center_bnd]
     return res
-

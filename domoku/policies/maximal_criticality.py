@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from alphazero.interfaces import TerminalDetector
-from domoku.policies.radial import all_2xnxn, all_3xnxn
+from domoku.policies.radial import all_3xnxn
 
 # Criticality Categories
 TERMINAL = 0  # detects existing 5-rows
@@ -60,6 +60,7 @@ class MaxCriticalityPolicy(tf.keras.Model, TerminalDetector):
             # potential double-open 3 patterns - not so critical
             # Here, the over-confidence may help us to produce terminating trajectories
             [
+
                 [[+0, -1,  1, -1,  1, -1, -1,  0,  0,  0,  0], [+0, -1, -1, -1, -1, -1, -1,  0,  0,  0,  0],
                  -1, [overconfidence, 1]],
                 [[+0,  0, -1,  1, -1, -1,  1, -1,  0,  0,  0], [+0,  0, -1, -1, -1, -1, -1, -1,  0,  0,  0],
@@ -75,7 +76,11 @@ class MaxCriticalityPolicy(tf.keras.Model, TerminalDetector):
                  -1, [overconfidence, 1]],
                 [[+0,  0,  0, -1,  1, -1,  1, -1, -1,  0,  0], [+0,  0,  0, -1, -1, -1, -1, -1, -1,  0,  0],
                  -1, [overconfidence, 1]],
+                [[+0,  0,  -1, -1,  1, -1,  1, -1, 0,  0,  0], [+0,  0,  -1, -1, -1, -1, -1, -1, 0,  0,  0],
+                 -1, [overconfidence, 1]],
                 [[+0,  0,  0,  0, -1, -1,  1,  1, -1, -1,  0], [+0,  0,  0,  0, -1, -1, -1, -1, -1, -1,  0],
+                 -1, [overconfidence, 1]],
+                [[+0,  0,  0,  0, -1, -1,  -1, 1,  1, -1,  0], [+0,  0,  0,  0, -1, -1, -1, -1, -1, -1,  0],
                  -1, [overconfidence, 1]],
             ],
 
@@ -188,21 +193,6 @@ class MaxCriticalityPolicy(tf.keras.Model, TerminalDetector):
         ]
         patterns.sort(key=lambda r: -r[-1])
         return patterns
-
-
-    def assemble_filters(self):
-        patterns = self.select_patterns()
-        biases = []
-        weights = []
-        for pattern in patterns:
-            biases = biases + [pattern[1]] * 4
-            weights = weights + [pattern[2]] * 4
-        stacked = np.stack([
-            all_2xnxn(pattern[0])
-            for pattern in patterns], axis=3)
-        reshaped = np.reshape(stacked, (11, 11, 2, 4 * np.shape(patterns)[0]))
-
-        return reshaped, biases, weights
 
 
     def assemble_filters_3(self):
