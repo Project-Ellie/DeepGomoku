@@ -1,8 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from alphazero.interfaces import TerminalDetector
-from domoku.policies.radial import all_3xnxn, radial_3xnxn, all_5xnxn
+from domoku.policies.radial import all_3xnxn, radial_3xnxn
 
 # Criticality Categories
 TERMINAL = 0  # detects existing 5-rows
@@ -22,9 +21,10 @@ CHANNELS = [
 ]
 
 
-class ThreatSearchPolicy(tf.keras.Model, TerminalDetector):
+class PrimaryDetector(tf.keras.layers.Layer):
     """
-    A policy that doesn't miss any sure-win or must-defend
+    Input:  Board plus boundary: dimensions: [N+2, N+2, 3]
+    Output: Projections + current threat plus other threat: [N+2, N+2, 5]
     """
     def __init__(self, board_size, **kwargs):
         """
@@ -38,11 +38,11 @@ class ThreatSearchPolicy(tf.keras.Model, TerminalDetector):
         self.patterns = [
             # terminal_pattern
             [
-                [[0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], -4, [9991, 1333]],
+                [[0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], -4, [9999, 3333]],
             ],
             # win-in-1 patterns
             [
-                [[0, 1, 1, 1, 1, -1, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0], -3, [991, 133]],
+                [[0, 1, 1, 1, 1, -1, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0], -3, [999, 333]],
                 [[0, 0, 1, 1, 1, -1, 1, 0, 0, 0, 0], [0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0], -3, [999, 333]],
                 [[0, 0, 0, 1, 1, -1, 1, 1, 0, 0, 0], [0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0], -3, [999, 333]],
                 [[0, 0, 0, 0, 1, -1, 1, 1, 1, 0, 0], [0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0], -3, [999, 333]],
@@ -93,7 +93,10 @@ class ThreatSearchPolicy(tf.keras.Model, TerminalDetector):
                 [[+0,  1,  1,  1,  -1,    -1,   0,  0,  0,  0,  0], [1, -1, -1, -1, -1, -1, 0,  0,  0,  0,  0],
                  -3, [1, 1]],
 
-                # - x o . o [] o .
+                #  - x o o o [] .
+                [[0,  0,  1,  1,  1,     -1,   -1,  0,  0,  0,  0], [0, +1, -1, -1, -1, -1, -1, 0,  0,  0,  0],
+                 -3, [1, 1]],
+                #  - x o . o [] o
                 [[0,  0,  1, -1,  1,     -1,    1,  0,  0,  0,  0], [0, +1, -1, -1, -1, -1, -1, 0,  0,  0,  0],
                  -3, [1, 1]],
                 #  - x o o . [] o
@@ -103,123 +106,32 @@ class ThreatSearchPolicy(tf.keras.Model, TerminalDetector):
                 [[0,  0,  -1, 1,  1,     -1,    1,  0,  0,  0,  0], [0, +1, -1, -1, -1, -1, -1, 0,  0,  0,  0],
                  -3, [1, 1]],
 
-                # [] o o . o x
+                #  [] o o . o x
                 [[0,  0,  0,  0,  0,    -1,   1, 1, -1, 1, 0], [0,  0,  0,  0,  0, -1, -1, -1, -1, -1, 1],
                  -3, [1, 1]],
-                # [] o . o o x
+                #  [] o . o o x
                 [[0,  0,  0,  0,  0,    -1,   1, -1, 1, 1, 0], [0,  0,  0,  0,  0, -1, -1, -1, -1, -1, 1],
                  -3, [1, 1]],
-                # [] . o o o x
+                #  [] . o o o x
                 [[0,  0,  0,  0,  0,    -1,   -1, 1, 1, 1, 0], [0,  0,  0,  0,  0, -1, -1, -1, -1, -1, 1],
                  -3, [1, 1]],
 
-                # o [] o . o x -
+                #  o [] o . o x -
                 [[0,  0,  0,  0,  1,     -1,    1, -1,  1, 0, 0], [0,  0,  0,  0,  0, -1, -1, -1, -1, 1, 0],
                  -3, [1, 1]],
-                # o [] o o . x -
+                #  o [] o o . x -
                 [[0,  0,  0,  0,  1,     -1,    1,  1, -1, 0, 0], [0,  0,  0,  0,  0, -1, -1, -1, -1, 1, 0],
                  -3, [1, 1]],
-                # o [] . o o x -
+                #  o [] . o o x -
                 [[0,  0,  0,  0,  1,     -1,    -1, 1,  1, 0, 0], [0,  0,  0,  0,  0, -1, -1, -1, -1, 1, 0],
+                 -3, [1, 1]],
+                #  . [] o o o x -
+                [[0,  0,  0,  0, -1,     -1,     1, 1,  1, 0, 0], [0,  0,  0,  0,  -1, -1, -1, -1, -1, 1, 0],
                  -3, [1, 1]],
             ]
         ]
 
-        # Patterns to recognize combinations of potential stones with existing stones
-        self.secondary_patterns = [
-
-            # - X x - [] - . . .
-            [[-1,  1, -1, -1, -99,   -1,  0,  0,  0],
-             [0,   0,  1,  0,   1,    0,  0,  0,  0],
-             [-1, -1, -1, -1,  -1,   -1,  0,  0,  0]],
-
-            # - X - x [] - . . .
-            [[-1,  1, -1, -1, -99,   -1,  0,  0,  0],
-             [0,   0,  0,  1,   1,    0,  0,  0,  0],
-             [-1, -1, -1, -1,  -1,   -1,  0,  0,  0]],
-
-            # - x X - [] - . . .
-            [[-1, -1, 1, -1,  -99,   -1,  0,  0,  0],
-             [0,   1,  0, 0,    1,    0,  0,  0,  0],
-             [-1, -1, -1, -1,  -1,   -1,  0,  0,  0]],
-
-            # - - X x [] - - . .
-            [[-1, -1,  1, -1, -99,   -1, -1,  0,  0],
-             [0,   0,  0,  1,   1,    0,  0,  0,  0],
-             [-1, -1, -1, -1,  -1,   -1, -1,  0,  0]],
-
-            # . - X - [] x - . .
-            [[0, -1,  1, -1, -99,   -1, -1,  0,  0],
-             [0,  0,  0,  0,   1,    1,  0,  0,  0],
-             [0, -1, -1, -1,  -1,   -1, -1,  0,  0]],
-
-            # - x - X [] - . . .
-            [[-1, -1, -1, 1,  -99,   -1,  0,  0,  0],
-             [0,   1,  0,  0,   1,   0,  0,  0,  0],
-             [-1, -1, -1, -1,  -1,   -1,  0,  0,  0]],
-
-            # - - x X [] - - . .
-            [[-1, -1, -1, 1,  -99,   -1, -1,  0,  0],
-             [0,   0, 1,  0,    1,    0,  0,  0,  0],
-             [-1, -1, -1, -1,  -1,   -1, -1,  0,  0]],
-
-            # . - - X [] x - - .
-            [[0, -1, -1,  1, -99,   -1, -1, -1,  0],
-             [0,  0,  0,  0,   1,    1,  0,  0,  0],
-             [0, -1, -1, -1,  -1,   -1, -1, -1,  0]],
-
-            # . . - X [] - x - .
-            [[0,  0, -1,  1, -99,   -1, -1, -1,  0],
-             [0,  0,  0,  0,   1,    0,  1,  0,  0],
-             [0,  0, -1, -1,  -1,   -1, -1, -1,  0]],
-
-            # . - x - [] X - . .
-            [[0, -1, -1, -1, -99,   1, -1,  0,  0],
-             [0,  0,  1,  0,   1,   0,  0,  0,  0],
-             [0, -1, -1, -1,  -1,  -1, -1,  0,  0]],
-
-            # . - - x [] X - - .
-            [[0, -1, -1, -1,  -99,   1, -1, -1,  0],
-             [0,  0,  0,  1,    1,   0,  0,  0,  0],
-             [0, -1, -1, -1,   -1,  -1, -1, -1,  0]],
-
-            # . . - - [] X x - -
-            [[0,  0, -1, -1,  -99,   1, -1, -1, -1],
-             [0,  0,  0,  0,    1,   0,  1,  0,  0],
-             [0,  0, -1, -1,   -1,  -1, -1, -1, -1]],
-
-            # . . . - [] X - x -
-            [[0,  0,  0, -1,  -99,   1, -1, -1, -1],
-             [0,  0,  0,  0,    1,   0,  0,  1,  0],
-             [0,  0,  0, -1,   -1,  -1, -1, -1, -1]],
-
-            # . . - x [] - X - .
-            [[0,  0, -1, -1,  -99,  -1,  1, -1, 0],
-             [0,  0,  0,  1,    1,   0,  0,  0, 0],
-             [0,  0, -1, -1,   -1,  -1, -1, -1, 0]],
-
-            # . . - - [] x X - -
-            [[0,  0, -1, -1,  -99,  -1,  1, -1, -1],
-             [0,  0,  0,  0,    1,   1,  0,  0,  0],
-             [0,  0, -1, -1,   -1,  -1, -1, -1, -1]],
-
-            # . . . - [] - X x -
-            [[0,  0,  0, -1,  -99,  -1,  1, -1, -1],
-             [0,  0,  0,  0,    1,   0,  0,  1,  0],
-             [0,  0,  0, -1,   -1,  -1, -1, -1, -1]],
-
-            # . . . - [] x - X -
-            [[0,  0,  0, -1,  -99,  -1, -1,  1, -1],
-             [0,  0,  0,  0,    1,   1,  0,  0,  0],
-             [0,  0,  0, -1,   -1,  -1, -1, -1, -1]],
-
-            # . . . - [] - x X -
-            [[0,  0,  0, -1,  -99,  -1, -1,  1, -1],
-             [0,  0,  0,  0,    1,   0,  1,  0,  0],
-             [0,  0,  0, -1,   -1,  -1, -1, -1, -1]],
-        ]
-
-        filters, biases, weights = self.assemble_primary_filters()
+        filters, biases, weights = self.assemble_filters()
 
         n_filters = len(biases)
 
@@ -238,71 +150,7 @@ class ThreatSearchPolicy(tf.keras.Model, TerminalDetector):
 
         self.combine = tf.keras.layers.Conv2D(
             filters=5, kernel_size=(1, 1),
-            kernel_initializer=tf.constant_initializer(weights),
-            activation=tf.nn.tanh)
-
-        # Forward-looking blocks, computing influence of influence
-        #
-        secondary_filters = self.assemble_secondary_filters()
-        self.secondary_filters = secondary_filters
-        n_symmetries = 4
-        n_projectors = 3
-        n_channels = 2
-        n_filters_1 = len(self.secondary_patterns) * n_symmetries * n_channels
-        n_all = n_filters_1 + n_projectors
-        fw_weights = [1.] * n_all
-        fw_weights = self.spread_weights_fw(fw_weights, n_all)
-        fw_weights = np.rollaxis(np.array(fw_weights), axis=-1)
-
-        self.forward_looking_1 = tf.keras.layers.Conv2D(
-            filters=n_all, kernel_size=(9, 9),
-            kernel_initializer=tf.constant_initializer(secondary_filters),
-            bias_initializer=tf.constant_initializer([0., 0, 0.] + [-1.] * n_filters_1),
-            padding='same',
-            activation=tf.nn.relu
-        )
-        self.combine_fl_1 = tf.keras.layers.Conv2D(
-            filters=5, kernel_size=(1, 1),
-            kernel_initializer=tf.constant_initializer(fw_weights),
-            activation=tf.nn.tanh
-        )
-
-    # ======================== End Forward-Looking Blocks
-
-        # Simply add offensive and defensive advice
-        self.finalize = tf.keras.layers.Conv2D(
-            filters=1, kernel_size=(1, 1),
-            kernel_initializer=tf.constant_initializer([0., 0., 0., 1., 1.])
-        )
-
-        self.peel = tf.keras.layers.Conv2D(
-            filters=1, kernel_size=(3, 3),
-            kernel_initializer=tf.constant_initializer([
-                [[0., 0., 0.], [0., 1., 0.], [0., 0., 0.]]
-            ]),
-            bias_initializer=tf.constant_initializer(0.),
-            trainable=False)
-
-
-    def assemble_secondary_filters(self):
-
-        secondary_patterns = self.secondary_patterns
-        curr = np.stack([
-            all_5xnxn(pattern, pov=0) for pattern in secondary_patterns
-        ], axis=-1).reshape((9, 9, 5, -1))
-        oth = np.stack([
-            all_5xnxn(pattern, pov=1) for pattern in secondary_patterns
-        ], axis=-1).reshape((9, 9, 5, -1))
-
-        projectors = np.zeros((9, 9, 5, 3))
-        projectors[4, 4, 0, 0] = 1.
-        projectors[4, 4, 1, 1] = 1.
-        projectors[4, 4, 2, 2] = 1.
-
-        filters = np.concatenate([projectors, curr, oth], axis=3)
-
-        return filters
-
+            kernel_initializer=tf.constant_initializer(weights))
 
     @staticmethod
     def spread_weights(weights, n_channels):
@@ -328,30 +176,6 @@ class ThreatSearchPolicy(tf.keras.Model, TerminalDetector):
 
         return [c, o, b, i, j]
 
-
-    @staticmethod
-    def spread_weights_fw(weights, n_channels):
-        """
-        distribute the weights across 5 different combiner 1x1xn_channels filters
-        """
-        # current stones projected
-        c = [1] + [0] * (n_channels - 1)
-
-        # other stones projected
-        o = [0, 1] + [0] * (n_channels - 2)
-
-        # boundary stones projected
-        b = [0, 0, 1] + [0] * (n_channels - 3)
-
-        # total influence of the current stones
-        i = [0, 0, 0] + weights[3:]
-
-        # total influence of the other stones
-        j = [0, 0, 0] + weights[3:]
-
-        return [c, o, b, i, j]
-
-
     def call(self, state):
         """
         :param state: state, representated as (n+2) x (n+2) x 3 board with boundary
@@ -362,24 +186,7 @@ class ThreatSearchPolicy(tf.keras.Model, TerminalDetector):
 
         res1 = self.detector(state)
         res2 = self.combine(res1)
-        res3 = self.forward_looking_1(res2)
-        res4 = self.combine_fl_1(res3)
-        res5 = self.finalize(res4)
-        res6 = self.peel(res5)
-        res7 = tf.clip_by_value(res6, 0, 999)  # anything beyond is overkill anyway.
-        return res7
-
-    def q_p_v(self, state):
-        q = tf.nn.tanh(self.call(state))
-        p = tf.nn.softmax(q)
-        v = tf.reduce_max(q)
-        return q, p, v
-
-
-    def get_winner(self, sample):
-        max_crit = np.max(self.call(sample), axis=None)
-        return 0 if max_crit > 900 else 1 if max_crit > 400 else None
-
+        return res2
 
     #
     #  All about constructing the convolutional filters down from here
@@ -402,7 +209,7 @@ class ThreatSearchPolicy(tf.keras.Model, TerminalDetector):
         return patterns
 
 
-    def assemble_primary_filters(self):
+    def assemble_filters(self):
         """
         Considering the boundary stones just as good a defense as one of the opponent's stone.
         Boundary stones are placed on the periphery of the 3rd channel

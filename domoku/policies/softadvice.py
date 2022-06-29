@@ -244,7 +244,6 @@ class NeuralNetAdapter(NeuralNet, LeadModel):
         output = self.policy(state)  # noqa
         board_size = self.policy.params.board_size  # noqa
         output = np.reshape(output, [board_size * board_size])
-        logits = tf.nn.tanh(output / 100.)
 
         # This 'Rescaling' produces a somewhat 'reasonable' distribution
         eps = 1e-8
@@ -253,6 +252,7 @@ class NeuralNetAdapter(NeuralNet, LeadModel):
         rescaled = np.log((output - mn) / (mx - mn) * np.e + eps)
         probs = tf.nn.softmax(rescaled)
 
+        logits = tf.nn.tanh(output / 100.)
         value = tf.reduce_max(logits)
 
         return np.squeeze(probs), float(np.squeeze(value))

@@ -6,7 +6,7 @@ from domoku import data
 from domoku.interfaces import Player, Game, AbstractGanglion
 from domoku.minimax import MinimaxSearch
 from domoku.constants import *
-from domoku.tools import GomokuTools as gt
+from domoku import tools as gt
 
 MAX_TRY = 100  # general upper limit for anything that may fail a couple of times.
 
@@ -15,6 +15,7 @@ class NxNx4Game(Game):
     """
     A game representing the action on an N x N board with 4 channels
     """
+
 
     def __init__(self, state: np.array = None):
         self._state = state
@@ -27,8 +28,8 @@ class NxNx4Game(Game):
         :param move: a move as row/column of a matrix
         :return: the string rep of that move like eg H13, etch
         """
-        x, y = gt.m2b(move, self.n)
-        return f"{chr(x + 64)}{y}"
+        x_, y_ = gt.m2b(move, self.n)
+        return f"{chr(x_ + 64)}{y_}"
 
 
     @staticmethod

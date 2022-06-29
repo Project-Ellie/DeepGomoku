@@ -1,11 +1,9 @@
+import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
-from domoku.data import create_nxnx4
-from domoku.ddpg import NxNx4Game
-from domoku.field import GomokuField
-from domoku.tools import GomokuTools
-from domoku.constants import *
-import pandas as pd
+from domoku.constants import BLACK, Move
+from domoku import tools
 import alphazero.gomoku_board as new_board
 
 
@@ -15,11 +13,12 @@ def maybe_convert(x):
     return ord(x)-64        
             
             
-class GomokuBoard(GomokuField):
+class GomokuBoard:
     
     def __init__(self, n, heuristics=None, disp_width=6, stones=None):
+        self.N = n
+        self.heuristics = heuristics
         stones = stones or []
-        GomokuField.__init__(self, n, heuristics=heuristics)
         self.disp_width = disp_width
         self.stones = []
         self.current_color = BLACK
@@ -68,16 +67,8 @@ class GomokuBoard(GomokuField):
 
 
     def undo(self):
-        if self.cursor != len(self.stones)-1:
-            raise(ValueError("Cursor not at end position."))
-        x, y = self.stones[-1]
-        self.stones = self.stones[:-1]
-        self.compute_neighbourhoods(x, y, 'u')
-        self.ctoggle()
-        self.cursor = len(self.stones)-1
+        raise NotImplementedError("Currently not supported.")
 
-        return self
-    
     
     def bwd(self, n=1):
         if n > 1:
@@ -110,8 +101,8 @@ class GomokuBoard(GomokuField):
         plt.xticks(range(1, size+1), [chr(asci) for asci in range(65, 65+size)])
         plt.yticks(range(1, size+1))
         axis.set_facecolor('#404080')
-        xlines = [[[1, size], [y, y], '#E0E0E0'] for y in range(1, size+1)]
-        ylines = [[[x, x], [1, size], '#E0E0E0'] for x in range(1, size+1)]
+        xlines = [[[1, size], [y_, y_], '#E0E0E0'] for y_ in range(1, size+1)]
+        ylines = [[[x_, x_], [1, size], '#E0E0E0'] for x_ in range(1, size+1)]
         ylines = np.reshape(
             np.array(xlines + ylines, dtype=object), [-1])
         axis.plot(*ylines)
@@ -135,22 +126,22 @@ class GomokuBoard(GomokuField):
                          s=self.disp_width**2, c='#E0E0E0')
 
     def display_cursor(self):
-        x, y = self.stones[self.cursor]
+        x_, y_ = self.stones[self.cursor]
         box = np.array(
             [[-0.6, 0.6, 0.6, -0.6, -0.6],
              [-0.6, -0.6, 0.6, 0.6, -0.6]])
-        box = box + [[x], [y]]
+        box = box + [[x_], [y_]]
         plt.plot(*box, color='w', zorder=30)
 
     def display_stones(self, axis):
         colors = ['black', 'white']
         for i in range(1, self.cursor + 2):
-            x, y = self.stones[i-1][0:2]
+            x_, y_ = self.stones[i-1][0:2]
             stc = colors[i % 2]
             fgc = colors[1 - i % 2]
-            axis.scatter([x], [y], c=stc, s=self.stones_size(), zorder=10)
+            axis.scatter([x_], [y_], c=stc, s=self.stones_size(), zorder=10)
             self.display_cursor()
-            plt.text(x, y, i, color=fgc, fontsize=12, zorder=20,
+            plt.text(x_, y_, i, color=fgc, fontsize=12, zorder=20,
                      horizontalalignment='center', verticalalignment='center')
 
     @staticmethod
@@ -159,26 +150,22 @@ class GomokuBoard(GomokuField):
         image = (image / np.max(image, axis=None) * 255).astype(int)
         return image
 
-    def game(self):
-        state = create_nxnx4(self.N, stones=self.stones)
-        return NxNx4Game(state)
-
     def display_heuristics(self, axis, cut_off=50):
 
         if self.heuristics is None:
             return
 
-        position = new_board.GomokuBoard(self.N, stones=GomokuTools.stones_to_string(self.stones))
+        position = new_board.GomokuBoard(self.N, stones=tools.stones_to_string(self.stones))
         q = self.heuristics(position.canonical_representation())
         heatmap = np.squeeze(self.heatmap(q))
 
         for c in range(self.N):
             for r in range(self.N):
                 value = heatmap[r][c]
-                x, y = GomokuTools.m2b((r, c), self.N)
+                x_, y_ = tools.m2b((r, c), self.N)
                 if value >= cut_off:
                     color = f"#{value:02x}0000"
-                    axis.scatter([x], [y], color=color, s=self.stones_size() * .5, zorder=10)
+                    axis.scatter([x_], [y_], color=color, s=self.stones_size() * .5, zorder=10)
             
                 
     def stones_size(self):
@@ -190,29 +177,7 @@ class GomokuBoard(GomokuField):
         df.to_csv(filename, header=False, index=False)
 
         
-    def get_value(self, compute_scores=False):
-        scores = self.get_clean_scores(compute_scores)
-        o = scores[1-self.current_color]
-        d = scores[self.current_color]
-        return np.sum(o) - np.sum(d)
-        
-
-    def get_clean_scores(self, compute_scores=False, tag=0):
-        """ 
-        get the scores with the occupied positions zeroed out
-        """
-        if compute_scores:
-            self.compute_all_scores()
-            
-        cp = self.scores.copy()
-        for pos in self.stones:
-            r, c = GomokuTools.b2m(pos, self.N)
-            for color in [0, 1]:
-                cp[color][r][c] = tag
-        return cp
-        
-        
-    @staticmethod        
+    @staticmethod
     def from_csv(filename, heuristics, size=19, disp_width=10):
         stones = pd.read_csv(filename, header=None).values.tolist()
         return GomokuBoard(heuristics, size, disp_width, stones=stones)
