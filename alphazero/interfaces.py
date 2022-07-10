@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import abc
-from typing import Tuple
+from typing import Tuple, Optional
 from pydantic import BaseModel
 import numpy as np
 
@@ -29,11 +31,19 @@ class TrainParams(BaseModel):
 class LeadModel(abc.ABC):
 
     @abc.abstractmethod
-    def get_reasonable_actions(self, state):
+    def get_advisable_actions(self, state):
         pass
 
 
+class Move:
+    i: int
+
+
 class Board(abc.ABC):
+
+    @abc.abstractmethod
+    def stone(self, pos: int) -> Move:
+        pass
 
     @abc.abstractmethod
     def get_stones(self):
@@ -70,6 +80,36 @@ class Board(abc.ABC):
     def canonical_representation(self):
         pass
 
+    @abc.abstractmethod
+    def plot(self):
+        pass
+
+
+class Player(abc.ABC):
+
+    opponent: Optional[Player]
+    name: str
+
+    def __eq__(self, other):
+        if self.__class__ != other.__class__:
+            return False
+        return self.name == other.name
+
+    def __hash__(self):
+        return hash(self.name)
+
+    @abc.abstractmethod
+    def move(self, board: Board) -> Tuple[Board, Move]:
+        """
+        :param board: The board to put the next stone on
+        :return: The same board instance with the additional Stone, and the Stone - for reference.
+        """
+        pass
+
+    @abc.abstractmethod
+    def meet(self, other: Player):
+        pass
+
 
 class TerminalDetector(abc.ABC):
 
@@ -78,7 +118,7 @@ class TerminalDetector(abc.ABC):
         pass
 
 
-class NeuralNet(abc.ABC):
+class NeuralNet(LeadModel, abc.ABC):
     """
     This class specifies the base NeuralNet class. To define your own neural
     network, subclass this class and implement the functions below. The neural
@@ -151,9 +191,8 @@ class Game(abc.ABC):
     @abc.abstractmethod
     def get_initial_board(self) -> Board:
         """
-        Returns:
-            startBoard: a representation of the board (ideally this is the form
-                        that will be the input to your neural network)
+        Returns: a representation of the board (ideally this is the form
+            that will be the input to your neural network). This may very well be a different board each time
         """
         pass
 
@@ -174,15 +213,15 @@ class Game(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_next_state(self, board: Board, action: int) -> Board:
+    def get_next_state(self, board: Board, action: Move) -> Board:
         """
         Input:
             board: current board
             player: current player (1 or -1)
-            action: action taken by current player
+            move: move taken by current player
 
         Returns:
-            nextBoard: board after applying action
+            nextBoard: board after applying move
             nextPlayer: player who plays in the next turn (should be -player)
         """
         pass

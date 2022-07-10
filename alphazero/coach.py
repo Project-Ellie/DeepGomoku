@@ -30,9 +30,9 @@ class Coach:
         self.current_player = None
         self.checkpoint_prefix = 'checkpoint_'
 
-    def execute_episode(self, idol: MCTS, with_moves=False):
+    def execute_episode(self, expert: MCTS, with_moves=False):
         """
-        Watching the idol (=current champion or so) play to learn the game.
+        Watching the expert (=current champion or so) play to learn the game.
 
         This function executes one episode of self-play, starting with player 1.
         As the game is played, each turn is added as a training example to
@@ -49,7 +49,7 @@ class Coach:
                            the player eventually won the game, else -1.
         """
         train_examples = []
-        game = idol.game
+        game = expert.game
         board = game.get_initial_board()
         current_player = board.get_current_player()
         episode_step = 0
@@ -58,8 +58,8 @@ class Coach:
             episode_step += 1
             temperature = int(episode_step < self.params.temperature_threshold)
 
-            pi = idol.get_action_prob(board, temperature=temperature)
-            sym = idol.game.get_symmetries(board.canonical_representation(), pi)
+            pi = expert.get_action_prob(board, temperature=temperature)
+            sym = expert.game.get_symmetries(board.canonical_representation(), pi)
             for b, p in sym:
                 train_examples.append([b, current_player, p, None])
 

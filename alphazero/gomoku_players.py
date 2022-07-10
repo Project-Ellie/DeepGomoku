@@ -1,6 +1,46 @@
+from __future__ import annotations
+
+from typing import Tuple, Optional
+
 import numpy as np
 
+from alphazero.interfaces import Player, Board, Move
+from alphazero.mcts import MCTS
 
+
+class HeuristicPlayer(Player):
+
+    def __init__(self, name: str, mcts: MCTS, temperature: float):
+        """
+        :param mcts: The search tree to use
+        :param temperature: a float between 1.0 for more exploration and 0.0 for only the best move to take
+        """
+        self.opponent: Optional[Player] = None
+        self.name = name
+        self.mcts = mcts
+        self.temperature = temperature
+        super().__init__()
+
+
+    def meet(self, other: Player):
+        self.opponent = other
+        other.opponent = self
+
+
+    def move(self, board: Board) -> Tuple[Board, Move]:
+        probs = self.mcts.get_action_prob(board, temperature=self.temperature)
+        move = board.stone(np.random.choice(225, p=probs))
+        board.act(move)
+        return board, move
+
+
+    def __str__(self):
+        return self.name
+
+    __repr__ = __str__
+
+
+# Legacy players - remove one day
 class RandomPlayer:
     def __init__(self, game):
         self.game = game

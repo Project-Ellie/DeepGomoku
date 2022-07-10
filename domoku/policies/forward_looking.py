@@ -1,10 +1,12 @@
+from typing import Callable
+
 import numpy as np
 import tensorflow as tf
 
 from domoku.policies.radial import radial_3xnxn, all_5xnxn
 
 
-class ForwardLookingLayer(tf.keras.layers.Layer):
+class ForwardLookingLayer(tf.keras.layers.Layer, Callable):
     """
     A policy that doesn't miss any sure-win or must-defend
     """

@@ -2,7 +2,7 @@ from typing import List, Union, Callable
 
 import bitarray
 import numpy as np
-from alphazero.interfaces import Board
+from alphazero.interfaces import Board, Move
 
 EMPTY_BOARDS = {
     n: np.rollaxis(
@@ -22,7 +22,6 @@ class GomokuBoard(Board):
     The boundary stones in the third channel are there to support the learning process
     """
 
-
     def __init__(self, board_size, stones: str = None, x_means='black'):
         """
         :param board_size: Usable side length without boundary perimeter
@@ -35,7 +34,7 @@ class GomokuBoard(Board):
         self.x_is_next = True if x_means[0] in ['N', 'n'] else False if x_means[0] in ['B', 'b'] else None
         self.board_size = board_size
 
-        class Stone:
+        class Stone(Move):
             """
             Stones only make sense in the context of a board instance!
             """
@@ -104,9 +103,7 @@ class GomokuBoard(Board):
             __repr__ = __str__
 
             def __eq__(self, other):
-                if not isinstance(other, Stone):
-                    return False
-                elif self.r == other.r and self.c == other.c and self.field_size == other.field_size:
+                if self.r == other.r and self.c == other.c and self.field_size == other.field_size:
                     return True
                 else:
                     return False
@@ -148,6 +145,9 @@ class GomokuBoard(Board):
         else:  # add a tiny polution, because the maths (softmax) don't like zeros only
             self.math_rep[self.board_size // 2 - 1][self.board_size // 2][0] = 1e-5
 
+    def stone(self, pos):
+        return self.Stone(int(pos)) if pos is not None else None
+
     def get_current_player(self) -> int:
         return len(self.get_stones()) % 2
 
@@ -159,6 +159,9 @@ class GomokuBoard(Board):
         returns an array of Stones for a string-encoded sequence
         e.g. [Stone('A1'), Stone('M14')] for 'a1m14'
         """
+
+        encoded = "".join(encoded.split())  # removes white spaces, if there are any
+
         if encoded is None or encoded == '':
             return []
 
@@ -183,8 +186,8 @@ class GomokuBoard(Board):
 
     def _assert_valid(self, stones: List):
         assert len(set(stones)) == len(stones), f"Stones are not unique: {stones}"
-        assert all([self.board_size >= s.r >= 1 for s in stones]), "Not all stones in valid range"
-        assert all([self.board_size >= s.c >= 1 for s in stones]), "Not all stones in valid range"
+        assert all([self.board_size - 1 >= s.r >= 0 for s in stones]), "Not all stones in valid range"
+        assert all([self.board_size - 1 >= s.c >= 0 for s in stones]), "Not all stones in valid range"
 
     def plot(self, x_is_next=None, mark=None):
         mark = self.stones[-1] if mark is None else mark
@@ -226,7 +229,12 @@ class GomokuBoard(Board):
 
 
     def __str__(self):
-        return " ".join(str(s) for s in self.stones)
+        next_player = "Black" if self.get_current_player() == 0 else 'White'
+        first, stones = self.stones[:-8], self.stones[-8:]
+        if len(first) > 0:
+            first = ['...']
+        stones = first + stones
+        return " ".join(str(s) for s in stones) + f" ({next_player} next)"
 
     __repr__ = __str__
 
@@ -255,7 +263,7 @@ class GomokuBoard(Board):
         return len(self.get_legal_actions()) > 0
 
     def act(self, *args):
-        if isinstance(args[0], self.Stone):
+        if isinstance(args[0], Move):
             stone = args[0]
         else:
             stone = self.Stone(*args)

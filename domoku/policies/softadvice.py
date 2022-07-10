@@ -21,7 +21,7 @@ class MaxInfluencePolicyParams(BaseModel):
 
 class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion, LeadModel):
     """
-    A policy that vaguely *feels* where the action is. This may help create reasonable
+    A policy that vaguely *feels* where the move is. This may help create reasonable
     trajectories in Deep RL approaches. The underlying CNN *measures* the radial influence
     of each stone on the board and counts the opponent's stones as obstructive.
 

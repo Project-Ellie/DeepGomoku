@@ -6,7 +6,7 @@ from domoku.data import create_binary_rep, create_binary_action
 
 class InfluenceModel(tf.keras.Model):
     """
-    This function rewards an action a on state s with a scalar representing the gained total influence
+    This function rewards an move a on state s with a scalar representing the gained total influence
     of the own stones vs the oppenent's stones' influence by that move
     """
 

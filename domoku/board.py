@@ -19,6 +19,8 @@ class GomokuBoard:
         self.N = n
         self.heuristics = heuristics
         stones = stones or []
+        if isinstance(stones, str):
+            stones = tools.string_to_stones(stones)
         self.disp_width = disp_width
         self.stones = []
         self.current_color = BLACK
@@ -146,7 +148,7 @@ class GomokuBoard:
 
     @staticmethod
     def heatmap(q):
-        image = np.squeeze((np.log((1 + q.numpy()))*99))
+        image = np.squeeze((np.log((1 + q))*99))
         image = (image / np.max(image, axis=None) * 255).astype(int)
         return image
 
@@ -155,8 +157,8 @@ class GomokuBoard:
         if self.heuristics is None:
             return
 
-        position = new_board.GomokuBoard(self.N, stones=tools.stones_to_string(self.stones))
-        q = self.heuristics(position.canonical_representation())
+        position = new_board.GomokuBoard(self.N, stones=tools.stones_to_string(self.stones[:self.cursor+1]))
+        q, v = self.heuristics(position.canonical_representation())
         heatmap = np.squeeze(self.heatmap(q))
 
         for c in range(self.N):

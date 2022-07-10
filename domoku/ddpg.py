@@ -13,7 +13,7 @@ MAX_TRY = 100  # general upper limit for anything that may fail a couple of time
 
 class NxNx4Game(Game):
     """
-    A game representing the action on an N x N board with 4 channels
+    A game representing the move on an N x N board with 4 channels
     """
 
 

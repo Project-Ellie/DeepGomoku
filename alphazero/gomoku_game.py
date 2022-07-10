@@ -1,13 +1,27 @@
 import copy
-from typing import Tuple
+from typing import Tuple, Callable, Union
 
 import numpy as np
-from alphazero.interfaces import Game, TerminalDetector
+from alphazero.interfaces import Game, TerminalDetector, Move
 from alphazero.gomoku_board import GomokuBoard
 
 
+def initial_stones(board_size: int, n_stones: int):
+    """
+    :return: a function that returns a list of n_stones randomly positioned stones,
+        at least 3 positions away from the boundary
+    """
+    def inner():
+        move = GomokuBoard(board_size).Stone
+        the_stones = set()
+        while len(the_stones) < n_stones:
+            the_stones.add(move(np.random.randint(3, 12), np.random.randint(3, board_size-3)))
+        return list(the_stones)
+    return inner
+
+
 class GomokuGame(Game):
-    def __init__(self, board_size, detector: TerminalDetector, initial: str = None):
+    def __init__(self, board_size, detector: TerminalDetector, initial: Union[str, Callable] = None):
         super().__init__()
         self.board_size = board_size
         self.initial_stones = initial if initial is not None else ""
@@ -15,7 +29,10 @@ class GomokuGame(Game):
         self.detector = detector
 
     def get_initial_board(self) -> GomokuBoard:
-        return GomokuBoard(self.board_size, stones=self.initial_stones)
+        if isinstance(self.initial_stones, str):
+            return GomokuBoard(self.board_size, stones=self.initial_stones)
+        elif isinstance(self.initial_stones, Callable):
+            return GomokuBoard(self.board_size, stones=self.initial_stones())
 
     def get_board_size(self, board) -> int:
         return self.board_size ** 2
@@ -24,7 +41,7 @@ class GomokuGame(Game):
         # return number of actions
         return self.board_size ** 2
 
-    def get_next_state(self, board: GomokuBoard, action: int) -> Tuple[GomokuBoard, int]:
+    def get_next_state(self, board: GomokuBoard, action: Move) -> Tuple[GomokuBoard, int]:
         """
         computes the next state from a deep copy. Leaves the passed board unchanged
         :return:
