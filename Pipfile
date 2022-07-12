@@ -20,6 +20,7 @@ tqdm = "*"
 coloredlogs = "*"
 bitarray = "*"
 gmpy2 = "*"
+jupyterlab = "*"
 
 [dev-packages]
 

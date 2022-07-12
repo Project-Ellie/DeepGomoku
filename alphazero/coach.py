@@ -3,14 +3,15 @@ import os
 import sys
 from collections import deque
 from pickle import Pickler, Unpickler
-from random import shuffle
+import random
+import copy
 
 import numpy as np
 from tqdm import tqdm
 
 from alphazero.arena import Arena
 from alphazero.gomoku_model import NeuralNetAdapter
-from alphazero.interfaces import TrainParams
+from alphazero.interfaces import TrainParams, Board
 from alphazero.mcts import MCTS
 
 log = logging.getLogger(__name__)
@@ -54,7 +55,7 @@ class Coach:
         current_player = board.get_current_player()
         episode_step = 0
 
-        temperatures = [0, 0.6]  # more tight vs more explorative
+        temperatures = [0, 1]  # more tight vs more explorative
 
         while True:
             episode_step += 1
@@ -97,9 +98,9 @@ class Coach:
         return moves
 
 
-    def create_trajectories(self, idol: MCTS, n_it: int):
+    def create_trajectories(self, idol: MCTS, n_it: int, shuffle=True):
         """
-        :param idol: the
+        :param idol: the current champion
         :param n_it: the ordinal of the particular iteration
         :return: most recent training examples, containing some new and some old ones
             as a list of tuples (state, probs, value)
@@ -109,7 +110,8 @@ class Coach:
             iteration = deque([], maxlen=self.params.max_queue_length)
 
             for _ in tqdm(range(self.params.num_episodes), desc="   Self Play"):
-                iteration += self.execute_episode(idol)
+                #iteration += self.execute_episode(idol)
+                iteration += self.observe_trajectory(idol)
 
             # save the iteration examples to the history
             self.iterations_queue.append(iteration)
@@ -126,7 +128,9 @@ class Coach:
         train_examples = []
         for e in self.iterations_queue:
             train_examples.extend(e)
-        shuffle(train_examples)
+
+        if shuffle:
+            random.shuffle(train_examples)
 
         return train_examples
 
@@ -214,9 +218,56 @@ class Coach:
             self.skip_first_self_play = True
 
 
+    def observe_trajectory(self, mcts: MCTS, verbose=False):
+
+        board = self.game.get_initial_board()  # random start positions, sometimes unfair, but so what?
+        if verbose:
+            print(board)
+
+        final_board = self.self_play(copy.deepcopy(board), mcts, verbose)
+
+        examples = []
+        start_at = len(board.get_stones())
+        for stone in final_board.get_stones()[start_at:]:
+            key = board.get_string_representation()
+            probs = mcts.compute_probs(board, temperature=1.0)  # We explicitely want the temperature up, here
+            q_advice = [mcts.Q.get((key, i), -float('inf')) for i in range(225)]
+            v = np.max(q_advice, axis=None)
+
+            sym = self.game.get_symmetries(board.canonical_representation(), probs)
+            for b, p in sym:
+                examples.append([b, p, v])
+            board = copy.deepcopy(board)
+            board.act(stone)
+
+        return examples
 
 
+    def self_play(self, board: Board, mcts: MCTS, verbose=False) -> Board:
 
+        # Two mood versions of the champion playing against each other = less draws
+        # These settings may change over the training period, once opponents get stronger.
+        temperatures = [1, 0]  # more tight vs more explorative
+
+        episode_step = 0
+        done = self.game.get_game_ended(board)
+        while done is None:
+            episode_step += 1
+            t = temperatures[episode_step % 2]
+            pi = mcts.get_action_prob(board, temperature=t)
+            action = np.random.choice(len(pi), p=pi)
+
+            board.act(action)
+            done = self.game.get_game_ended(board)
+
+            if verbose:
+                print(board)
+
+        # The player who made the last move, is the winner.
+        if verbose:
+            print(f"The winner is {1 - board.get_current_player()}")
+
+        return board
 
 
 

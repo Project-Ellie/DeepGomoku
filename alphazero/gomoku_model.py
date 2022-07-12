@@ -16,14 +16,16 @@ class GomokuModel(tf.keras.Model):
         self.input_size = input_size
         self.kernel_size = kernel_size
 
-        first, pot, agg, peel = self.create_model()
+        first, pot, agg_p, agg_v, peel = self.create_model()
         self.first = first
         self.potentials = pot
-        self.aggregate = agg
+        self.policy_aggregate = agg_p
+        self.value_aggregate = agg_v
         self.peel = peel
+        # self.dense = dense
 
 
-    def call(self, sample):
+    def call(self, sample, debug=False):
 
         # add two more channels filled with zeros. They'll be carrying the 'influence' of the surrounding stones.
         # That allows for arbitrarily deep chaining within our architecture
@@ -31,10 +33,20 @@ class GomokuModel(tf.keras.Model):
         y = self.first(sample)
         for potential in self.potentials:
             y = potential(y)
-        soft = self.peel(self.aggregate(y))
 
-        value = tf.reduce_max(soft)
-        pi = tf.nn.softmax(tf.keras.layers.Flatten()(soft))
+        if debug:
+            print(f"Potential: {tf.reduce_sum(y).numpy()}")
+
+        value_head = self.peel(self.value_aggregate(y))
+        if debug:
+            print(f"Value Head: {tf.reduce_sum(value_head).numpy()}")
+        value = tf.keras.layers.Flatten()(value_head)
+        value = tf.reduce_sum(value)
+
+        logits = self.peel(self.policy_aggregate(y))
+        if debug:
+            print(f"Policy Head: {tf.reduce_sum(logits).numpy()}")
+        pi = tf.nn.softmax(tf.keras.layers.Flatten()(logits))
 
         return pi, value
 
@@ -44,6 +56,7 @@ class GomokuModel(tf.keras.Model):
         # Compute the current player's total potential, can be arbitrarily repeated
         # to create some forward-looking capabilities
         first = tf.keras.layers.Conv2D(
+            name="initial",
             filters=32, kernel_size=self.kernel_size,
             kernel_initializer=tf.random_normal_initializer(),
             bias_initializer=tf.random_normal_initializer(),
@@ -53,7 +66,7 @@ class GomokuModel(tf.keras.Model):
 
         potentials = [
             tf.keras.layers.Conv2D(
-                name=f'Potential_{i}',
+                name=f'potential_{i}',
                 filters=32, kernel_size=self.kernel_size,
                 kernel_initializer=tf.random_normal_initializer(),
                 bias_initializer=tf.random_normal_initializer(),
@@ -63,7 +76,8 @@ class GomokuModel(tf.keras.Model):
             for i in range(5)
             ]
 
-        aggregate = tf.keras.layers.Conv2D(
+        policy_aggregate = tf.keras.layers.Conv2D(
+            name="policy_aggregator",
             filters=1, kernel_size=1,
             kernel_initializer=tf.random_normal_initializer(),
             bias_initializer=tf.random_normal_initializer(),
@@ -71,15 +85,26 @@ class GomokuModel(tf.keras.Model):
             padding='same',
             input_shape=(self.input_size-1, self.input_size-1, 5))
 
-        # 'peel' off the boundary and provide Q semantics with tanh
+        value_aggregate = tf.keras.layers.Conv2D(
+            name="value_aggregator",
+            filters=1, kernel_size=1,
+            kernel_initializer=tf.random_normal_initializer(),
+            bias_initializer=tf.random_normal_initializer(),
+            activation=tf.nn.tanh,
+            padding='same',
+            input_shape=(self.input_size-1, self.input_size-1, 5))
+
+        #dense = tf.keras.layers.Dense(1, activation=tf.nn.tanh)
+
+        # 'peel' off the boundary
         peel = tf.keras.layers.Conv2D(
+            name="border_off",
             filters=1, kernel_size=(3, 3),
             kernel_initializer=tf.constant_initializer([[0., 0., 0.], [0., 1., 0.], [0., 0., 0.]]),
             bias_initializer=tf.constant_initializer(0.),
-            activation=tf.nn.tanh,
             trainable=False)
 
-        return first, potentials, aggregate, peel
+        return first, potentials, policy_aggregate, value_aggregate, peel
 
 
 class NeuralNetAdapter(NeuralNet):
@@ -107,8 +132,8 @@ class NeuralNetAdapter(NeuralNet):
         return [int(n) for n in advisable.nonzero()[0]]
 
 
-    def predict(self, state):
-        return self.policy.call(state)
+    def predict(self, state, debug=False):
+        return self.policy.call(state, debug)
 
 
     def save_checkpoint(self, folder, filename):
@@ -132,7 +157,8 @@ class NeuralNetAdapter(NeuralNet):
             with train_summary_writer.as_default():
                 tf.summary.scalar('loss', self.train_loss.result(), step=epoch)
 
-            print(f'Epoch: {params.epochs_per_train}, Loss: {self.train_loss.result()}')
+            if epoch % 100 == 1:
+                print(f'Epoch: {epoch}, Loss: {self.train_loss.result()}')
 
             # for x_test, y_test in test_dataset:
             #     test_step(model, x_test, y_test)
@@ -149,7 +175,7 @@ class NeuralNetAdapter(NeuralNet):
             p, v = self.policy(x, training=True)  # noqa: training should be recognized?!
             loss1 = self.policy_loss(pi_y, p)
             loss2 = self.value_loss(v_y, v)
-            total_loss = loss1 + loss2
+            total_loss = loss1 + 0 * loss2
         grads = tape.gradient(total_loss, self.policy.trainable_variables)
         self.optimizer.apply_gradients(zip(grads, self.policy.trainable_variables))
 

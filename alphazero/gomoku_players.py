@@ -27,8 +27,15 @@ class HeuristicPlayer(Player):
         other.opponent = self
 
 
-    def move(self, board: Board) -> Tuple[Board, Move]:
-        probs = self.mcts.get_action_prob(board, temperature=self.temperature)
+    def move(self, board: Board, temperature=None) -> Tuple[Board, Move]:
+        """
+        Procedural (not functional) interface. It changes the board!
+        :param board: the board to use
+        :param temperature: if provided, overrides the default temperature of the player. Good for self-play.
+        :return: the very same board instance containing one more stone.
+        """
+        temperature = temperature if temperature is not None else self.temperature
+        probs = self.mcts.get_action_prob(board, temperature=temperature)
         move = board.stone(np.random.choice(225, p=probs))
         board.act(move)
         return board, move
