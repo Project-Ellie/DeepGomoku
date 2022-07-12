@@ -6,7 +6,7 @@ from domoku.policies.naive_infuence import NaiveInfluenceLayer
 from domoku.policies.primary_detector import PrimaryDetector
 
 
-class HeuristicPolicy(tf.keras.Model, NeuralNet, LeadModel, TerminalDetector):
+class HeuristicPolicy(tf.keras.Model, NeuralNet, TerminalDetector):
 
     def __init__(self, board_size: int, cut_off: float = 0.8):
 

@@ -94,6 +94,19 @@ class NeuralNetAdapter(NeuralNet):
         self.policy.build(input_shape=(None, input_size, input_size, 3))
         super().__init__(*args)
 
+
+    def get_advisable_actions(self, state):
+        """
+        :param state: the board's math representation
+        :return: a list of integer move representations with probabilities close enough to the maximum (see: cut_off)
+        """
+        probs, _ = self.call(state)
+        max_prob = np.max(probs, axis=None)
+        probs = probs.reshape(self.board_size * self.board_size)
+        advisable = np.where(probs > max_prob * self.cut_off, probs, 0.)
+        return [int(n) for n in advisable.nonzero()[0]]
+
+
     def predict(self, state):
         return self.policy.call(state)
 
@@ -105,7 +118,6 @@ class NeuralNetAdapter(NeuralNet):
     def load_checkpoint(self, folder, filename):
         raise NotImplementedError
 
-    # @tf.function
     def train(self, examples, params: TrainParams):
         current_time = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
         train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
@@ -113,11 +125,14 @@ class NeuralNetAdapter(NeuralNet):
 
         all_train_ds = self.create_dataset(examples)
 
-        for epoch in tqdm(range(params.epochs_per_train), desc="   Training"):
+        # for epoch in tqdm(range(params.epochs_per_train), desc="   Training"):
+        for epoch in range(params.epochs_per_train):
             for x_train, pi_train, v_train in all_train_ds:
                 self.train_step(x_train, pi_train, v_train)
             with train_summary_writer.as_default():
                 tf.summary.scalar('loss', self.train_loss.result(), step=epoch)
+
+            print(f'Epoch: {params.epochs_per_train}, Loss: {self.train_loss.result()}')
 
             # for x_test, y_test in test_dataset:
             #     test_step(model, x_test, y_test)

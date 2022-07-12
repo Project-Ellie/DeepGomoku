@@ -64,9 +64,13 @@ class MCTS:
             board = copy.deepcopy(original_board)
             self.search(board)
 
-        s = original_board.get_string_representation()
+        return self.compute_probs(original_board, temperature)
+
+
+    def compute_probs(self, board: Board, temperature: float):
+        s = board.get_string_representation()
         counts = [self.Nsa[(s, a)] if (s, a) in self.Nsa else 0
-                  for a in range(self.game.get_action_size(original_board))]
+                  for a in range(self.game.get_action_size(board))]
 
         if temperature == 0:
             best_as = np.array(np.argwhere(counts == np.max(counts))).flatten()
@@ -79,6 +83,7 @@ class MCTS:
         counts_sum = float(sum(counts)) or 1.0
         probs = [x / counts_sum for x in counts]
         return probs
+
 
     def search(self, board: Board):
         """

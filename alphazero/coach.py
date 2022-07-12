@@ -54,9 +54,11 @@ class Coach:
         current_player = board.get_current_player()
         episode_step = 0
 
+        temperatures = [0, 0.6]  # more tight vs more explorative
+
         while True:
             episode_step += 1
-            temperature = int(episode_step < self.params.temperature_threshold)
+            temperature = temperatures[episode_step % 2]
 
             pi = expert.get_action_prob(board, temperature=temperature)
             sym = expert.game.get_symmetries(board.canonical_representation(), pi)
