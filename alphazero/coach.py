@@ -259,13 +259,18 @@ class Coach:
 
             board.act(action)
             done = self.game.get_game_ended(board)
+            if episode_step > 50:
+                done = "draw"
 
             if verbose:
                 print(board)
 
         # The player who made the last move, is the winner.
         if verbose:
-            print(f"The winner is {1 - board.get_current_player()}")
+            if done == 'draw':
+                print("Draw")
+            else:
+                print(f"The winner is {1 - board.get_current_player()}")
 
         return board
 
