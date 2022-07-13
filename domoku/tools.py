@@ -11,10 +11,13 @@ def print_channels(binary_sample, combine=True):
     binary_sample = np.squeeze(binary_sample)
     print(f'shape: {binary_sample.shape}')
     if combine:
-        print(np.rollaxis(binary_sample, 2, 0)[0]
-              + 2 * np.rollaxis(binary_sample, 2, 0)[1]
-              + 3 * np.rollaxis(binary_sample, 2, 0)[2])
-    else:
+        data = np.rollaxis(binary_sample, 2, 0)[0]\
+               + 2 * np.rollaxis(binary_sample, 2, 0)[1]
+        if binary_sample.shape[-1] == 3:
+            data += 3 * np.rollaxis(binary_sample, 2, 0)[2]
+        print(data)
+
+    else:  # 3rd channel is the boarder that nobody would want to see
         print(np.rollaxis(binary_sample, 2, 0)[0])
         print()
         print(np.rollaxis(binary_sample, 2, 0)[1])

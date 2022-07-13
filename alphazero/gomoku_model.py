@@ -30,6 +30,8 @@ class GomokuModel(tf.keras.Model):
         # add two more channels filled with zeros. They'll be carrying the 'influence' of the surrounding stones.
         # That allows for arbitrarily deep chaining within our architecture
 
+        sample = sample / self.input_size / self.input_size
+
         y = self.first(sample)
         for potential in self.potentials:
             y = potential(y)
@@ -41,7 +43,7 @@ class GomokuModel(tf.keras.Model):
         if debug:
             print(f"Value Head: {tf.reduce_sum(value_head).numpy()}")
         value = tf.keras.layers.Flatten()(value_head)
-        value = tf.reduce_sum(value)
+        value = tf.nn.tanh(tf.reduce_sum(value))
 
         logits = self.peel(self.policy_aggregate(y))
         if debug:
@@ -60,7 +62,7 @@ class GomokuModel(tf.keras.Model):
             filters=32, kernel_size=self.kernel_size,
             kernel_initializer=tf.random_normal_initializer(),
             bias_initializer=tf.random_normal_initializer(),
-            activation=tf.nn.relu,
+            activation=tf.nn.tanh,
             padding='same',
             input_shape=(self.input_size, self.input_size, 3))
 
@@ -68,9 +70,9 @@ class GomokuModel(tf.keras.Model):
             tf.keras.layers.Conv2D(
                 name=f'potential_{i}',
                 filters=32, kernel_size=self.kernel_size,
-                kernel_initializer=tf.random_normal_initializer(),
-                bias_initializer=tf.random_normal_initializer(),
-                activation=tf.nn.relu,
+                kernel_initializer=tf.initializers.GlorotNormal(seed=None),
+                bias_initializer=tf.initializers.Zeros(),
+                activation=tf.nn.tanh,
                 padding='same',
                 input_shape=(self.input_size, self.input_size, 5))
             for i in range(5)
@@ -110,6 +112,9 @@ class GomokuModel(tf.keras.Model):
 class NeuralNetAdapter(NeuralNet):
 
     def __init__(self, input_size, *args):
+        """
+        :param input_size: size of the input signal: it's boardsize + 2, if you include the boundary!!
+        """
         self.input_size = input_size
         self.policy_loss = tf.keras.losses.CategoricalCrossentropy()
         self.value_loss = tf.keras.losses.MeanSquaredError()
@@ -157,7 +162,7 @@ class NeuralNetAdapter(NeuralNet):
             with train_summary_writer.as_default():
                 tf.summary.scalar('loss', self.train_loss.result(), step=epoch)
 
-            if epoch % 100 == 1:
+            if epoch % 10 == 1:
                 print(f'Epoch: {epoch}, Loss: {self.train_loss.result()}')
 
             # for x_test, y_test in test_dataset:
@@ -175,7 +180,7 @@ class NeuralNetAdapter(NeuralNet):
             p, v = self.policy(x, training=True)  # noqa: training should be recognized?!
             loss1 = self.policy_loss(pi_y, p)
             loss2 = self.value_loss(v_y, v)
-            total_loss = loss1 + 0 * loss2
+            total_loss = loss1 + 1. * loss2
         grads = tape.gradient(total_loss, self.policy.trainable_variables)
         self.optimizer.apply_gradients(zip(grads, self.policy.trainable_variables))
 
