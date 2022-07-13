@@ -1,4 +1,4 @@
-from typing import Optional, Callable
+from typing import Optional, Callable, List
 
 import numpy as np
 from pydantic import BaseModel
@@ -13,8 +13,8 @@ from domoku.policies.threat_search import ThreatSearchPolicy
 
 class MaxInfluencePolicyParams(BaseModel):
     board_size: int  # board n
-    radial_constr: list[float]
-    radial_obstr: list[float]
+    radial_constr: List[float]
+    radial_obstr: List[float]
     sigma: float  # Preference for offensive play, 1 >= sigma > 0
     iota: float  # The greed. Higher values make exploitation less likely. 50 is a good start
 
