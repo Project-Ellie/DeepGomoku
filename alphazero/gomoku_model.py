@@ -16,13 +16,14 @@ class GomokuModel(tf.keras.Model):
         self.input_size = input_size
         self.kernel_size = kernel_size
 
-        first, pot, agg_p, agg_v, peel = self.create_model()
+        first, pot, agg_p, agg_v, flatten, dense, peel = self.create_model()
         self.first = first
         self.potentials = pot
         self.policy_aggregate = agg_p
+        self.flatten = flatten
         self.value_aggregate = agg_v
         self.peel = peel
-        # self.dense = dense
+        self.dense = dense
 
 
     def call(self, sample, debug=False):
@@ -42,13 +43,13 @@ class GomokuModel(tf.keras.Model):
         value_head = self.peel(self.value_aggregate(y))
         if debug:
             print(f"Value Head: {tf.reduce_sum(value_head).numpy()}")
-        value = tf.keras.layers.Flatten()(value_head)
-        value = tf.nn.tanh(tf.reduce_sum(value))
+        value = self.flatten(value_head)
+        value = self.dense(value)
 
         logits = self.peel(self.policy_aggregate(y))
         if debug:
             print(f"Policy Head: {tf.reduce_sum(logits).numpy()}")
-        pi = tf.nn.softmax(tf.keras.layers.Flatten()(logits))
+        pi = tf.nn.softmax(self.flatten(logits))
 
         return pi, value
 
@@ -62,7 +63,7 @@ class GomokuModel(tf.keras.Model):
             filters=32, kernel_size=self.kernel_size,
             kernel_initializer=tf.random_normal_initializer(),
             bias_initializer=tf.random_normal_initializer(),
-            activation=tf.nn.tanh,
+            activation=tf.nn.relu,
             padding='same',
             input_shape=(self.input_size, self.input_size, 3))
 
@@ -70,9 +71,9 @@ class GomokuModel(tf.keras.Model):
             tf.keras.layers.Conv2D(
                 name=f'potential_{i}',
                 filters=32, kernel_size=self.kernel_size,
-                kernel_initializer=tf.initializers.GlorotNormal(seed=None),
-                bias_initializer=tf.initializers.Zeros(),
-                activation=tf.nn.tanh,
+                kernel_initializer=tf.random_normal_initializer(),
+                bias_initializer=tf.random_normal_initializer(),
+                activation=tf.nn.relu,
                 padding='same',
                 input_shape=(self.input_size, self.input_size, 5))
             for i in range(5)
@@ -96,7 +97,8 @@ class GomokuModel(tf.keras.Model):
             padding='same',
             input_shape=(self.input_size-1, self.input_size-1, 5))
 
-        #dense = tf.keras.layers.Dense(1, activation=tf.nn.tanh)
+        flatten = tf.keras.layers.Flatten()
+        dense = tf.keras.layers.Dense(units=1, activation=tf.nn.tanh)
 
         # 'peel' off the boundary
         peel = tf.keras.layers.Conv2D(
@@ -106,7 +108,7 @@ class GomokuModel(tf.keras.Model):
             bias_initializer=tf.constant_initializer(0.),
             trainable=False)
 
-        return first, potentials, policy_aggregate, value_aggregate, peel
+        return first, potentials, policy_aggregate, value_aggregate, flatten, dense, peel
 
 
 class NeuralNetAdapter(NeuralNet):
@@ -162,7 +164,7 @@ class NeuralNetAdapter(NeuralNet):
             with train_summary_writer.as_default():
                 tf.summary.scalar('loss', self.train_loss.result(), step=epoch)
 
-            if epoch % 10 == 1:
+            if epoch % 100 == 1:
                 print(f'Epoch: {epoch}, Loss: {self.train_loss.result()}')
 
             # for x_test, y_test in test_dataset:
@@ -180,7 +182,7 @@ class NeuralNetAdapter(NeuralNet):
             p, v = self.policy(x, training=True)  # noqa: training should be recognized?!
             loss1 = self.policy_loss(pi_y, p)
             loss2 = self.value_loss(v_y, v)
-            total_loss = loss1 + 1. * loss2
+            total_loss = 1 * loss1 + 1. * loss2
         grads = tape.gradient(total_loss, self.policy.trainable_variables)
         self.optimizer.apply_gradients(zip(grads, self.policy.trainable_variables))
 
