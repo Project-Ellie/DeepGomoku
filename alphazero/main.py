@@ -21,7 +21,7 @@ args = DotDict({
     'arenaCompare': 40,         # Number of games to play during arena play to determine if new net will be accepted.
     'cpuct': 1,
 
-    'checkpoint': './temperature/',
+    'checkpoint': './training_data/',
     'load_model': False,
     'load_folder_file': ('/dev/models/8x100x50', 'best.pth.tar'),
     'numItersForTrainExamplesHistory': 20,

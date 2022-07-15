@@ -19,7 +19,7 @@ class MyTestCase(unittest.TestCase):
             num_simulations=25,
             arena_compare=40,         # Number of games to play during arena play to evaluate new network.
             cpuct=1.0,
-            checkpoint_dir='./temperature/',
+            checkpoint_dir='./training_data/',
             load_model=False,
             load_folder_file=('/dev/models/8x100x50', 'best.pth.tar'),
             num_iters_for_train_examples_history=20,

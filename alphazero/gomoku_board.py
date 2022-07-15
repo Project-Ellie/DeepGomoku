@@ -22,7 +22,7 @@ class GomokuBoard(Board):
     The boundary stones in the third channel are there to support the learning process
     """
 
-    def __init__(self, board_size, stones: str = None, x_means='black'):
+    def __init__(self, board_size, stones: str = None, x_means='black', math_rep=None):
         """
         :param board_size: Usable side length without boundary perimeter
         :param stones: current stones on the board as a single string like 'h8f7g12d8' or so.
@@ -126,7 +126,10 @@ class GomokuBoard(Board):
         # The mathematical representation of the board as (n+2) x (n+2) x 3 tensor
         # Use preconstructed standard fields for n=15, 19 for performance improvement.
         size = self.board_size
-        self.math_rep = EMPTY_BOARDS[size].copy() if size in [15, 19] else create_fresh_board(size)
+        if math_rep is not None:
+            self.math_rep = math_rep
+        else:
+            self.math_rep = EMPTY_BOARDS[size].copy() if size in [15, 19] else create_fresh_board(size)
 
         # Set the stones/bits on the math. representation
         # whoever made the last move is now on channel = 1
@@ -190,7 +193,8 @@ class GomokuBoard(Board):
         assert all([self.board_size - 1 >= s.c >= 0 for s in stones]), "Not all stones in valid range"
 
     def plot(self, x_is_next=None, mark=None):
-        mark = self.stones[-1] if mark is None else mark
+        if self.stones is not None and len(self.stones) > 0:
+            mark = self.stones[-1] if mark is None else mark
 
         x_is_next = x_is_next if x_is_next is not None else self.x_is_next
 

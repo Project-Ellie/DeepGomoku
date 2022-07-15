@@ -50,7 +50,7 @@ class MCTS:
 
         Returns:
             probs: a policy vector where the probability of the ith move is
-                   proportional to Nsa[(s,a)]**(1./temperature)
+                   proportional to Nsa[(s,a)]**(1./training_data)
         """
         advisable = self.nnet.get_advisable_actions(board.canonical_representation())
         if len(advisable) == 1:

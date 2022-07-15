@@ -132,21 +132,22 @@ class NeuralNet(LeadModel, abc.ABC):
         pass
 
     @abc.abstractmethod
-    def train(self, examples, params: TrainParams):
+    def train(self, train_examples, test_exaples=None, n_epochs=1):
         """
         This function trains the neural network with examples obtained from
         self-play.
 
-        Input:
-            examples: a list of training examples, where each example is of form
-                      (board, pi, v). pi is the MCTS informed policy vector for
-                      the given board, and v is its value. The examples has
-                      board in its canonical form.
+        :param test_exaples:
+        :param train_examples: a list of training examples, where each example is of form
+                  (board, pi, v). pi is the MCTS informed policy vector for
+                  the given board, and v is its value. The examples has
+                  board in its canonical form.
+        :param n_epochs
         """
         pass
 
     @abc.abstractmethod
-    def predict(self, board):
+    def predict(self, state):
         """
         Input:
             board: current board in its canonical form.

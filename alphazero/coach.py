@@ -10,7 +10,7 @@ import numpy as np
 from tqdm import tqdm
 
 from alphazero.arena import Arena
-from alphazero.gomoku_model import NeuralNetAdapter
+from alphazero.gomoku_model import GomokuModel
 from alphazero.interfaces import TrainParams, Board
 from alphazero.mcts import MCTS
 
@@ -41,8 +41,8 @@ class Coach:
         ends, the outcome of the game is used to assign values to each example
         in train_examples.
 
-        It uses a temperature=1 if episode_step < tempThreshold, and thereafter
-        uses temperature=0.
+        It uses a training_data=1 if episode_step < tempThreshold, and thereafter
+        uses training_data=0.
 
         Returns:
             train_examples: a list of examples of the form (canonical_board, currPlayer, pi,v)
@@ -102,6 +102,7 @@ class Coach:
         """
         :param idol: the current champion
         :param n_it: the ordinal of the particular iteration
+        :param shuffle: whether to shuffle the resulting examples
         :return: most recent training examples, containing some new and some old ones
             as a list of tuples (state, probs, value)
         """
@@ -139,9 +140,9 @@ class Coach:
         :param original: the MCTS to copy from
         :return: a fresh MCTS with a copy of the neural network inside
         """
-        new_nnet = NeuralNetAdapter(input_size=17)
-        original.nnet.save_checkpoint(folder=self.params.checkpoint_dir, filename='temperature.pth.tar')
-        new_nnet.load_checkpoint(folder=self.params.checkpoint_dir, filename='temperature.pth.tar')
+        new_nnet = GomokuModel(input_size=17)
+        original.nnet.save_checkpoint(folder=self.params.checkpoint_dir, filename='training_data.pth.tar')
+        new_nnet.load_checkpoint(folder=self.params.checkpoint_dir, filename='training_data.pth.tar')
         new_mcts = MCTS(self.game, new_nnet, cpuct=original.cpuct, num_simulations=original.num_simulations)
         return new_mcts
 
@@ -177,7 +178,7 @@ class Coach:
             if (defender_wins + challenger_wins == 0 or
                     float(challenger_wins) / (defender_wins + challenger_wins) < self.params.update_threshold):
                 log.info('REJECTING NEW MODEL')
-                challenger.nnet.load_checkpoint(folder=self.params.checkpoint_dir, filename='temperature.pth.tar')
+                challenger.nnet.load_checkpoint(folder=self.params.checkpoint_dir, filename='training_data.pth.tar')
             else:
                 log.info('ACCEPTING NEW MODEL')
                 challenger.nnet.save_checkpoint(folder=self.params.checkpoint_dir,
@@ -230,7 +231,7 @@ class Coach:
         start_at = len(board.get_stones())
         for stone in final_board.get_stones()[start_at:]:
             key = board.get_string_representation()
-            probs = mcts.compute_probs(board, temperature=1.0)  # We explicitely want the temperature up, here
+            probs = mcts.compute_probs(board, temperature=1.0)  # We explicitely want the training_data up, here
             q_advice = [mcts.Q.get((key, i), -float('inf')) for i in range(225)]
             v = np.max(q_advice, axis=None)
 
@@ -290,8 +291,8 @@ class Coach:
         ends, the outcome of the game is used to assign values to each example
         in train_examples.
 
-        It uses a temperature=1 if episode_step < tempThreshold, and thereafter
-        uses temperature=0.
+        It uses a training_data=1 if episode_step < tempThreshold, and thereafter
+        uses training_data=0.
 
         Returns:
             train_examples: a list of examples of the form (canonical_board, currPlayer, pi,v)
@@ -356,7 +357,7 @@ class Coach:
             if (defender_wins + challenger_wins == 0 or
                     float(challenger_wins) / (defender_wins + challenger_wins) < self.params.update_threshold):
                 log.info('REJECTING NEW MODEL')
-                self.nnet.load_checkpoint(folder=self.params.checkpoint_dir, filename='temperature.pth.tar')
+                self.nnet.load_checkpoint(folder=self.params.checkpoint_dir, filename='training_data.pth.tar')
             else:
                 log.info('ACCEPTING NEW MODEL')
                 self.nnet.save_checkpoint(folder=self.params.checkpoint_dir,
@@ -402,3 +403,5 @@ class Coach:
 
         return train_examples
 
+
+#%%
