@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from alphazero.arena import Arena
 from alphazero.gomoku_model import NeuralNetAdapter
-from alphazero.interfaces import TrainParams, Board
+from alphazero.interfaces import TrainParams, Board, Game
 from alphazero.mcts import MCTS
 
 log = logging.getLogger(__name__)
@@ -273,11 +273,6 @@ class Coach:
                 print(f"The winner is {1 - board.get_current_player()}")
 
         return board
-
-
-
-
-
 
 
     ## OLD

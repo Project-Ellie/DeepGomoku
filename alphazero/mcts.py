@@ -6,7 +6,7 @@ from typing import Dict, Tuple, List
 import numpy as np
 
 from alphazero.hr_tree import TreeNode
-from alphazero.interfaces import Game, NeuralNet, Board, Move
+from alphazero.interfaces import Game, NeuralNet, Board, Move, MctsParams
 
 EPS = 1e-8
 
@@ -18,21 +18,20 @@ class MCTS:
     This class handles the MCTS tree.
     """
 
-    def __init__(self, game: Game, nnet: NeuralNet, cpuct: float, num_simulations: int,
-                 model_threshold=.2, verbose=0):
+    def __init__(self, game: Game, nnet: NeuralNet, params: MctsParams,
+                 verbose=0):
         self.game = game
         self.nnet = nnet
-        self.cpuct = cpuct
-        self.num_simulations = num_simulations
-        self.model_threshold = model_threshold
+        self.params = params
 
         self.Q = {}  # stores Q values for s,a (as defined in the paper)
         self.Nsa = {}  # stores #times edge s,a was visited
         self.Ns = {}  # stores #times board s was visited
         self.Ps = {}  # stores initial policy (returned by neural net)
 
-        self.Es = {}  # stores game.get_game_ended ended for board s
-        self.Vs = {}  # stores game.get_valid_moves for board s
+        self.Es = {}  # stores game.get_game_ended ended for state s
+        self.Vs = {}  # stores game.get_valid_moves for state s
+        self.As = {}  # stores the policy's advice for state s
         if verbose > 0:
             self.verbosity = verbose
             print(f"verbosity: {self.verbosity}")
@@ -47,20 +46,15 @@ class MCTS:
         """
         This function performs numMCTSSims simulations of MCTS starting from
         canonical_board.
-
-        Returns:
-            probs: a policy vector where the probability of the ith move is
-                   proportional to Nsa[(s,a)]**(1./temperature)
         """
-        advisable = self.nnet.get_advisable_actions(board.canonical_representation())
-        if len(advisable) == 1:
-            action_size = self.game.get_action_size(board)
-            actions = [0.] * action_size
-            actions[advisable[0]] = 1.0
-            return actions
+        s = board.get_string_representation()
+        advisable = self.As.get(s)
+        if advisable is None:
+            advisable = self.nnet.get_advisable_actions(board.canonical_representation())
+            self.As[s] = advisable
 
         original_board = board
-        for i in range(self.num_simulations):
+        for i in range(self.params.num_simulations):
             board = copy.deepcopy(original_board)
             self.search(board)
 
@@ -211,8 +205,13 @@ class MCTS:
 
 
     def probable_actions(self, board: Board) -> List:
-        actions = self.nnet.get_advisable_actions(board.canonical_representation())
-        return [board.stone(i) for i in actions]
+        s = board.get_string_representation()
+        advisable = self.As.get(s)
+        if advisable is None:
+            advisable = self.nnet.get_advisable_actions(board.canonical_representation())
+            self.As[s] = advisable
+
+        return [board.stone(i) for i in advisable]
 
 
     def best_act(self, board: Board, s: str) -> Tuple[Move, Dict]:
@@ -236,7 +235,7 @@ class MCTS:
                 else:
                     p = self.Ps[s][a]
                     sns = math.sqrt(self.Ns[s] + EPS)
-                    u = self.cpuct * p * sns  # Q = 0 ?
+                    u = self.params.cpuct * p * sns  # Q = 0 ?
                     debug_info[a] = {'u': u, 'q': None, 'p': p, 'nsa': None}
 
                 if u > cur_best:
@@ -251,5 +250,5 @@ class MCTS:
         p = self.Ps[s][a]
         sns = math.sqrt(self.Ns[s])
         nsa = 1 + self.Nsa[(s, a)]
-        u = q + self.cpuct * p * sns / nsa
+        u = q + self.params.cpuct * p * sns / nsa
         return u

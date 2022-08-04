@@ -22,7 +22,7 @@ class GomokuBoard(Board):
     The boundary stones in the third channel are there to support the learning process
     """
 
-    def __init__(self, board_size, stones: str = None, x_means='black'):
+    def __init__(self, board_size, stones: Union[str, List] = None, x_means='black'):
         """
         :param board_size: Usable side length without boundary perimeter
         :param stones: current stones on the board as a single string like 'h8f7g12d8' or so.
@@ -56,7 +56,7 @@ class GomokuBoard(Board):
                 n = self.board_size
 
                 if c_y is None:
-                    if isinstance(r_x, int):
+                    if isinstance(r_x, (int, np.integer)):
                         assert self.ord_min <= r_x <= self.ord_max, \
                             f"Expecting a number between {self.ord_min} and {self.ord_max}"
                         r, c = divmod(r_x, self.board_size)
@@ -128,11 +128,20 @@ class GomokuBoard(Board):
         size = self.board_size
         self.math_rep = EMPTY_BOARDS[size].copy() if size in [15, 19] else create_fresh_board(size)
 
+        if isinstance(stones, str):
+            stones = self.string_to_stones(stones)
+        elif isinstance(stones, (list, np.ndarray)):
+            new_stones = []
+            for s in stones:  # noqa: converting all collections into a list
+                if isinstance(s, Move):
+                    new_stones.append(s)
+                elif isinstance(s, (int, np.integer)):
+                    new_stones.append(self.Stone(s))
+            stones = new_stones
+
         # Set the stones/bits on the math. representation
         # whoever made the last move is now on channel = 1
         channel = 1
-        if isinstance(stones, str):
-            stones = self.string_to_stones(stones)
 
         self.stones = stones if stones is not None else []
 

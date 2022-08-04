@@ -1,9 +1,12 @@
+import logging
 from typing import Callable
 
 import numpy as np
 import tensorflow as tf
 
 from domoku.policies.radial import all_3xnxn, radial_3xnxn
+
+logger = logging.getLogger(__name__)
 
 # Criticality Categories
 TERMINAL = 0  # detects existing 5-rows
@@ -56,10 +59,18 @@ class PrimaryDetector(tf.keras.layers.Layer, Callable):
             ],
             # win-in-2 patterns
             [
+                # maybe not so weak as defense patterns
+                [[-1, 1, -1, 1, 1, -1,  0, 0, 0, 0, 0], [-1, 0, -1, 0, 0, -1,  0, 0, 0, 0, 0], -2, [9, 27]],
+                [[-1, 1, 1, -1, 1, -1,  0, 0, 0, 0, 0], [-1, 0, 0, -1, 0, -1,  0, 0, 0, 0, 0], -2, [9, 27]],
+
                 [[0, -1, 1, 1, 1, -1, -1, 0, 0, 0, 0], [0, -1, 0, 0, 0, -1, -1, 0, 0, 0, 0], -2, [99, 33]],
                 [[0, 0, -1, 1, 1, -1, 1, -1, 0, 0, 0], [0, 0, -1, 0, 0, -1, 0, -1, 0, 0, 0], -2, [99, 33]],
                 [[0, 0, 0, -1, 1, -1, 1, 1, -1, 0, 0], [0, 0, 0, -1, 0, -1, 0, 0, -1, 0, 0], -2, [99, 33]],
                 [[0, 0, 0, 0, -1, -1, 1, 1, 1, -1, 0], [0, 0, 0, 0, -1, -1, 0, 0, 0, -1, 0], -2, [99, 33]],
+
+                # maybe not so weak as defense patterns
+                [[0, 0, 0, 0, -1, -1, 1, 1, -1, 1, -1], [0, 0, 0, 0, 0, -1, 0, 0, -1, 0, -1], -2, [9, 27]],
+                [[0, 0, 0, 0, -1, -1, 1, -1, 1, 1, -1], [0, 0, 0, 0, 0, -1, 0, -1, 0, 0, -1], -2, [9, 27]],
             ],
 
             # potential double-open 3 patterns - not so critical
@@ -188,7 +199,11 @@ class PrimaryDetector(tf.keras.layers.Layer, Callable):
         :return: the logit, clipped
         """
         # States are nxnx3
-        state = np.reshape(state, [-1, self.input_size, self.input_size, 3]).astype(float)
+        try:
+            state = np.reshape(state, [-1, self.input_size, self.input_size, 3]).astype(float)
+        except ValueError as e:
+            logger.error(f"Got {type(state)}: {state}. Why?")
+            raise e
 
         res1 = self.detector(state)
         res2 = self.combine(res1)

@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from alphazero.interfaces import LeadModel, NeuralNet, TrainParams, TerminalDetector, Board
+from alphazero.interfaces import NeuralNet, TrainParams, TerminalDetector
 from domoku.policies.forward_looking import ForwardLookingLayer
 from domoku.policies.naive_infuence import NaiveInfluenceLayer
 from domoku.policies.primary_detector import PrimaryDetector
@@ -9,6 +9,10 @@ from domoku.policies.primary_detector import PrimaryDetector
 class HeuristicPolicy(tf.keras.Model, NeuralNet, TerminalDetector):
 
     def __init__(self, board_size: int, cut_off: float = 0.8):
+        """
+        :param board_size:
+        :param cut_off: discard advisable actions with probability less than cut_off * highest
+        """
 
         self.board_size = board_size
         self.cut_off = cut_off
@@ -28,8 +32,8 @@ class HeuristicPolicy(tf.keras.Model, NeuralNet, TerminalDetector):
         self.influence_weight = 0.01
 
 
-    def get_winner(self, board: Board):
-        c, o = self.logits(board)
+    def get_winner(self, state):
+        c, o = self.logits(state)
         c = np.max(c, axis=None)
         o = np.max(o, axis=None)
         if c > 9000:
@@ -60,7 +64,6 @@ class HeuristicPolicy(tf.keras.Model, NeuralNet, TerminalDetector):
 
     def squeeze_and_peel(self, raw, layer):
         return np.squeeze(self.peel(tf.expand_dims(raw[:, :, :, layer], -1)))
-
 
     def call(self, s):
         logits_c, logits_o = self.logits(s)
@@ -96,5 +99,3 @@ class HeuristicPolicy(tf.keras.Model, NeuralNet, TerminalDetector):
 
     def load_checkpoint(self, folder, filename):
         raise NotImplementedError
-
-

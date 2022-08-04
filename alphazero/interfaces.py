@@ -6,6 +6,37 @@ from pydantic import BaseModel
 import numpy as np
 
 
+class MctsParams:
+
+    def __init__(self, cpuct: float, num_simulations: int, model_threshold: float):
+        self.cpuct = cpuct
+        self.num_simulations = num_simulations
+        self.model_threshold = model_threshold
+
+
+class PolicySpec:
+    """
+    A means of telling remote actors how to instantiate their policy models.
+    This is to avoid transfering the policy as an argument to a potentially
+    remote actor, which will almost inevitably lead to serialization problems.
+    """
+    HEURISTIC = 'HEURISTIC'
+    POOL_REF = 'POOL_REF'
+
+    def __init__(self, checkpoint=None, pool_ref=None):
+        """
+        If no checkpoint is provided, heuristic policy is indicated
+        :param checkpoint:
+        """
+        if checkpoint is not None:
+            raise NotImplementedError("Can only support HEURISTIC for now.")
+        elif pool_ref is not None:
+            self.pool_ref = pool_ref
+            self.type = PolicySpec.POOL_REF
+        else:
+            self.type = PolicySpec.HEURISTIC
+
+
 class IllegalMoveException(Exception):
     def __int__(self, message):
         super().__init__(message)
@@ -28,7 +59,7 @@ class TrainParams(BaseModel):
     num_iters_for_train_examples_history: int
 
 
-class LeadModel(abc.ABC):
+class LeadModel:  # (abc.ABC):
 
     @abc.abstractmethod
     def get_advisable_actions(self, state):
@@ -39,7 +70,7 @@ class Move:
     i: int
 
 
-class Board(abc.ABC):
+class Board:  # (abc.ABC):
 
     @abc.abstractmethod
     def stone(self, pos: int) -> Move:
@@ -85,7 +116,7 @@ class Board(abc.ABC):
         pass
 
 
-class Player(abc.ABC):
+class Player:  # (abc.ABC):
 
     opponent: Optional[Player]
     name: str
@@ -118,7 +149,7 @@ class TerminalDetector(abc.ABC):
         pass
 
 
-class NeuralNet(LeadModel, abc.ABC):
+class NeuralNet(LeadModel):  # , abc.ABC):
     """
     This class specifies the base NeuralNet class. To define your own neural
     network, subclass this class and implement the functions below. The neural
@@ -174,7 +205,7 @@ class NeuralNet(LeadModel, abc.ABC):
         pass
 
 
-class Game(abc.ABC):
+class Game:  # (abc.ABC):
     """
     This class specifies the base Game class. To define your own game, subclass
     this class and implement the functions below. This works when the game is
