@@ -1,10 +1,10 @@
 from timeit import default_timer
-from domoku.board import GomokuBoard as LegacyBoard
+from alphazero.mpl_board import MplBoard
 
 
 def analyse_board(board_size, stones, policy):
     stones_str = "".join([str(stone) for stone in stones])
-    lb = LegacyBoard(n=board_size, disp_width=8, stones=stones_str, heuristics=policy)
+    lb = MplBoard(n=board_size, disp_width=8, stones=stones_str, heuristics=policy)
     lb.display()
 
 

@@ -68,6 +68,10 @@ class LeadModel:  # (abc.ABC):
 
 class Move:
     i: int
+    x: int
+    y: int
+    r: int
+    c: int
 
 
 class Board:  # (abc.ABC):
