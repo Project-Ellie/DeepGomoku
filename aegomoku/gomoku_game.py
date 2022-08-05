@@ -5,9 +5,9 @@ import random
 import abc
 
 import numpy as np
-from alphazero.interfaces import Game, Move
-from alphazero.gomoku_board import GomokuBoard
-from alphazero.policies.heuristic_policy import HeuristicPolicy
+from aegomoku.interfaces import Game, Move
+from aegomoku.gomoku_board import GomokuBoard
+from aegomoku.policies.heuristic_policy import HeuristicPolicy
 
 
 # Remove this

@@ -1,5 +1,5 @@
-from alphazero.interfaces import Board
-from alphazero.ray_pool import StatefulRayPolicy
+from aegomoku.interfaces import Board
+from aegomoku.ray_pool import StatefulRayPolicy
 from domoku.policies.heuristic_policy import HeuristicPolicy
 
 

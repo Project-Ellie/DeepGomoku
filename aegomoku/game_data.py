@@ -1,7 +1,7 @@
 from pickle import Unpickler
 
-from alphazero.gomoku_board import GomokuBoard
-from alphazero.gomoku_game import GomokuGame
+from aegomoku.gomoku_board import GomokuBoard
+from aegomoku.gomoku_game import GomokuGame
 
 
 def read_training_data(filename: str, board_size: int):

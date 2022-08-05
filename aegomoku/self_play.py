@@ -2,9 +2,9 @@ import copy
 import numpy as np
 import ray
 
-from alphazero.interfaces import Board, PolicySpec, Game, MctsParams
-from alphazero.mcts import MCTS
-from alphazero.policies.heuristic_policy import HeuristicPolicy
+from aegomoku.interfaces import Board, PolicySpec, Game, MctsParams
+from aegomoku.mcts import MCTS
+from aegomoku.policies.heuristic_policy import HeuristicPolicy
 
 
 @ray.remote

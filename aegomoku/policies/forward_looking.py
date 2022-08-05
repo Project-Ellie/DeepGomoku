@@ -3,7 +3,7 @@ from typing import Callable
 import numpy as np
 import tensorflow as tf
 
-from alphazero.policies.radial import radial_3xnxn, all_5xnxn
+from aegomoku.policies.radial import radial_3xnxn, all_5xnxn
 
 
 class ForwardLookingLayer(tf.keras.layers.Layer, Callable):

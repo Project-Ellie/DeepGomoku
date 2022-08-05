@@ -3,7 +3,7 @@ import tensorflow as tf
 import numpy as np
 from pydantic import BaseModel
 
-from alphazero.policies.radial import radial_3xnxn, radial_2xnxn
+from aegomoku.policies.radial import radial_3xnxn, radial_2xnxn
 
 
 class MaxInfluencePolicyParams(BaseModel):

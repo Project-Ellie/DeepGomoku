@@ -5,8 +5,8 @@ from typing import Dict, Tuple, List
 
 import numpy as np
 
-from alphazero.hr_tree import TreeNode
-from alphazero.interfaces import Game, NeuralNet, Board, Move, MctsParams
+from aegomoku.hr_tree import TreeNode
+from aegomoku.interfaces import Game, NeuralNet, Board, Move, MctsParams
 
 EPS = 1e-8
 

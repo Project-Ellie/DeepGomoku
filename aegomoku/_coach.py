@@ -9,10 +9,10 @@ import copy
 import numpy as np
 from tqdm import tqdm
 
-from alphazero.arena import Arena
-from alphazero.gomoku_model import NeuralNetAdapter
-from alphazero.interfaces import TrainParams, Board, Game
-from alphazero.mcts import MCTS
+from aegomoku.arena import Arena
+from aegomoku.gomoku_model import NeuralNetAdapter
+from aegomoku.interfaces import TrainParams, Board, Game
+from aegomoku.mcts import MCTS
 
 log = logging.getLogger(__name__)
 

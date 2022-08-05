@@ -11,12 +11,12 @@ from yaml import Loader
 import sys
 sys.path.extend(['/Users/wgiersche/workspace/Project-Ellie/DeepGomoku'])
 
-from alphazero.gomoku_game import RandomBoardInitializer, GomokuGame
-from alphazero.interfaces import MctsParams, PolicySpec
-from alphazero.policies.ray_impl import HeuristicRayPolicy
-from alphazero.ray.generic import RayFilePickler, SimpleCountingDispatcher, TaskMonitor
-from alphazero.ray.trainer import SelfPlayDelegator, create_pool, PolicyRef
-from alphazero.self_play import SelfPlay
+from aegomoku.gomoku_game import RandomBoardInitializer, GomokuGame
+from aegomoku.interfaces import MctsParams, PolicySpec
+from aegomoku.policies.ray_impl import HeuristicRayPolicy
+from aegomoku.ray.generic import RayFilePickler, SimpleCountingDispatcher, TaskMonitor
+from aegomoku.ray.trainer import SelfPlayDelegator, create_pool, PolicyRef
+from aegomoku.self_play import SelfPlay
 
 parser = argparse.ArgumentParser(description="Create Selfplay data with a given parameter config")
 parser.add_argument('--params', '-p', action='store', default="selfplay_params.yaml",

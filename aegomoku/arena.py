@@ -3,7 +3,7 @@ from typing import Optional, Callable, Dict
 
 from tqdm import tqdm
 
-from alphazero.interfaces import Player, Game
+from aegomoku.interfaces import Player, Game
 
 log = logging.getLogger(__name__)
 

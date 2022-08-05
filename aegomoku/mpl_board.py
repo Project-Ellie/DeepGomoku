@@ -1,10 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-import alphazero.gomoku_board as new_board
-import alphazero.tools as gt
+import aegomoku.gomoku_board as new_board
+import aegomoku.tools as gt
 
-from alphazero.interfaces import Move
+from aegomoku.interfaces import Move
 
 
 def maybe_convert(x):

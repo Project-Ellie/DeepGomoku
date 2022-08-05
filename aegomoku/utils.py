@@ -1,10 +1,13 @@
+import numpy as np
 from timeit import default_timer
-from alphazero.mpl_board import MplBoard
+import aegomoku.tools as gt
+from aegomoku.mpl_board import MplBoard
 
 
 def analyse_board(board_size, stones, policy):
-    stones_str = "".join([str(stone) for stone in stones])
-    lb = MplBoard(n=board_size, disp_width=8, stones=stones_str, heuristics=policy)
+    if all([isinstance(i, (np.integer, int)) for i in stones]):
+        stones = [gt.m2b2(divmod(i, 15), 15) for i in stones]
+    lb = MplBoard(n=board_size, disp_width=8, stones=stones, heuristics=policy)
     lb.display()
 
 

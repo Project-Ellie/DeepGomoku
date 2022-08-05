@@ -1,9 +1,9 @@
 import numpy as np
 import tensorflow as tf
-from alphazero.interfaces import NeuralNet, TrainParams, TerminalDetector
-from alphazero.policies.forward_looking import ForwardLookingLayer
-from alphazero.policies.naive_infuence import NaiveInfluenceLayer
-from alphazero.policies.primary_detector import PrimaryDetector
+from aegomoku.interfaces import NeuralNet, TrainParams, TerminalDetector
+from aegomoku.policies.forward_looking import ForwardLookingLayer
+from aegomoku.policies.naive_infuence import NaiveInfluenceLayer
+from aegomoku.policies.primary_detector import PrimaryDetector
 
 
 class HeuristicPolicy(tf.keras.Model, NeuralNet, TerminalDetector):

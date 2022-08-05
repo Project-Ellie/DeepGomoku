@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from domoku.constants import BLACK, Move
 from domoku import tools
-import alphazero.gomoku_board as new_board
+import aegomoku.gomoku_board as new_board
 
 
 def maybe_convert(x):

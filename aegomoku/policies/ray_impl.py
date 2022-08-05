@@ -1,6 +1,6 @@
-from alphazero.interfaces import Board
-from alphazero.ray.trainer import StatefulRayPolicy
-from alphazero.policies.heuristic_policy import HeuristicPolicy
+from aegomoku.interfaces import Board
+from aegomoku.ray.trainer import StatefulRayPolicy
+from aegomoku.policies.heuristic_policy import HeuristicPolicy
 
 
 class HeuristicRayPolicy(StatefulRayPolicy):

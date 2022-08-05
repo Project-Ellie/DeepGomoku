@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from alphazero.interfaces import TerminalDetector
+from aegomoku.interfaces import TerminalDetector
 from domoku.policies.radial import all_3xnxn
 
 # Criticality Categories

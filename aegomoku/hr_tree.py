@@ -1,6 +1,6 @@
 from typing import Dict, Optional
 import numpy as np
-from alphazero.interfaces import Board, Move
+from aegomoku.interfaces import Board, Move
 
 
 class TreeNode:

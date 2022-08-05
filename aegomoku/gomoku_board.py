@@ -2,7 +2,7 @@ from typing import List, Union, Callable
 
 import bitarray
 import numpy as np
-from alphazero.interfaces import Board, Move
+from aegomoku.interfaces import Board, Move
 
 EMPTY_BOARDS = {
     n: np.rollaxis(

@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
 
-from alphazero.interfaces import NeuralNet, TrainParams
+from aegomoku.interfaces import NeuralNet, TrainParams
 
 
 class GomokuModel(tf.keras.Model):

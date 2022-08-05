@@ -4,8 +4,8 @@ from typing import Tuple, Optional
 
 import numpy as np
 
-from alphazero.interfaces import Player, Board, Move
-from alphazero.mcts import MCTS
+from aegomoku.interfaces import Player, Board, Move
+from aegomoku.mcts import MCTS
 
 
 class HeuristicPlayer(Player):

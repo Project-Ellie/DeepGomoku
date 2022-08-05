@@ -4,7 +4,7 @@ import numpy as np
 from pydantic import BaseModel
 import tensorflow as tf
 
-from alphazero.interfaces import NeuralNet, LeadModel
+from aegomoku.interfaces import NeuralNet, LeadModel
 from domoku.interfaces import AbstractGanglion
 from domoku.policies.maximal_criticality import MaxCriticalityPolicy
 from domoku.policies.radial import radial_3xnxn, radial_2xnxn

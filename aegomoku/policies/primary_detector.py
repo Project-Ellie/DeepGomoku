@@ -4,7 +4,7 @@ from typing import Callable
 import numpy as np
 import tensorflow as tf
 
-from alphazero.policies.radial import all_3xnxn, radial_3xnxn
+from aegomoku.policies.radial import all_3xnxn, radial_3xnxn
 
 logger = logging.getLogger(__name__)
 

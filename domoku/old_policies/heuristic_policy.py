@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from alphazero.interfaces import NeuralNet, TrainParams, TerminalDetector
+from aegomoku.interfaces import NeuralNet, TrainParams, TerminalDetector
 from domoku.policies.forward_looking import ForwardLookingLayer
 from domoku.policies.naive_infuence import NaiveInfluenceLayer
 from domoku.policies.primary_detector import PrimaryDetector
