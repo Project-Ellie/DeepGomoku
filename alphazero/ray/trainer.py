@@ -1,8 +1,10 @@
 import abc
 import logging
-import uuid
 
 import ray
+
+from pickle import Pickler
+
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +93,26 @@ class PolicyDispatcher:
         return w.get_winner.remote(state)
 
 
+@ray.remote
+class SelfPlayDelegator:
+    def __init__(self, wid, file_writer, counter, delegate):
+        self.wid = wid
+        self.file_writer = file_writer
+        self.delegate = delegate
+        self.counter = counter
+
+    def work(self):
+        """
+        fetch task, report result - until all jobs are done
+        """
+        while True:
+            seqno = ray.get(self.counter.get_task.remote())
+            if seqno is None:
+                break
+            the_result = ray.get(self.delegate.observe_trajectory.remote(for_storage=True))
+            self.file_writer.write.remote(the_result)
+
+
 class PolicyRef:
     """
     Regular blocking client. Calls the actor and unwraps the result
@@ -123,7 +145,7 @@ def create_pool(num_workers, policy: StatefulRayPolicy, **init_args):
     :param num_workers:
     :param policy:
     :param init_args: Arguments to pass to each worker
-    :return: A reference to its dispatcher actor
+    :return: A reference to its _dispatcher actor
     """
     logging.basicConfig(level=LOG_LEVEL)
     workers = []

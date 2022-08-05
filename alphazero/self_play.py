@@ -4,7 +4,7 @@ import ray
 
 from alphazero.interfaces import Board, PolicySpec, Game, MctsParams
 from alphazero.mcts import MCTS
-from domoku.policies.heuristic_policy import HeuristicPolicy
+from alphazero.policies.heuristic_policy import HeuristicPolicy
 
 
 @ray.remote

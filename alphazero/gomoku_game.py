@@ -7,7 +7,7 @@ import abc
 import numpy as np
 from alphazero.interfaces import Game, Move
 from alphazero.gomoku_board import GomokuBoard
-from domoku.policies.heuristic_policy import HeuristicPolicy
+from alphazero.policies.heuristic_policy import HeuristicPolicy
 
 
 # Remove this
