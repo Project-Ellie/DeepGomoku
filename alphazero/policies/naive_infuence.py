@@ -1,9 +1,17 @@
-from typing import Callable
+from typing import Callable, List
 import tensorflow as tf
 import numpy as np
+from pydantic import BaseModel
 
 from alphazero.policies.radial import radial_3xnxn, radial_2xnxn
-from alphazero.policies.softadvice import MaxInfluencePolicyParams
+
+
+class MaxInfluencePolicyParams(BaseModel):
+    board_size: int  # board n
+    radial_constr: List[float]
+    radial_obstr: List[float]
+    sigma: float  # Preference for offensive play, 1 >= sigma > 0
+    iota: float  # The greed. Higher values make exploitation less likely. 50 is a good start
 
 
 class NaiveInfluenceLayer(tf.keras.layers.Layer, Callable):
@@ -19,7 +27,7 @@ class NaiveInfluenceLayer(tf.keras.layers.Layer, Callable):
             radial_obstr=[-.0625, -.125, -.25, -.5]
         )
         self.params = params
-        self.input_size = params.board_size + 2
+        self.input_size = board_size + 2
         self.kernel_size = 2 * len(self.params.radial_constr) + 1
         self.filters = None
         self.biases = None
