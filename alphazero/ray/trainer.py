@@ -3,8 +3,6 @@ import logging
 
 import ray
 
-from pickle import Pickler
-
 
 logger = logging.getLogger(__name__)
 
@@ -95,11 +93,12 @@ class PolicyDispatcher:
 
 @ray.remote
 class SelfPlayDelegator:
-    def __init__(self, wid, file_writer, counter, delegate):
+    def __init__(self, wid, file_writer, counter, delegate, monitor):
         self.wid = wid
         self.file_writer = file_writer
         self.delegate = delegate
         self.counter = counter
+        self.monitor = monitor
 
     def work(self):
         """
@@ -111,6 +110,7 @@ class SelfPlayDelegator:
                 break
             the_result = ray.get(self.delegate.observe_trajectory.remote(for_storage=True))
             self.file_writer.write.remote(the_result)
+            self.monitor.report.remote()
 
 
 class PolicyRef:

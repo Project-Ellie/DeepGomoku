@@ -2,7 +2,7 @@ import logging
 
 import coloredlogs
 
-from coach import Coach
+from _coach import Coach
 from gobang.GobangGame import GobangGame as Game
 from gobang.tensorflow.NNet import NNetWrapper
 from utils import *

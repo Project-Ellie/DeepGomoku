@@ -21,6 +21,8 @@ coloredlogs = "*"
 bitarray = "*"
 gmpy2 = "*"
 ray = {extras = ["default"], version = "*"}
+pyyaml = "*"
+poetry = "*"
 
 [dev-packages]
 

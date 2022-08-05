@@ -8,10 +8,10 @@ import numpy as np
 
 class MctsParams:
 
-    def __init__(self, cpuct: float, num_simulations: int, model_threshold: float):
+    def __init__(self, cpuct: float, num_simulations: int, advice_cutoff: float):
         self.cpuct = cpuct
         self.num_simulations = num_simulations
-        self.model_threshold = model_threshold
+        self.advice_cutoff = advice_cutoff
 
 
 class PolicySpec:
