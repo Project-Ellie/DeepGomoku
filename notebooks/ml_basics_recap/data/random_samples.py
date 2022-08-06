@@ -3,7 +3,7 @@ from typing import Callable
 import numpy as np
 
 import tensorflow as tf
-from domoku.constants import BLACK, WHITE
+BLACK, WHITE = 0, 1
 
 
 def new_sample(board_size: int, num_blacks: int = 0, num_whites: int = 0):

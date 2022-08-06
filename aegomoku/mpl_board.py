@@ -1,26 +1,33 @@
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 
-from domoku.constants import BLACK, Move
-from domoku import tools
 import aegomoku.gomoku_board as new_board
+import aegomoku.tools as gt
+
+from aegomoku.interfaces import Move
 
 
 def maybe_convert(x):
     if type(x) != str:
         return x
     return ord(x)-64        
-            
-            
-class GomokuBoard:
+
+
+BLACK, WHITE = 0, 1
+
+
+class MplBoard:
+    """
+    A display tools based on Matplotlib
+    """
     
-    def __init__(self, n, heuristics=None, disp_width=6, stones=None):
+    def __init__(self, n, heuristics=None, disp_width=6, stones=None, suppress_move_numbers=False):
         self.N = n
         self.heuristics = heuristics
+        self.suppress_move_numbers = suppress_move_numbers
         stones = stones or []
         if isinstance(stones, str):
-            stones = tools.string_to_stones(stones)
+            stones = gt.string_to_stones(stones)
         self.disp_width = disp_width
         self.stones = []
         self.current_color = BLACK
@@ -142,9 +149,10 @@ class GomokuBoard:
             stc = colors[i % 2]
             fgc = colors[1 - i % 2]
             axis.scatter([x_], [y_], c=stc, s=self.stones_size(), zorder=10)
-            self.display_cursor()
-            plt.text(x_, y_, i, color=fgc, fontsize=12, zorder=20,
-                     horizontalalignment='center', verticalalignment='center')
+            if not self.suppress_move_numbers:
+                self.display_cursor()
+                plt.text(x_, y_, i, color=fgc, fontsize=12, zorder=20,
+                         horizontalalignment='center', verticalalignment='center')
 
     @staticmethod
     def heatmap(q):
@@ -157,14 +165,18 @@ class GomokuBoard:
         if self.heuristics is None:
             return
 
-        position = new_board.GomokuBoard(self.N, stones=tools.stones_to_string(self.stones[:self.cursor+1]))
-        q, v = self.heuristics(position.canonical_representation())
+        position = new_board.GomokuBoard(self.N, stones=gt.stones_to_string(self.stones[:self.cursor+1]))
+        if isinstance(self.heuristics, list):
+            q = np.reshape(self.heuristics, (self.N, self.N))
+        else:
+            q, _ = self.heuristics(position.canonical_representation())
+
         heatmap = np.squeeze(self.heatmap(q))
 
         for c in range(self.N):
             for r in range(self.N):
                 value = heatmap[r][c]
-                x_, y_ = tools.m2b((r, c), self.N)
+                x_, y_ = gt.m2b((r, c), self.N)
                 if value >= cut_off:
                     color = f"#{value:02x}0000"
                     axis.scatter([x_], [y_], color=color, s=self.stones_size() * .5, zorder=10)
@@ -172,14 +184,3 @@ class GomokuBoard:
                 
     def stones_size(self):
         return 120 / self.N * self.disp_width**2
-        
-
-    def save(self, filename):
-        df = pd.DataFrame(self.stones)
-        df.to_csv(filename, header=False, index=False)
-
-        
-    @staticmethod
-    def from_csv(filename, heuristics, size=19, disp_width=10):
-        stones = pd.read_csv(filename, header=None).values.tolist()
-        return GomokuBoard(heuristics, size, disp_width, stones=stones)
