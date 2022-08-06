@@ -118,10 +118,12 @@ class NeuralNetAdapter(NeuralNet):
         :param input_size: size of the input signal: it's boardsize + 2, if you include the boundary!!
         """
         self.input_size = input_size
+        self.board_size = input_size - 2
         self.policy_loss = tf.keras.losses.CategoricalCrossentropy()
         self.value_loss = tf.keras.losses.MeanSquaredError()
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
         self.train_loss = tf.keras.metrics.Mean('train_loss', dtype=tf.float32)
+        self.test_loss = tf.keras.metrics.Mean('train_loss', dtype=tf.float32)
         self.policy = GomokuModel(input_size=input_size, kernel_size=11)
         self.policy.build(input_shape=(None, input_size, input_size, 3))
         super().__init__(*args)
@@ -132,7 +134,7 @@ class NeuralNetAdapter(NeuralNet):
         :param state: the board's math representation
         :return: a list of integer move representations with probabilities close enough to the maximum (see: cut_off)
         """
-        probs, _ = self.call(state)
+        probs, _ = self.policy.call(state)
         max_prob = np.max(probs, axis=None)
         probs = probs.reshape(self.board_size * self.board_size)
         advisable = np.where(probs > max_prob * self.cut_off, probs, 0.)
@@ -150,13 +152,14 @@ class NeuralNetAdapter(NeuralNet):
     def load_checkpoint(self, folder, filename):
         raise NotImplementedError
 
-    def train(self, train_examples, test_examples=None, epochs_per_train, report_every=100):
+    def train(self, train_examples, test_examples=None, epochs_per_train=1, report_every=100):
         current_time = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
         train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
         train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
         all_train_ds = self.create_dataset(train_examples)
-        all_test_ds = self.create_dataset(test_examples)
+        if test_examples is not None:
+            all_test_ds = self.create_dataset(test_examples)
 
         # for epoch in tqdm(range(params.epochs_per_train), desc="   Training"):
         for epoch in range(epochs_per_train):
@@ -169,13 +172,14 @@ class NeuralNetAdapter(NeuralNet):
                 print(f'Epoch: {epoch}, Training: {self.train_loss.result()}, '
                       f'Test: {self.test_loss.result()}')
 
-            for x_test, pi_test, v_test in all_test_ds:
-                self.test_step(x_test, pi_test, v_test)
-            with train_summary_writer.as_default():
-                tf.summary.scalar('loss', self.test_loss.result(), step=epoch)
+            if test_examples is not None:
+                for x_test, pi_test, v_test in all_test_ds:
+                    self.test_step(x_test, pi_test, v_test)
+                with train_summary_writer.as_default():
+                    tf.summary.scalar('test_loss', self.test_loss.result(), step=epoch)
 
-        print(f'Epochs: {epochs_per_train}, Loss: {self.train_loss.result()}, '
-              f'Test: {self.test_loss.result()}')
+        print(f'Epochs: {epochs_per_train}, Loss: {self.train_loss.result()}, ')
+              #f'Test: {self.test_loss.result()}')
 
         self.train_loss.reset_states()
 

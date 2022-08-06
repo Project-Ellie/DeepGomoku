@@ -28,4 +28,4 @@ process:
     policy: 8
     selfplay: 12
   output:
-    the_heuristic_200.pickle
+    the_heuristic_100.pickle
