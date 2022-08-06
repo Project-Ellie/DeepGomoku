@@ -150,7 +150,7 @@ class NeuralNetAdapter(NeuralNet):
     def load_checkpoint(self, folder, filename):
         raise NotImplementedError
 
-    def train(self, examples, epochs_per_train):
+    def train(self, examples, epochs_per_train, report_every=100):
         current_time = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
         train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
         train_summary_writer = tf.summary.create_file_writer(train_log_dir)
@@ -164,7 +164,7 @@ class NeuralNetAdapter(NeuralNet):
             with train_summary_writer.as_default():
                 tf.summary.scalar('loss', self.train_loss.result(), step=epoch)
 
-            if epoch % 100 == 1:
+            if epoch % report_every == 1:
                 print(f'Epoch: {epoch}, Loss: {self.train_loss.result()}')
 
             # for x_test, y_test in test_dataset:

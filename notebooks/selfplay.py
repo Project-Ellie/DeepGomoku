@@ -114,7 +114,7 @@ def startup_actors(params):
             progress = new_progress
         else:
             print(".", end="")
-            time.sleep(.5)
+            time.sleep(2.0)
 
     time.sleep(1)
     the_writer.close.remote()

@@ -21,9 +21,10 @@ class MplBoard:
     A display tools based on Matplotlib
     """
     
-    def __init__(self, n, heuristics=None, disp_width=6, stones=None):
+    def __init__(self, n, heuristics=None, disp_width=6, stones=None, suppress_move_numbers=False):
         self.N = n
         self.heuristics = heuristics
+        self.suppress_move_numbers = suppress_move_numbers
         stones = stones or []
         if isinstance(stones, str):
             stones = gt.string_to_stones(stones)
@@ -148,9 +149,10 @@ class MplBoard:
             stc = colors[i % 2]
             fgc = colors[1 - i % 2]
             axis.scatter([x_], [y_], c=stc, s=self.stones_size(), zorder=10)
-            self.display_cursor()
-            plt.text(x_, y_, i, color=fgc, fontsize=12, zorder=20,
-                     horizontalalignment='center', verticalalignment='center')
+            if not self.suppress_move_numbers:
+                self.display_cursor()
+                plt.text(x_, y_, i, color=fgc, fontsize=12, zorder=20,
+                         horizontalalignment='center', verticalalignment='center')
 
     @staticmethod
     def heatmap(q):
@@ -164,7 +166,11 @@ class MplBoard:
             return
 
         position = new_board.GomokuBoard(self.N, stones=gt.stones_to_string(self.stones[:self.cursor+1]))
-        q, v = self.heuristics(position.canonical_representation())
+        if isinstance(self.heuristics, list):
+            q = np.reshape(self.heuristics, (self.N, self.N))
+        else:
+            q, _ = self.heuristics(position.canonical_representation())
+
         heatmap = np.squeeze(self.heatmap(q))
 
         for c in range(self.N):

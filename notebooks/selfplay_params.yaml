@@ -9,23 +9,23 @@ board:
     lower: 9
 players:
   - mcts:
-      cpuct: 1.0
+      cpuct: 3.0
       num_simulations: 100
-      temperature: 0.3
-      advice_cutoff: .5
+      temperature: 0.8
+      advice_cutoff: .3
     model:
       type: HEURISTIC
   - mcts:
-      cpuct: 1.0
+      cpuct: 3.0
       num_simulations: 100
-      temperature: 0.3
-      advice_cutoff: .5
+      temperature: 0.8
+      advice_cutoff: .3
     model:
       type: HEURISTIC
 process:
   workers:
-    trajectories: 4
-    policy: 1
-    selfplay: 2
+    trajectories: 200
+    policy: 8
+    selfplay: 12
   output:
-    the_heuristic_eight.pickle
+    the_heuristic_200.pickle

@@ -19,13 +19,16 @@ def read_training_data(filename: str, board_size: int):
     examples = []
     game = GomokuGame(board_size, None)
     with open(filename, "rb") as file:
-        game_data = Unpickler(file).load()
-        for traj in game_data:
-            for position in traj:
-                stones, probs, value = position
-                probabilities = probs / 255.
-                state = GomokuBoard(board_size, stones).canonical_representation()
-                symmetries = game.get_symmetries(state, probabilities)
-                for state, prediction in symmetries:
-                    examples.append((state, prediction, value))
-    return examples
+        while True:
+            try:
+                traj = Unpickler(file).load()
+                for position in traj:
+                    stones, probs, value = position
+                    probabilities = probs / 255.
+                    state = GomokuBoard(board_size, stones).canonical_representation()
+                    symmetries = game.get_symmetries(state, probabilities)
+                    for state, prediction in symmetries:
+                        examples.append((state, prediction, value))
+            except EOFError:
+                return examples
+
