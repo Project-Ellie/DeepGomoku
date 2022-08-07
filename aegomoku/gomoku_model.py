@@ -132,7 +132,7 @@ class GomokuModel(tf.keras.Model):
             bias_initializer=tf.random_normal_initializer(),
             activation=tf.nn.relu,
             padding='same',
-            input_shape=(self.input_size-1, self.input_size-1, 5))
+            input_shape=(self.input_size-2, self.input_size-2, 5))
 
         value_aggregate = tf.keras.layers.Conv2D(
             name="value_aggregator",
@@ -141,7 +141,7 @@ class GomokuModel(tf.keras.Model):
             bias_initializer=tf.random_normal_initializer(),
             activation=tf.nn.tanh,
             padding='same',
-            input_shape=(self.input_size-1, self.input_size-1, 5))
+            input_shape=(self.input_size-2, self.input_size-2, 5))
 
         flatten = tf.keras.layers.Flatten()
         dense = tf.keras.layers.Dense(units=1, activation=tf.nn.tanh)
@@ -152,7 +152,8 @@ class GomokuModel(tf.keras.Model):
             filters=1, kernel_size=(3, 3),
             kernel_initializer=tf.constant_initializer([[0., 0., 0.], [0., 1., 0.], [0., 0., 0.]]),
             bias_initializer=tf.constant_initializer(0.),
-            trainable=False)
+            trainable=False,
+            padding='valid')
 
         return first, potentials, policy_aggregate, value_aggregate, flatten, dense, peel
 
