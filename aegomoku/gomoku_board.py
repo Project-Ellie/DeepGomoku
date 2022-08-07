@@ -199,7 +199,10 @@ class GomokuBoard(Board):
         assert all([self.board_size - 1 >= s.c >= 0 for s in stones]), "Not all stones in valid range"
 
     def plot(self, x_is_next=None, mark=None):
-        mark = self.stones[-1] if mark is None else mark
+        if self.stones is not None and len(self.stones) > 0:
+            mark = self.stones[-1] if mark is None else mark
+        else:
+            mark = None
 
         x_is_next = x_is_next if x_is_next is not None else self.x_is_next
 

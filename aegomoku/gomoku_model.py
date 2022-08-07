@@ -1,9 +1,41 @@
 import datetime as dt
+
+import keras.losses
 import numpy as np
 import tensorflow as tf
-from tqdm import tqdm
 
-from aegomoku.interfaces import NeuralNet, TrainParams
+
+from aegomoku.interfaces import NeuralNet
+
+
+class ResnetIdentityBlock(tf.keras.Model):
+    def __init__(self, kernel_size, filters, name, **kwargs):
+        super(ResnetIdentityBlock, self).__init__(name=name, **kwargs)
+        filters1, filters2, filters3 = filters
+
+        self.conv2a = tf.keras.layers.Conv2D(filters1, (1, 1))
+        self.bn2a = tf.keras.layers.BatchNormalization()
+
+        self.conv2b = tf.keras.layers.Conv2D(filters2, kernel_size, padding='same')
+        self.bn2b = tf.keras.layers.BatchNormalization()
+
+        self.conv2c = tf.keras.layers.Conv2D(filters3, (1, 1))
+        self.bn2c = tf.keras.layers.BatchNormalization()
+
+    def call(self, input_tensor, training=False):
+        x = self.conv2a(input_tensor)
+        x = self.bn2a(x, training=training)
+        x = tf.nn.relu(x)
+
+        x = self.conv2b(x)
+        x = self.bn2b(x, training=training)
+        x = tf.nn.relu(x)
+
+        x = self.conv2c(x)
+        x = self.bn2c(x, training=training)
+
+        x += input_tensor
+        return x
 
 
 class GomokuModel(tf.keras.Model):
@@ -14,9 +46,10 @@ class GomokuModel(tf.keras.Model):
     def __init__(self, input_size: int, kernel_size):
         super().__init__()
         self.input_size = input_size
-        self.kernel_size = kernel_size
+        self.kernel_size = 6  # kernel_size
 
         first, pot, agg_p, agg_v, flatten, dense, peel = self.create_model()
+
         self.first = first
         self.potentials = pot
         self.policy_aggregate = agg_p
@@ -34,8 +67,10 @@ class GomokuModel(tf.keras.Model):
         sample = sample / self.input_size / self.input_size
 
         y = self.first(sample)
-        for potential in self.potentials:
-            y = potential(y)
+        for p1, p2 in self.potentials:
+            y_in = y
+            y = p1(y)
+            y = p2(y+y_in)
 
         if debug:
             print(f"Potential: {tf.reduce_sum(y).numpy()}")
@@ -63,20 +98,31 @@ class GomokuModel(tf.keras.Model):
             filters=32, kernel_size=self.kernel_size,
             kernel_initializer=tf.random_normal_initializer(),
             bias_initializer=tf.random_normal_initializer(),
-            activation=tf.nn.relu,
+            activation=tf.nn.elu,
             padding='same',
             input_shape=(self.input_size, self.input_size, 3))
 
-        potentials = [
+        potentials = [(
             tf.keras.layers.Conv2D(
-                name=f'potential_{i}',
+                name=f'potential_{i}_1',
+                filters=32, kernel_size=self.kernel_size,
+                kernel_initializer=tf.random_normal_initializer(),
+                bias_initializer=tf.random_normal_initializer(),
+                activation=tf.nn.elu,
+                padding='same',
+                input_shape=(self.input_size, self.input_size, 5)),
+
+            tf.keras.layers.Conv2D(
+                name=f'potential_{i}_2',
                 filters=32, kernel_size=self.kernel_size,
                 kernel_initializer=tf.random_normal_initializer(),
                 bias_initializer=tf.random_normal_initializer(),
                 activation=tf.nn.relu,
                 padding='same',
                 input_shape=(self.input_size, self.input_size, 5))
-            for i in range(5)
+
+        )
+            for i in range(7)
             ]
 
         policy_aggregate = tf.keras.layers.Conv2D(
@@ -111,6 +157,13 @@ class GomokuModel(tf.keras.Model):
         return first, potentials, policy_aggregate, value_aggregate, flatten, dense, peel
 
 
+def special_loss(y_true, y_pre):
+    import keras.backend as k
+    y_true = tf.cast(y_true, tf.float32)
+    diff = y_true - y_pre
+    return k.sum(y_true * diff * diff, axis=1)
+
+
 class NeuralNetAdapter(NeuralNet):
 
     def __init__(self, input_size, *args):
@@ -120,12 +173,16 @@ class NeuralNetAdapter(NeuralNet):
         self.input_size = input_size
         self.board_size = input_size - 2
         self.policy_loss = tf.keras.losses.CategoricalCrossentropy()
+        # self.policy_loss = tf.keras.losses.MeanSquaredError()
+        #self.policy_loss = special_loss
+
         self.value_loss = tf.keras.losses.MeanSquaredError()
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
         self.train_loss = tf.keras.metrics.Mean('train_loss', dtype=tf.float32)
         self.test_loss = tf.keras.metrics.Mean('train_loss', dtype=tf.float32)
         self.policy = GomokuModel(input_size=input_size, kernel_size=11)
         self.policy.build(input_shape=(None, input_size, input_size, 3))
+        self.cut_off = 0.8  # TODO: provide from params
         super().__init__(*args)
 
 
@@ -195,7 +252,7 @@ class NeuralNetAdapter(NeuralNet):
         self.train_loss(total_loss)
 
     def test_step(self, x_test, pi_test, v_test):
-        p, v = self.call(x_test, training=True)  # noqa: training should be recognized?!
+        p, v = self.call(x_test, training=False)  # noqa: training should be recognized?!
         loss1 = self.policy_loss(pi_test, p)
         loss2 = self.value_loss(v_test, v)
         total_loss = loss1 + loss2
@@ -212,6 +269,7 @@ class NeuralNetAdapter(NeuralNet):
         pi_train_ds = tf.data.Dataset.from_tensor_slices(pi_train).batch(batch_size)
         v_train_ds = tf.data.Dataset.from_tensor_slices(v_train).batch(batch_size)
         all_train_ds = tf.data.Dataset.zip((x_train_ds, pi_train_ds, v_train_ds))
+        all_train_ds = all_train_ds.shuffle(buffer_size=batch_size)
         return all_train_ds
 
     #
