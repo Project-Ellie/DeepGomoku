@@ -71,10 +71,15 @@ class PrimaryDetector(tf.keras.layers.Layer, Callable):
                 # maybe not so weak as defense patterns
                 [[0, 0, 0, 0, -1, -1, 1, 1, -1, 1, -1], [0, 0, 0, 0, 0, -1, 0, 0, -1, 0, -1], -2, [9, 27]],
                 [[0, 0, 0, 0, -1, -1, 1, -1, 1, 1, -1], [0, 0, 0, 0, 0, -1, 0, -1, 0, 0, -1], -2, [9, 27]],
+
+                # Missing patterns: some require 13x13 convolutions
+                # x [] o o o - - : Can also defend on the side that is already somewhat bounded
+                # x - o o o - []: The double-open three can't be converted into a double-open four (13x13)
             ],
 
             # potential double-open 3 patterns - not so critical
             [
+                #  . - o - o [] -
                 [[+0, -1,  1, -1,  1, -1, -1,  0,  0,  0,  0], [+0, -1, -1, -1, -1, -1, -1,  0,  0,  0,  0],
                  -1, [w_o, w_d]],
                 [[+0,  0, -1,  1, -1, -1,  1, -1,  0,  0,  0], [+0,  0, -1, -1, -1, -1, -1, -1,  0,  0,  0],
