@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from aegomoku.interfaces import NeuralNet, TrainParams, TerminalDetector
+from aegomoku.interfaces import NeuralNet, TerminalDetector
 from aegomoku.policies.forward_looking import ForwardLookingLayer
 from aegomoku.policies.naive_infuence import NaiveInfluenceLayer
 from aegomoku.policies.primary_detector import PrimaryDetector
@@ -45,7 +45,7 @@ class HeuristicPolicy(tf.keras.Model, NeuralNet, TerminalDetector):
 
     def get_advisable_actions(self, state):
         """
-        :param state: the board's math representation
+        :param: state: the board's math representation
         :return: a list of integer move representations with probabilities close enough to the maximum (see: cut_off)
         """
         probs, _ = self.call(state)
@@ -83,7 +83,7 @@ class HeuristicPolicy(tf.keras.Model, NeuralNet, TerminalDetector):
         return probs, value
 
 
-    def train(self, examples, params: TrainParams):
+    def train(self, *args, **kwargs):
         raise NotImplementedError
 
 

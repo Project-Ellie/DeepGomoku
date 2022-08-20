@@ -20,21 +20,28 @@ def read_training_data(filename: str, board_size: int):
     :param board_size: board size
     :return: Array of (state, probabiltiy (float), value(float)) triples
     """
-    examples = []
+    all_examples = []
     game = GomokuGame(board_size, None)
     with open(filename, "rb") as file:
         while True:
             try:
                 traj = Unpickler(file).load()
-                for position in traj:
-                    stones, probs, value = position
-                    probabilities = probs / 255.
-                    state = GomokuBoard(board_size, stones).canonical_representation()
-                    symmetries = game.get_symmetries(state, probabilities)
-                    for state, prediction in symmetries:
-                        examples.append((state, prediction, value))
+                all_examples += expand_trajectory(game, board_size, traj)
+
             except EOFError:
-                return examples
+                return all_examples
+
+
+def expand_trajectory(game, board_size, trajectory):
+    examples = []
+    for position in trajectory:
+        stones, probs, value = position
+        probabilities = probs / 255.
+        state = GomokuBoard(board_size, stones).canonical_representation()
+        symmetries = game.get_symmetries(state, probabilities)
+        for state, prediction in symmetries:
+            examples.append((state, prediction, value))
+    return examples
 
 
 def create_dataset(data: List[Tuple[Any, Any, Any]], batch_size=1024, shuffle=True):

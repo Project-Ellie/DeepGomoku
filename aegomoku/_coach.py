@@ -337,7 +337,7 @@ class Coach:
             train_examples = self.create_trajectories(n_it=iteration)
 
             # training new network
-            self.nnet.train(train_examples)
+            self.nnet.train(train_examples,,
             challenger = MCTS(self.game, self.nnet, self.params)
 
             # Arena!

@@ -196,6 +196,11 @@ class NeuralNetAdapter(NeuralNet):
         max_prob = np.max(probs, axis=None)
         probs = probs.reshape(self.board_size * self.board_size)
         advisable = np.where(probs > max_prob * self.cut_off, probs, 0.)
+
+        # ####################################################################################
+        # TODO: remember randomly adding seemingly random moves to overcome potential bias!!!
+        # ####################################################################################
+
         return [int(n) for n in advisable.nonzero()[0]]
 
 

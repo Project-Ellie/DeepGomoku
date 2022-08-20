@@ -159,8 +159,7 @@ class PrimaryDetector(tf.keras.layers.Layer, Callable):
             bias_initializer=tf.constant_initializer(biases),
             activation=tf.nn.relu,
             padding='same',
-            trainable=False,
-            input_shape=(board_size, board_size, 3))
+            trainable=False)
 
         # Layer 2. Output: curr / other / boundary / inf_curr / inf_other
         weights = self.spread_weights(weights, n_filters)
