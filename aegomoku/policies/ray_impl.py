@@ -1,5 +1,5 @@
 from aegomoku.interfaces import Board
-from aegomoku.ray.trainer import StatefulRayPolicy
+from aegomoku.ray.policy import StatefulRayPolicy
 from aegomoku.policies.heuristic_policy import HeuristicPolicy
 
 

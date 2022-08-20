@@ -1,6 +1,7 @@
 from collections import defaultdict
 
 import numpy as np
+import tensorflow
 import tensorflow as tf
 from keras.layers import Dense, Input, Flatten
 from keras.models import Model
@@ -370,7 +371,6 @@ class GFNAgent:
             loss = self.trajectory_balance_loss(batch)
             grads = tape.gradient(loss, self.model.trainable_variables + [self.z0])
         return loss, grads
-
 
     def train(self, verbose=True):
         """Run a training loop of `length self.epochs`.

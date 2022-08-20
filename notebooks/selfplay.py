@@ -15,7 +15,7 @@ from aegomoku.gomoku_game import RandomBoardInitializer, GomokuGame
 from aegomoku.interfaces import MctsParams, PolicySpec
 from aegomoku.policies.ray_impl import HeuristicRayPolicy
 from aegomoku.ray.generic import RayFilePickler, SimpleCountingDispatcher, TaskMonitor
-from aegomoku.ray.trainer import SelfPlayDelegator, create_pool, PolicyRef
+from aegomoku.ray.policy import SelfPlayDelegator, create_pool, PolicyRef
 from aegomoku.self_play import SelfPlay
 
 parser = argparse.ArgumentParser(description="Create Selfplay data with a given parameter config")

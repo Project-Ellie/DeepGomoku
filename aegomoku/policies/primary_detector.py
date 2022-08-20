@@ -31,12 +31,11 @@ class PrimaryDetector(tf.keras.layers.Layer, Callable):
     Input:  Board plus boundary: dimensions: [N+2, N+2, 3]
     Output: Projections + current threat plus other threat: [N+2, N+2, 5]
     """
-    def __init__(self, board_size, **kwargs):
+    def __init__(self, board_size, activation=None, **kwargs):
         """
         :param board_size: length of the board including the boundary
         :param kwargs:
         """
-
         self.input_size = board_size + 2  # We include the boundary in the input
         super().__init__(**kwargs)
 
@@ -154,11 +153,13 @@ class PrimaryDetector(tf.keras.layers.Layer, Callable):
 
         # Layer 1. Output: (curr/oth) x 4 directions x 32 patterns + 3 projectors => 259 channels per board
         self.detector = tf.keras.layers.Conv2D(
+            name="heuristic_detector",
             filters=n_filters, kernel_size=(11, 11),
             kernel_initializer=tf.constant_initializer(filters),
             bias_initializer=tf.constant_initializer(biases),
             activation=tf.nn.relu,
             padding='same',
+            trainable=False,
             input_shape=(board_size, board_size, 3))
 
         # Layer 2. Output: curr / other / boundary / inf_curr / inf_other
@@ -166,7 +167,10 @@ class PrimaryDetector(tf.keras.layers.Layer, Callable):
         weights = np.rollaxis(np.array(weights), axis=-1)
 
         self.combine = tf.keras.layers.Conv2D(
+            name='heuristic_priority',
             filters=5, kernel_size=(1, 1),
+            activation=activation,
+            trainable=False,
             kernel_initializer=tf.constant_initializer(weights))
 
     @staticmethod
@@ -199,11 +203,11 @@ class PrimaryDetector(tf.keras.layers.Layer, Callable):
         :return: the logit, clipped
         """
         # States are nxnx3
-        try:
-            state = np.reshape(state, [-1, self.input_size, self.input_size, 3]).astype(float)
-        except ValueError as e:
-            logger.error(f"Got {type(state)}: {state}. Why?")
-            raise e
+        # try:
+        #     state = np.reshape(state, [-1, self.input_size, self.input_size, 3]).astype(float)
+        # except ValueError as e:
+        #     logger.error(f"Got {type(state)}: {state}. Why?")
+        #     raise e
 
         res1 = self.detector(state)
         res2 = self.combine(res1)

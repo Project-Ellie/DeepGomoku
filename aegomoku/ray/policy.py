@@ -152,7 +152,7 @@ def create_pool(num_workers, policy: StatefulRayPolicy, **init_args):
     for i in range(num_workers):
         w = PolicyWorker.remote(policy=policy, **init_args)
 
-        # wait for the the initialization to succeed
+        # wait for the initialization to succeed
         ray.get(w.init.remote())  # noqa
         workers.append(w)
 

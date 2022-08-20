@@ -29,7 +29,7 @@ class SelfPlay:
 
     def _self_play(self, board: Board, mcts: MCTS, verbose=False) -> Board:
 
-        # Two mood versions of the champion playing against each other = less draws
+        # Two mood versions of the champion playing against each other = fewer draws
         # These settings may change over the training period, once opponents get stronger.
         temperatures = [1, 0]  # more tight vs more explorative
 
