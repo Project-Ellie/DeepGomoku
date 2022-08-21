@@ -6,6 +6,7 @@ import datetime as dt
 class Trainer:
 
     def __init__(self,
+                 model,
                  policy_loss=losses.CategoricalCrossentropy(),
                  value_loss=losses.MeanSquaredError(),
                  optimizer=optimizers.Adam(learning_rate=1e-3),
@@ -14,6 +15,7 @@ class Trainer:
                  test_probs_metric=metrics.Mean('train_loss', dtype=tf.float32),
                  test_value_metric=metrics.Mean('train_loss', dtype=tf.float32)):
 
+        self.model = model
         self.policy_loss = policy_loss
         self.value_loss = value_loss
         self.optimizer = optimizer
@@ -23,14 +25,14 @@ class Trainer:
         self.test_value_metric = test_value_metric
 
 
-    def train(self, model, train_data_set, epochs_per_train=100, report_every=100, v_weight=10.):
+    def train(self, train_data_set, epochs_per_train=100, report_every=100, v_weight=10.):
         current_time = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
         train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
         train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
         for epoch in range(epochs_per_train):
             for x_train, pi_train, v_train in train_data_set:
-                self.train_step(model, x_train, pi_train, v_train, v_weight)
+                self.train_step(x_train, pi_train, v_train, v_weight)
             with train_summary_writer.as_default():
                 tf.summary.scalar('train_loss', self.train_probs_metric.result(), step=epoch)
 
@@ -45,15 +47,15 @@ class Trainer:
         self.train_value_metric.reset_states()
 
     @tf.function
-    def train_step(self, model, inputs, pi_y, v_y, v_weight):
+    def train_step(self, inputs, pi_y, v_y, v_weight):
         with tf.GradientTape() as tape:
-            probs, value = model(inputs, training=True)
+            probs, value = self.model(inputs, training=True)
             train_loss_p = self.policy_loss(pi_y, probs)
             train_loss_v = self.value_loss(v_y, value)
             total_loss = train_loss_p + v_weight * train_loss_v
 
-        grads = tape.gradient(total_loss, model.trainable_variables)
-        self.optimizer.apply_gradients(zip(grads, model.trainable_variables))
+        grads = tape.gradient(total_loss, self.model.trainable_variables)
+        self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
 
         self.train_probs_metric(train_loss_p)
         self.train_value_metric(train_loss_v)
