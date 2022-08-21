@@ -30,28 +30,39 @@ class GomokuResnet(keras.Model):
 
         detector = PrimaryDetector(self.board_size, activation=tf.keras.activations.tanh, name='heuristics')
 
-        x = xp(1, num_sensor_filters, 11)(inputs)
-        c = ct(1, 4, 5)(x)
+        x = expand(1, num_sensor_filters, 11)(inputs)
+        c = contract(1, 4, 5)(x)
 
+        value_input_from_sensor = None
+        c1 = None
         features = detector.call(inputs)
         for i in range(2, num_blocks+1):
             i1 = layers.concatenate([features, c], axis=-1)
-            x1 = xp(i, 32, 5)(i1)
-            c1 = ct(i, 4, 3)(x1)
+            if i == 2:
+                value_input_from_sensor = i1
+            x1 = expand(i, 32, 5)(i1)
+            c1 = contract(i, 4, 3)(x1)
             c = layers.Add(name=f"skip_{i}")([c1, c])
+
+        value_input_from_head = c1
+
+        value_input = layers.concatenate([value_input_from_head, value_input_from_sensor],
+                                         name='all_value_input', axis=-1)
+        value_flat = layers.Flatten(name='flat_value_input')(value_input)
+        value = layers.Dense(1, name="value_head", activation=tf.keras.activations.tanh)(value_flat / 100.)
 
         x = policy_aggregate(c)
         y = peel(x)
-        flatten = layers.Flatten()(y)
-        softmax = layers.Softmax()(flatten)
+        flatten = layers.Flatten(name='flat_logits')(y)
+        policy = layers.Softmax(name='policy_head')(flatten)
 
-        super().__init__(inputs=inputs, outputs=softmax, *args, **kwargs)
+        super().__init__(inputs=inputs, outputs=[policy, value], *args, **kwargs)
 
     def call(self, inputs, training=None, mask=None):
         return super().call(inputs, training, mask)
 
 
-def xp(seqno, filters, kernel):
+def expand(seqno, filters, kernel):
     return layers.Conv2D(
         name=f"expand_{seqno}_{kernel}x{kernel}",
         filters=filters, kernel_size=kernel,
@@ -61,7 +72,7 @@ def xp(seqno, filters, kernel):
         padding='same')
 
 
-def ct(seqno, filters, kernel):
+def contract(seqno, filters, kernel):
     return layers.Conv2D(
         name=f"contract_{seqno}_{kernel}x{kernel}",
         filters=filters, kernel_size=kernel,
