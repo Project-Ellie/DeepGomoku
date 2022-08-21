@@ -204,7 +204,7 @@ class NeuralNetAdapter(NeuralNet):
         return [int(n) for n in advisable.nonzero()[0]]
 
 
-    def predict(self, state, debug=False):
+    def evaluate(self, state, debug=False):
         return self.policy.call(state, debug)
 
 
@@ -282,6 +282,6 @@ class NeuralNetAdapter(NeuralNet):
     #   Find a reasonable implementation for reasonable actions...;-)
     #
     def get_reasonable_actions(self, state):
-        probs, _ = self.predict(state)
+        probs, _ = self.evaluate(state)
         max_prob = np.max(probs, axis=None)
         return probs[[probs > max_prob * 0.8]]

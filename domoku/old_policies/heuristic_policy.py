@@ -87,7 +87,7 @@ class HeuristicPolicy(tf.keras.Model, NeuralNet, TerminalDetector):
         raise NotImplementedError
 
 
-    def predict(self, board):
+    def evaluate(self, board):
         pi, v = self.call(board)
         pi = np.reshape(pi, self.board_size * self.board_size)
         return pi, v

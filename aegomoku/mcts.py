@@ -6,7 +6,7 @@ from typing import Dict, Tuple, List
 import numpy as np
 
 from aegomoku.hr_tree import TreeNode
-from aegomoku.interfaces import Game, NeuralNet, Board, Move, MctsParams
+from aegomoku.interfaces import Game, Adviser, Board, Move, MctsParams
 
 EPS = 1e-8
 
@@ -18,10 +18,10 @@ class MCTS:
     This class handles the MCTS tree.
     """
 
-    def __init__(self, game: Game, nnet: NeuralNet, params: MctsParams,
+    def __init__(self, game: Game, advisor: Adviser, params: MctsParams,
                  verbose=0):
         self.game = game
-        self.nnet = nnet
+        self.adviser = advisor
         self.params = params
 
         self.Q = {}  # stores Q values for s,a (as defined in the paper)
@@ -50,7 +50,8 @@ class MCTS:
         s = board.get_string_representation()
         advisable = self.As.get(s)
         if advisable is None:
-            advisable = self.nnet.get_advisable_actions(board.canonical_representation())
+            state = np.expand_dims(board.canonical_representation(), 0)
+            advisable = self.adviser.get_advisable_actions(state)
             self.As[s] = advisable
 
         original_board = board
@@ -172,13 +173,13 @@ class MCTS:
 
     def initialize_and_estimate_value(self, board, s: str):
         """
-        :param board: the board
-        :param s, the canonical representation of the board (precomputed to save CPU cycles
+        :param: board: the board
+        :param: s, the canonical representation of the board (precomputed to save CPU cycles
         :return: The value of the leaf from the current player's point of view
         """
 
         # evaluate the policy for the move probablities and the value estimate.
-        self.Ps[s], v = self.nnet.predict(board.canonical_representation())
+        self.Ps[s], v = self.adviser.evaluate(board.canonical_representation())
 
         pot_next_move = self.pot_best(board, s)  # noqa: for DEBUG only
 
@@ -208,7 +209,8 @@ class MCTS:
         s = board.get_string_representation()
         advisable = self.As.get(s)
         if advisable is None:
-            advisable = self.nnet.get_advisable_actions(board.canonical_representation())
+            inputs = np.expand_dims(board.canonical_representation(), 0).astype(float)
+            advisable = self.adviser.get_advisable_actions(inputs)
             self.As[s] = advisable
 
         return [board.stone(i) for i in advisable]
@@ -225,7 +227,6 @@ class MCTS:
         if len(probable_actions) == 1:
             return probable_actions[0], {'u': float('inf'), 'q': None, 'p': 1, 'nsa': None}
 
-        # for a in range(self.game.get_action_size(board)):
         debug_info = {}
         for move in probable_actions:
             a = move.i  # use the integer representation

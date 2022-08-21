@@ -4,6 +4,7 @@ import abc
 from typing import Tuple, Optional
 from pydantic import BaseModel
 import numpy as np
+from keras import models
 
 
 class MctsParams:
@@ -59,11 +60,57 @@ class TrainParams(BaseModel):
     num_iters_for_train_examples_history: int
 
 
-class LeadModel:  # (abc.ABC):
+class Adviser:  # (abc.ABC):
 
     @abc.abstractmethod
     def get_advisable_actions(self, state):
         pass
+
+    @abc.abstractmethod
+    def evaluate(self, state):
+        """
+        Input:
+            board: current board in its canonical form.
+
+        Returns:
+            pi: a policy vector for the current board- a numpy array of length
+                game.get_action_size
+            v: a float in [-1,1] that gives the value of the current board
+        """
+        pass
+
+
+class PolicyAdvisor(Adviser):
+
+    def __init__(self, model: models.Model, advice_cut_off):
+        self.model = model
+        self.advice_cut_off = advice_cut_off
+
+    def get_advisable_actions(self, state):
+        """
+        :param state: nxnx3 representation of a go board
+        :return:
+        """
+        probs, _ = self.model(state)
+        max_prob = np.max(probs, axis=None)
+        probs = np.squeeze(probs)
+        advisable = np.where(probs > max_prob * self.advice_cut_off, probs, 0.)
+
+        # ####################################################################################
+        # TODO: remember randomly adding seemingly random moves to overcome potential bias!!!
+        # ####################################################################################
+
+        return [int(n) for n in advisable.nonzero()[0]]
+
+
+    def evaluate(self, state):
+        """
+        :param state: nxnx3 representation of a go board
+        :return:
+        """
+        inputs = np.expand_dims(state, 0).astype(float)
+        p, v = self.model(inputs)
+        return np.squeeze(p), np.squeeze(v)
 
 
 class Move:
@@ -153,7 +200,7 @@ class TerminalDetector(abc.ABC):
         pass
 
 
-class NeuralNet(LeadModel):  # , abc.ABC):
+class NeuralNet(Adviser):  # , abc.ABC):
     """
     This class specifies the base NeuralNet class. To define your own neural
     network, subclass this class and implement the functions below. The neural
@@ -176,19 +223,6 @@ class NeuralNet(LeadModel):  # , abc.ABC):
                   the given board, and v is its value. The examples has
                   board in its canonical form.
         :param n_epochs
-        """
-        pass
-
-    @abc.abstractmethod
-    def predict(self, state):
-        """
-        Input:
-            board: current board in its canonical form.
-
-        Returns:
-            pi: a policy vector for the current board- a numpy array of length
-                game.get_action_size
-            v: a float in [-1,1] that gives the value of the current board
         """
         pass
 

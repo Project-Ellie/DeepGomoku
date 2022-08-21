@@ -140,7 +140,7 @@ class Coach:
         :return: a fresh MCTS with a copy of the neural network inside
         """
         new_nnet = NeuralNetAdapter(input_size=17)
-        original.nnet.save_checkpoint(folder=self.params.checkpoint_dir, filename='temperature.pth.tar')
+        original.adviser.save_checkpoint(folder=self.params.checkpoint_dir, filename='temperature.pth.tar')
         new_nnet.load_checkpoint(folder=self.params.checkpoint_dir, filename='temperature.pth.tar')
         new_mcts = MCTS(self.game, new_nnet, cpuct=original.cpuct, num_simulations=original.num_simulations)
         return new_mcts
@@ -164,7 +164,7 @@ class Coach:
 
             print("   Challenger to learn from the results")
             # training new network
-            challenger.nnet.train(trajectories, params=self.params)
+            challenger.adviser.train(trajectories, params=self.params)
 
             # Arena!
             print('   Challenger meets Defender in the Arena')
@@ -177,13 +177,13 @@ class Coach:
             if (defender_wins + challenger_wins == 0 or
                     float(challenger_wins) / (defender_wins + challenger_wins) < self.params.update_threshold):
                 log.info('REJECTING NEW MODEL')
-                challenger.nnet.load_checkpoint(folder=self.params.checkpoint_dir, filename='temperature.pth.tar')
+                challenger.adviser.load_checkpoint(folder=self.params.checkpoint_dir, filename='temperature.pth.tar')
             else:
                 log.info('ACCEPTING NEW MODEL')
-                challenger.nnet.save_checkpoint(folder=self.params.checkpoint_dir,
-                                                filename=self.get_checkpoint_file(iteration))
-                challenger.nnet.save_checkpoint(folder=self.params.checkpoint_dir,
-                                                filename='best.pth.tar')
+                challenger.adviser.save_checkpoint(folder=self.params.checkpoint_dir,
+                                                   filename=self.get_checkpoint_file(iteration))
+                challenger.adviser.save_checkpoint(folder=self.params.checkpoint_dir,
+                                                   filename='best.pth.tar')
 
                 defender = self.save_model_and_copy_mcts(challenger)
 
@@ -338,7 +338,7 @@ class Coach:
 
             # training new network
             self.nnet.train(train_examples,,
-            challenger = MCTS(self.game, self.nnet, self.params)
+            challenger = MCTS(self.game, self.adviser, self.params)
 
             # Arena!
             log.info('PITTING AGAINST PREVIOUS VERSION')

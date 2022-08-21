@@ -56,7 +56,7 @@ class PolicyWorker:
         return self.policy.get_advisable_actions(state)
 
     def predict(self, state):
-        return self.policy.predict(state)
+        return self.policy.evaluate(state)
 
     def load_checkpoint(self, folder, filename):
         return self.policy.load_checkpoint(folder, filename)
@@ -80,7 +80,7 @@ class PolicyDispatcher:
 
     def predict(self, state):
         w = self.next_actor()
-        return w.predict.remote(state)
+        return w.evaluate.remote(state)
 
     def get_advisable_actions(self, state):
         w = self.next_actor()
@@ -121,7 +121,7 @@ class PolicyRef:
         self.actor = actor
 
     def predict(self, x):
-        y = self.actor.predict.remote(x)
+        y = self.actor.evaluate.remote(x)
         while isinstance(y, ray._raylet.ObjectRef):  # noqa
             y = ray.get(y)
         return y

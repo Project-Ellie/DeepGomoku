@@ -104,7 +104,9 @@ class GomokuGame(Game):
     def get_game_ended(self, board: GomokuBoard):
         if self.detector is None:
             self.detector = HeuristicPolicy(self.board_size)
-        return self.detector.get_winner(board.canonical_representation())
+        state = board.canonical_representation()
+        inputs = np.expand_dims(state, 0).astype(float)
+        return self.detector.get_winner(inputs)
 
     # modified
     def get_symmetries(self, board, pi):

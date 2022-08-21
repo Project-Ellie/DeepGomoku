@@ -169,7 +169,8 @@ class MplBoard:
         if isinstance(self.heuristics, list):
             q = np.reshape(self.heuristics, (self.N, self.N))
         else:
-            q, _ = self.heuristics(position.canonical_representation())
+            state = np.expand_dims(position.canonical_representation(), 0).astype(float)
+            q, _ = self.heuristics(state)
 
         heatmap = np.squeeze(self.heatmap(q))
 

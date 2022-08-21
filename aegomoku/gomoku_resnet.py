@@ -28,11 +28,14 @@ class GomokuResnet(keras.Model):
             padding='valid',
             trainable=False)
 
+        # Some minimal heuristic/feature engineering
         detector = PrimaryDetector(self.board_size, activation=tf.keras.activations.tanh, name='heuristics')
 
-        x = expand(1, num_sensor_filters, 11)(inputs)
-        c = contract(1, 4, 5)(x)
+        # A huge 11x11 filter set to start with
+        x = self.expand(1, num_sensor_filters, 11)(inputs)
+        c = self.contract(1, 4, 5)(x)
 
+        #
         value_input_from_sensor = None
         c1 = None
         features = detector.call(inputs)
@@ -40,17 +43,18 @@ class GomokuResnet(keras.Model):
             i1 = layers.concatenate([features, c], axis=-1)
             if i == 2:
                 value_input_from_sensor = i1
-            x1 = expand(i, 32, 5)(i1)
-            c1 = contract(i, 4, 3)(x1)
+            x1 = self.expand(i, 32, 5)(i1)
+            c1 = self.contract(i, 4, 3)(x1)
             c = layers.Add(name=f"skip_{i}")([c1, c])
 
+        # the value head is fed with a mixed input from early and late layers
         value_input_from_head = c1
-
         value_input = layers.concatenate([value_input_from_head, value_input_from_sensor],
                                          name='all_value_input', axis=-1)
         value_flat = layers.Flatten(name='flat_value_input')(value_input)
         value = layers.Dense(1, name="value_head", activation=tf.keras.activations.tanh)(value_flat / 100.)
 
+        # The policy head
         x = policy_aggregate(c)
         y = peel(x)
         flatten = layers.Flatten(name='flat_logits')(y)
@@ -61,22 +65,23 @@ class GomokuResnet(keras.Model):
     def call(self, inputs, training=None, mask=None):
         return super().call(inputs, training, mask)
 
+    @staticmethod
+    def expand(seqno, filters, kernel):
+        return layers.Conv2D(
+            name=f"expand_{seqno}_{kernel}x{kernel}",
+            filters=filters, kernel_size=kernel,
+            kernel_initializer=initializers.TruncatedNormal(seed=1, stddev=0.08),
+            bias_initializer=tf.constant_initializer(0.),
+            activation=tf.nn.softplus,
+            padding='same')
 
-def expand(seqno, filters, kernel):
-    return layers.Conv2D(
-        name=f"expand_{seqno}_{kernel}x{kernel}",
-        filters=filters, kernel_size=kernel,
-        kernel_initializer=initializers.TruncatedNormal(seed=1, stddev=0.08),
-        bias_initializer=tf.constant_initializer(0.),
-        activation=tf.nn.softplus,
-        padding='same')
 
-
-def contract(seqno, filters, kernel):
-    return layers.Conv2D(
-        name=f"contract_{seqno}_{kernel}x{kernel}",
-        filters=filters, kernel_size=kernel,
-        kernel_initializer=initializers.TruncatedNormal(seed=1, stddev=0.08),
-        bias_initializer=tf.constant_initializer(0.),
-        activation=tf.nn.softplus,
-        padding='same')
+    @staticmethod
+    def contract(seqno, filters, kernel):
+        return layers.Conv2D(
+            name=f"contract_{seqno}_{kernel}x{kernel}",
+            filters=filters, kernel_size=kernel,
+            kernel_initializer=initializers.TruncatedNormal(seed=1, stddev=0.08),
+            bias_initializer=tf.constant_initializer(0.),
+            activation=tf.nn.softplus,
+            padding='same')
