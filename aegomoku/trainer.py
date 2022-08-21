@@ -1,6 +1,7 @@
 import tensorflow as tf
 from keras import losses, optimizers, metrics
 import datetime as dt
+from timeit import default_timer
 
 
 class Trainer:
@@ -30,6 +31,7 @@ class Trainer:
         train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
         train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
+        start = default_timer()
         for epoch in range(epochs_per_train):
             for x_train, pi_train, v_train in train_data_set:
                 self.train_step(x_train, pi_train, v_train, v_weight)
@@ -37,8 +39,12 @@ class Trainer:
                 tf.summary.scalar('train_loss', self.train_probs_metric.result(), step=epoch)
 
             if epoch % report_every == 1:
+                elapsed = default_timer() - start
                 print(f'Epoch: {epoch}, Training: '
-                      f'{self.train_probs_metric.result().numpy(), self.train_value_metric.result().numpy()}')
+                      f'p: {self.train_probs_metric.result().numpy():.5}, '
+                      f'v: {self.train_value_metric.result().numpy():.5} - '
+                      f'elapsed: {elapsed:.5}s')
+                start = default_timer()
 
         print(f'Epoch: {epochs_per_train}, Training: '
               f'{self.train_probs_metric.result().numpy(), self.train_value_metric.result().numpy()}')
