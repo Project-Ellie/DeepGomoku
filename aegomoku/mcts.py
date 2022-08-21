@@ -50,7 +50,7 @@ class MCTS:
         s = board.get_string_representation()
         advisable = self.As.get(s)
         if advisable is None:
-            state = np.expand_dims(board.canonical_representation(), 0)
+            state = np.expand_dims(board.canonical_representation(), 0).astype(float)
             advisable = self.adviser.get_advisable_actions(state)
             self.As[s] = advisable
 
@@ -179,7 +179,8 @@ class MCTS:
         """
 
         # evaluate the policy for the move probablities and the value estimate.
-        self.Ps[s], v = self.adviser.evaluate(board.canonical_representation())
+        inputs = board.canonical_representation()
+        self.Ps[s], v = self.adviser.evaluate(inputs)
 
         pot_next_move = self.pot_best(board, s)  # noqa: for DEBUG only
 

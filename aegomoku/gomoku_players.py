@@ -3,22 +3,28 @@ from __future__ import annotations
 from typing import Tuple, Optional
 
 import numpy as np
-
-from aegomoku.interfaces import Player, Board, Move
+import tensorflow as tf
+from aegomoku.interfaces import Player, Board, Move, MctsParams, PolicyParams, PolicyAdviser, Game
 from aegomoku.mcts import MCTS
+from aegomoku.policies.heuristic_policy import HeuristicPolicy
 
 
-class HeuristicPlayer(Player):
+class PolicyAdvisedGraphSearchPlayer(Player):
 
-    def __init__(self, name: str, mcts: MCTS, temperature: float):
+    def __init__(self, name: str, game: Game, mcts_params: MctsParams, policy_params: PolicyParams):
         """
         :param mcts: The search tree to use
         :param temperature: a float between 1.0 for more exploration and 0.0 for only the best move to take
         """
         self.opponent: Optional[Player] = None
         self.name = name
-        self.mcts = mcts
-        self.temperature = temperature
+        if policy_params.model_file_name is not None:
+            model = tf.keras.models.load_model(policy_params.model_file_name)
+            self.advisor = PolicyAdviser(model=model, params=policy_params)
+        else:
+            self.advisor = HeuristicPolicy(board_size=game.board_size)
+
+        self.mcts = MCTS(game, self.advisor, mcts_params)
         super().__init__()
 
 
@@ -34,9 +40,10 @@ class HeuristicPlayer(Player):
         :param temperature: if provided, overrides the default training_data of the player. Good for self-play.
         :return: the very same board instance containing one more stone.
         """
-        temperature = temperature if temperature is not None else self.temperature
+        temperature = temperature if temperature is not None else self.mcts.params.temperature
+
         probs = self.mcts.get_action_prob(board, temperature=temperature)
-        move = board.stone(np.random.choice(225, p=probs))
+        move = board.stone(np.random.choice(list(range(board.board_size**2)), p=probs))
         board.act(move)
         return board, move
 

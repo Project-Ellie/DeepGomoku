@@ -9,9 +9,15 @@ from keras import models
 
 class MctsParams:
 
-    def __init__(self, cpuct: float, num_simulations: int, advice_cutoff: float):
+    def __init__(self, cpuct: float, temperature: float, num_simulations: int):
         self.cpuct = cpuct
         self.num_simulations = num_simulations
+        self.temperature = temperature
+
+
+class PolicyParams:
+    def __init__(self, model_file_name: Optional[str], advice_cutoff: float):
+        self.model_file_name = model_file_name
         self.advice_cutoff = advice_cutoff
 
 
@@ -80,11 +86,11 @@ class Adviser:  # (abc.ABC):
         pass
 
 
-class PolicyAdvisor(Adviser):
+class PolicyAdviser(Adviser):
 
-    def __init__(self, model: models.Model, advice_cut_off):
+    def __init__(self, model: models.Model, params: PolicyParams):
         self.model = model
-        self.advice_cut_off = advice_cut_off
+        self.params = params
 
     def get_advisable_actions(self, state):
         """
@@ -94,7 +100,7 @@ class PolicyAdvisor(Adviser):
         probs, _ = self.model(state)
         max_prob = np.max(probs, axis=None)
         probs = np.squeeze(probs)
-        advisable = np.where(probs > max_prob * self.advice_cut_off, probs, 0.)
+        advisable = np.where(probs > max_prob * self.params.advice_cutoff, probs, 0.)
 
         # ####################################################################################
         # TODO: remember randomly adding seemingly random moves to overcome potential bias!!!
@@ -122,6 +128,8 @@ class Move:
 
 
 class Board:  # (abc.ABC):
+
+    board_size: int
 
     @abc.abstractmethod
     def stone(self, pos: int) -> Move:
@@ -252,6 +260,8 @@ class Game:  # (abc.ABC):
 
     See othello/OthelloGame.py for an example implementation.
     """
+    board_size: int
+
     def __init__(self):
         pass
 
