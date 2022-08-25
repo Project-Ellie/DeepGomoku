@@ -13,7 +13,7 @@ class HeuristicRayPolicy(StatefulRayPolicy):
     def get_advisable_actions(self, state, **_):
         return self.policy.get_advisable_actions(state)
 
-    def predict(self, board, **_):
+    def evaluate(self, board, **_):
         return self.policy.evaluate(board)
 
     def load_checkpoint(self, folder, filename, **_):

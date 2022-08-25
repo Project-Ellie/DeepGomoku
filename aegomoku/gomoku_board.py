@@ -103,6 +103,10 @@ class GomokuBoard(Board):
             __repr__ = __str__
 
             def __eq__(self, other):
+
+                if not isinstance(other, Move):
+                    return False
+
                 if self.r == other.r and self.c == other.c and self.field_size == other.field_size:
                     return True
                 else:

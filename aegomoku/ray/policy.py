@@ -28,7 +28,7 @@ class StatefulRayPolicy:
         pass
 
     @abc.abstractmethod
-    def predict(self, state):
+    def evaluate(self, state):
         pass
 
     @abc.abstractmethod
@@ -55,7 +55,7 @@ class PolicyWorker:
     def get_advisable_actions(self, state):
         return self.policy.get_advisable_actions(state)
 
-    def predict(self, state):
+    def evaluate(self, state):
         return self.policy.evaluate(state)
 
     def load_checkpoint(self, folder, filename):
@@ -78,7 +78,7 @@ class PolicyDispatcher:
         self.i = (self.i + 1) % self.m
         return self.workers[self.i]
 
-    def predict(self, state):
+    def evaluate(self, state):
         w = self.next_actor()
         return w.evaluate.remote(state)
 
@@ -120,7 +120,7 @@ class PolicyRef:
     def __init__(self, actor):
         self.actor = actor
 
-    def predict(self, x):
+    def evaluate(self, x):
         y = self.actor.evaluate.remote(x)
         while isinstance(y, ray._raylet.ObjectRef):  # noqa
             y = ray.get(y)
