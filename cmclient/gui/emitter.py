@@ -9,7 +9,7 @@ class BoardEventEmitter:
         self.padding = padding
         self.board_size = board_size
         self.grid_size = grid_size
-        self.board = GomokuBoard(board_size)
+        self.Stone = GomokuBoard(board_size).Stone
 
     def get(self):
         while True:
@@ -21,7 +21,7 @@ class BoardEventEmitter:
                 if not(self.board_size > x >= 0 and self.board_size > y >= 0):
                     continue
 
-                stone = self.board.Stone(y * self.board_size + x)
+                stone = self.Stone(y * self.board_size + x)
                 return stone
 
             elif event.type == pygame.KEYDOWN and event.key == 27:

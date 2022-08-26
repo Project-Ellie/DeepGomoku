@@ -305,7 +305,7 @@ class GomokuBoard(Board):
 
 
     def remove(self, stone):
-        assert isinstance(stone, self.Stone), "Can only remove this board's stones"
+        assert isinstance(stone, Move), "Can only remove Move instances."
         self.math_rep[stone.r+1, stone.c+1] = [0, 0, 0]
         self.stones.remove(stone)
 

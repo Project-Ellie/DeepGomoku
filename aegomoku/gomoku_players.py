@@ -13,11 +13,12 @@ class PolicyAdvisedGraphSearchPlayer(Player):
 
     def __init__(self, name: str, game: Game, mcts_params: MctsParams, policy_params: PolicyParams):
         """
-        :param mcts: The search tree to use
-        :param temperature: a float between 1.0 for more exploration and 0.0 for only the best move to take
+        :param mcts_params: The graph search parameters
+        :param policy_params: the policy-related parameters
         """
         self.opponent: Optional[Player] = None
         self.name = name
+        self.game = game
         if policy_params.model_file_name is not None:
             model = tf.keras.models.load_model(policy_params.model_file_name)
             self.advisor = PolicyAdviser(model=model, params=policy_params)
@@ -33,15 +34,19 @@ class PolicyAdvisedGraphSearchPlayer(Player):
         other.opponent = self
 
 
-    def move(self, board: Board, temperature=None) -> Tuple[Board, Move]:
+    def move(self, board: Board, temperature=None) -> Tuple[Board, Optional[Move]]:
         """
         Procedural (not functional) interface. It changes the board!
         :param board: the board to use
         :param temperature: if provided, overrides the default training_data of the player. Good for self-play.
         :return: the very same board instance containing one more stone.
         """
-        temperature = temperature if temperature is not None else self.mcts.params.temperature
+        # No move when game is over
+        winner = self.game.get_game_ended(board)
+        if winner is not None:
+            return board, None
 
+        temperature = temperature if temperature is not None else self.mcts.params.temperature
         probs = self.mcts.get_action_prob(board, temperature=temperature)
         move = board.stone(np.random.choice(list(range(board.board_size**2)), p=probs))
         board.act(move)
