@@ -1,4 +1,5 @@
 import pygame
+import pygame_gui as gui
 
 from aegomoku.interfaces import Move
 from cmclient.api.game_context import GameContext
@@ -25,33 +26,47 @@ class UI:
     def __init__(self, board_size: int, context: GameContext):
         self.board_size = board_size
         self.context = context
-        self.physical_board = [GRID_SIZE * (self.board_size + 1) + 2 * SIDE_BUFFER + CONTROL_PANE,
-                               GRID_SIZE * (self.board_size + 1) + 2 * SIDE_BUFFER]
+        width = GRID_SIZE * (self.board_size + 1) + 2 * SIDE_BUFFER + CONTROL_PANE
+        height = GRID_SIZE * (self.board_size + 1) + 2 * SIDE_BUFFER
+        self.width, self.height = width, height
         pygame.init()
         if self.context.polling_listener is not None:
             pygame.time.set_timer(POLL_NOW, TIME_DELAY)
-        self.screen = pygame.display.set_mode(self.physical_board)
+        self.screen = pygame.display.set_mode((width, height))
+        self.clock = pygame.time.Clock()
 
 
     def show(self, registered: str, oppenent: str):
 
-        current_color = self.redraw()
+        self.redraw()
         pygame.display.set_caption(f"{registered} vs {oppenent}")
         pygame.display.update()
 
-        self.loop(current_color)
+        self.loop()
 
         return "Done."
 
 
     def redraw(self, stones=None):
-        self.screen.fill(COLOR_BOARD)
-        self.draw_grid()
-        self.draw_field_names()
-        current_color = 0
-        if stones is not None:
-            current_color = self.draw_stones(stones)
-        return current_color
+        # self.screen.fill(COLOR_BOARD)
+        # self.draw_grid()
+        # self.draw_field_names()
+        # current_color = 0
+        # if stones is not None:
+        #     current_color = self.draw_stones(stones)
+        self.draw_controls()
+
+    def draw_controls(self):
+        background = pygame.Surface((self.width, self.height))
+        background.fill(pygame.Color('#000000'))
+        manager = gui.UIManager((self.width, self.height))
+        button_rect = pygame.Rect((self.width - 50, 100), (self.width - 100, 50))
+        button_rect = pygame.Rect((350, 275), (100, 50))
+        self.hello_button = gui.elements.UIButton(relative_rect=button_rect,
+                                                  text='Say Hello',
+                                                  manager=manager)
+        manager.update(.05)
+        self.screen.blit(self.screen, (0, 0))
 
 
     def draw_field_names(self):
@@ -121,37 +136,56 @@ class UI:
         self.draw_text(str(seqno), x, y, STONE_COLORS[1-color], 16)
 
 
-    def loop(self, current_color):
+    def move_from_event(self, event):
+        if event.type == pygame.MOUSEBUTTONUP:
+            x, y = event.pos
+            x = (x - PADDING + GRID_SIZE // 2) // GRID_SIZE
+            y = (y - PADDING + GRID_SIZE // 2) // GRID_SIZE
+            if not(self.board_size > x >= 0 and self.board_size > y >= 0):
+                return event
+            else:
+                stone = self.context.board.Stone(y * self.board_size + x)
+                return stone
+        return event
+
+
+    def loop(self):
 
         emitter = BoardEventEmitter(PADDING, self.board_size, GRID_SIZE, [POLL_NOW])
         ongoing = True
+
         while ongoing:
-            event = emitter.get()
-            if event == "EXIT":
-                ongoing = False
-            elif isinstance(event, Move):
-                current_stones = self.context.move(event)
-                if len(current_stones) > 0:  # move may be illegal
-                    self.redraw(current_stones)
-                    pygame.display.update()
+            time_delta = self.clock.tick(60)/1000.0
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    ongoing = False
 
-                    # Now is the AI's turn
-                    if self.context.ai is not None:
-                        result = self.context.ai_move()
-                        if self.context.winner is not None:
-                            print(f"Player {self.context.winner} wins")
-
-                        self.redraw(result)
+                event = self.move_from_event(event)
+                if isinstance(event, Move):
+                    current_stones = self.context.move(event)
+                    if len(current_stones) > 0:  # move may be illegal
+                        self.redraw(current_stones)
                         pygame.display.update()
 
+                        # Now is the AI's turn
+                        if self.context.ai is not None:
+                            result = self.context.ai_move()
+                            if self.context.winner is not None:
+                                print(f"Player {self.context.winner} wins")
+
+                            self.redraw(result)
+                            self.manager.draw_ui(self.screen)
+                            pygame.display.update()
+                else:
+                    # self.manager.process_events(event)
+                    if event.type == pygame.QUIT:
+                        ongoing = False
+
             # If there's some external system that could have a word in the game
-            elif event == POLL_NOW:
-                current_stones = self.context.poll()
-                if len(current_stones) > 0:  # move may be illegal
-                    self.redraw(current_stones)
-                    pygame.display.update()
-                    current_color = 1 - current_color
-            else:
-                print(f"Unknown event {event}. Ignoring...")
+                if event == POLL_NOW:
+                    current_stones = self.context.poll()
+                    if len(current_stones) > 0:  # move may be illegal
+                        self.redraw(current_stones)
+                        pygame.display.update()
 
         return "Done playing."

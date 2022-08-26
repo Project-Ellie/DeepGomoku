@@ -24,9 +24,5 @@ class BoardEventEmitter:
                 stone = self.Stone(y * self.board_size + x)
                 return stone
 
-            elif event.type == pygame.KEYDOWN and event.key == 27:
-                return "EXIT"
-            elif event.type == pygame.WINDOWCLOSE:
-                return "EXIT"
-            elif event.type in self.user_events:
-                return event.type
+            else:
+                return event

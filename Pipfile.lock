@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "ed0ef7c648c0d0403a926a83edbf992fcd3e6cfa44795e800be1bd19de1bbaa3"
+            "sha256": "27f30af9c46c55a12e1e4441142c034bb5ecbeb7829934247b1127b344b1fb4a"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -523,10 +523,10 @@
         },
         "distlib": {
             "hashes": [
-                "sha256:a7f75737c70be3b25e2bee06288cec4e4c221de18455b2dd037fe2a795cab2fe",
-                "sha256:b710088c59f06338ca514800ad795a132da19fda270e3ce4affc74abf955a26c"
+                "sha256:14bad2d9b04d3a36127ac97f30b12a19268f211063d8f8ee4f47108896e11b46",
+                "sha256:f35c4b692542ca110de7ef0bea44d73981caeb34ca0b9b6b2e6d7790dda8f80e"
             ],
-            "version": "==0.3.5"
+            "version": "==0.3.6"
         },
         "dm-tree": {
             "hashes": [
@@ -951,11 +951,11 @@
         },
         "jupyter-client": {
             "hashes": [
-                "sha256:17d74b0d0a7b24f1c8c527b24fcf4607c56bee542ffe8e3418e50b21e514b621",
-                "sha256:aa9a6c32054b290374f95f73bb0cae91455c58dfb84f65c8591912b8f65e6d56"
+                "sha256:3c58466a1b8d55dba0bf3ce0834e4f5b7760baf98d1d73db0add6f19de9ecd1d",
+                "sha256:b33222bdc9dd1714228bd286af006533a0abe2bbc093e8f3d29dc0b91bdc2be4"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==7.3.4"
+            "version": "==7.3.5"
         },
         "jupyter-console": {
             "hashes": [
@@ -1957,6 +1957,13 @@
             "index": "pypi",
             "version": "==2.1.2"
         },
+        "pygame-gui": {
+            "hashes": [
+                "sha256:6c765dde8bfa2d0314c5f281fe006d2519b3ed6aebbc43e0aa8b0a5d91ba9992"
+            ],
+            "index": "pypi",
+            "version": "==0.6.4"
+        },
         "pygments": {
             "hashes": [
                 "sha256:56a8508ae95f98e2b9bdf93a6be5ae3f7d8af858b43e02c5a2ff083726be40c1",
@@ -2022,6 +2029,13 @@
             ],
             "markers": "python_version >= '3.6'",
             "version": "==4.3.4"
+        },
+        "python-i18n": {
+            "hashes": [
+                "sha256:bda5b8d889ebd51973e22e53746417bd32783c9bd6780fd27cadbb733915651d",
+                "sha256:df97f3d2364bf3a7ebfbd6cbefe8e45483468e52a9e30b909c6078f5f471e4e8"
+            ],
+            "version": "==0.3.9"
         },
         "python-socketio": {
             "hashes": [

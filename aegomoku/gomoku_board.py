@@ -36,7 +36,7 @@ class GomokuBoard(Board):
 
         class Stone(Move):
             """
-            Stones only make sense in the context of a board instance!
+            Stones only make sense in the game_context of a board instance!
             """
 
             # Note that this is Board.self!
@@ -94,7 +94,7 @@ class GomokuBoard(Board):
                         x = ord(x) - 64
                     self.r, self.c = n-y, x-1
 
-                # single-digit representation for vector operations in the ML context
+                # single-digit representation for vector operations in the ML game_context
                 self.i = self.r * self.board_size + self.c
 
             def __str__(self):
