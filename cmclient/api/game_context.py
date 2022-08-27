@@ -58,12 +58,10 @@ class GameContext:
             self.ai = get_player(self.game)
 
         self.ai.move(self.board)
+
         if self.game.get_game_ended(self.board) is not None:
             winner = (1 + len(self.board.get_stones())) % 2
             self.winner = winner
             self.ai_active = False
 
-        return self.board.get_stones()
-
-    def poll(self):
         return self.board.get_stones()
