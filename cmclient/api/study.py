@@ -8,7 +8,7 @@ from cmclient.gui import board
 
 class StudyHandler:
 
-    def __init__(self, config: CompManConfig = None):
+    def __init__(self, config: CompManConfig = None, base_path=None):
         self.config = config
         self.current_state = ""
         self.game_play = GamePlay([])
@@ -16,7 +16,7 @@ class StudyHandler:
         initializer = RandomBoardInitializer(config.board_size, 4, 6, 8, 6, 8)
         self.game = GomokuGame(board_size=config.board_size, initializer=initializer)
         self.context = GameContext(self.game)
-        self.ui = board.UI(game_context=self.context)
+        self.ui = board.UI(game_context=self.context, base_path=base_path)
 
 
     def handle(self):

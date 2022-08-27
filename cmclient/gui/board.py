@@ -6,10 +6,11 @@ from cmclient.api.game_context import GameContext
 
 
 COLOR_BOARD = (70, 100, 90)
-COLOR_WHITE = (255, 255, 255)
+COLOR_WHITE = (192, 192, 192)
+COLOR_BLACK = (64, 64, 64)
 COLOR_RED = (255, 0, 0)
-COLOR_WHITE_STONES = (200, 255, 255)
-COLOR_BLACK_STONES = (0, 20, 20)
+COLOR_WHITE_STONES = (160, 192, 192)
+COLOR_BLACK_STONES = (92, 64, 64)
 STONE_COLORS = [COLOR_BLACK_STONES, COLOR_WHITE_STONES]
 
 GRID_SIZE = 45
@@ -24,7 +25,7 @@ AI_NEXT = pygame.USEREVENT + 3
 
 class UI:
 
-    def __init__(self, game_context: GameContext):
+    def __init__(self, game_context: GameContext, base_path):
 
         self.board_size = game_context.game.board_size
         self.context = game_context
@@ -34,6 +35,7 @@ class UI:
         self.width, self.height = width, height
         self.disp_threshold = .01
         self.show_advice = "Policy"
+        self.base_path = base_path
 
     def show(self, title):
         pygame.init()
@@ -66,17 +68,24 @@ class UI:
         middle = self.board_size // 2 + 1
 
         for i in range(1, self.board_size + 1):
-            pygame.draw.line(background, COLOR_WHITE,
+            pygame.draw.line(background, COLOR_BLACK,
                              [GRID_SIZE * i + SIDE_BUFFER, GRID_SIZE + SIDE_BUFFER],
                              [GRID_SIZE * i + SIDE_BUFFER, self.board_size * GRID_SIZE + SIDE_BUFFER], 2)
-            pygame.draw.line(background, COLOR_WHITE,
+            pygame.draw.line(background, COLOR_BLACK,
                              [GRID_SIZE + SIDE_BUFFER, GRID_SIZE * i + SIDE_BUFFER],
                              [self.board_size * GRID_SIZE + SIDE_BUFFER, GRID_SIZE * i + SIDE_BUFFER], 2)
 
-        pygame.draw.circle(background, COLOR_WHITE,
+        pygame.draw.circle(background, COLOR_BLACK,
                            [GRID_SIZE * middle + SIDE_BUFFER,
                             GRID_SIZE * middle + SIDE_BUFFER], 8)
 
+        (_, p_value), (_, m_value) = self.context.get_advice()
+
+        pygame.draw.rect(background, COLOR_WHITE, ((self.width - 125, 275), (100, 50)))
+        self.draw_text(background, str(round(float(p_value), 5)), self.width - 75, 300, COLOR_BLACK, 16)
+
+        pygame.draw.rect(background, COLOR_WHITE, ((self.width - 125, 350), (100, 50)))
+        self.draw_text(background, str(round(float(m_value), 5)), self.width - 75, 375, COLOR_BLACK, 16)
 
     def draw_field_names(self, background):
         for i in range(1, self.board_size + 1):
@@ -85,19 +94,22 @@ class UI:
 
             char = chr(64 + i)
             self.draw_text(background, char, GRID_SIZE * i + SIDE_BUFFER, wh - GRID_SIZE // 2,
-                           COLOR_WHITE, 16)
+                           COLOR_BLACK, 16)
             self.draw_text(background, char, GRID_SIZE * i + SIDE_BUFFER, GRID_SIZE // 2,
-                           COLOR_WHITE, 16)
+                           COLOR_BLACK, 16)
 
             char = str(self.board_size + 1 - i)
             self.draw_text(background, char, wh-GRID_SIZE//2, GRID_SIZE * i + SIDE_BUFFER,
-                           COLOR_WHITE, 16)
+                           COLOR_BLACK, 16)
             self.draw_text(background, char, GRID_SIZE//2, GRID_SIZE * i + SIDE_BUFFER,
-                           COLOR_WHITE, 16)
+                           COLOR_BLACK, 16)
 
-    def draw_text(self, background, text, x_pos, y_pos, font_color, font_size):
+    def draw_text(self, background, text, x_pos, y_pos, font_color, font_size, bg=None):
         ff = pygame.font.Font(pygame.font.get_default_font(), font_size)
         surface, rect = self.text_objects(text, ff, font_color)
+        if bg:
+            pygame.draw.rect(surface, bg, rect)
+
         rect.center = (x_pos, y_pos)
         background.blit(surface, rect)
 
@@ -110,7 +122,11 @@ class UI:
     def redraw(self, stones):
 
         background = pygame.Surface((self.width, self.height))
-        background.fill(pygame.Color(COLOR_BOARD))
+        texture = pygame.image.load(self.base_path + "wooden_board.jpg").convert()
+        background.blit(texture, (0, 0))
+
+        # background.fill(pygame.Color(COLOR_BOARD))
+
         self.draw_grid(background)
         self.draw_field_names(background)
         if stones is not None and len(stones) > 0:
@@ -121,22 +137,31 @@ class UI:
         return background
 
     def draw_stones(self, background, stones):
+        white = pygame.image.load(self.base_path + "white.png").convert_alpha()
+        white = pygame.transform.smoothscale(white, (48, 48))
+        black = pygame.image.load(self.base_path + "black.png").convert_alpha()
+        black = pygame.transform.smoothscale(black, (48, 48))
+        images = [black, white]
+
         color = 0
         seqno = 1
         for stone in stones[:-1]:
             if stone is not None:  # there may be 'non-moves'
-                self.draw_stone(background, stone, color, seqno)
+                self.draw_stone(background, stone, color, images[color], seqno)
                 seqno += 1
                 color = 1 - color
-        self.draw_stone(background, stones[-1], color, seqno, mark=True)
+        self.draw_stone(background, stones[-1], color, images[color], seqno, mark=True)
 
 
-    def draw_stone(self, background, stone: Move, color, seqno, mark=False):
+    def draw_stone(self, background, stone: Move, color, image, seqno, mark=False):
         bx, by = stone.c, stone.r
         x = bx * GRID_SIZE + PADDING
         y = by * GRID_SIZE + PADDING
-        pygame.draw.circle(background, STONE_COLORS[color],
-                           (x, y), GRID_SIZE // 2 - 1)
+
+        background.blit(image, (x-25, y-25))
+        # pygame.draw.circle(background, STONE_COLORS[color],
+        #                    (x, y), GRID_SIZE // 2 - 1)
+
         self.draw_text(background, str(seqno), x, y, STONE_COLORS[1-color], 16)
         if mark:
             s = GRID_SIZE // 2
@@ -162,7 +187,7 @@ class UI:
                     other = max(0, 255 - 2 * intensity)
                     color = (intensity, other, other)
                     pygame.draw.circle(background, color,
-                                       (x, y), GRID_SIZE // 4)
+                                       (x, y), GRID_SIZE // 5)
 
 
     def move_from_event(self, event):
