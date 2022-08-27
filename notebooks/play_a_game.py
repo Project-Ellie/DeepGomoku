@@ -1,5 +1,3 @@
-import sys
-
 from cmclient.api.basics import CompManConfig
 from cmclient.api.study import StudyHandler
 
@@ -9,4 +7,3 @@ StudyHandler(config).handle()
 
 if __name__ == '__main__':
     StudyHandler(config).handle()
-    sys.exit(0)

@@ -6,26 +6,43 @@ from cmclient.ai import get_player
 
 
 class GameContext:
-    def __init__(self, game: GomokuGame, board_size: int):
-        self.polling_listener = None
+    def __init__(self, game: GomokuGame):
         self.game = game
-        self.ai = get_player(board_size)
+        self.ai = get_player(game)
         self.game_play = GamePlay([])
-        self.board = GomokuBoard(board_size)
+        self.board = GomokuBoard(game.board_size)
         self.winner = None
+        self.ai_active = True
+
+    def new_game(self):
+        self.ai = get_player(self.game)
+        self.board = self.game.get_initial_board()
+        self.game_play = GamePlay([stone.i for stone in self.board.stones])
+        self.winner = None
+        return self.board.get_stones()
+
+    def bwd(self):
+        # Deactivate AI when move is withdrawn
+        stones = self.board.get_stones()
+        self.board.remove(stones[-1])
+        self.game_play.bwd()
+        self.winner = None
+        self.ai_active = False
+        return self.board.get_stones()
 
     def move(self, stone: Move):
         stones = self.board.stones
+
         if len(stones) > 0 and stones[-1] == stone:
-            self.board.remove(stone)
-            self.game_play.bwd()
+            return self.bwd()
         else:
-            if stone not in stones:
+            if stone in stones:
+                # just ignore the rogue mouse click on any but the last existing stone
+                return None
+            else:
+                # create a new branch to study
                 self.game_play.fwd(stone.i)
                 self.board.act(stone)
-            else:
-                # just ignore the rogue mouse click
-                pass
 
         return self.board.get_stones()
 
@@ -34,14 +51,17 @@ class GameContext:
         if self.game.get_game_ended(self.board) is not None:
             winner = (1 + len(self.board.get_stones())) % 2
             self.winner = winner
-            self.ai = None
+            self.ai_active = False
             return self.board.get_stones()
+
+        if self.ai is None:
+            self.ai = get_player(self.game)
 
         self.ai.move(self.board)
         if self.game.get_game_ended(self.board) is not None:
             winner = (1 + len(self.board.get_stones())) % 2
             self.winner = winner
-            self.ai = None
+            self.ai_active = False
 
         return self.board.get_stones()
 
