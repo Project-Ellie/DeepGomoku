@@ -18,8 +18,7 @@ PADDING = GRID_SIZE + SIDE_BUFFER
 TIME_DELAY = 50
 CONTROL_PANE = 200
 
-POLL_NOW = pygame.USEREVENT + 1
-AI_NEXT = pygame.USEREVENT + 2
+AI_NEXT = pygame.USEREVENT + 3
 
 
 class UI:
@@ -41,8 +40,9 @@ class UI:
 
         self.manager = pygame_gui.UIManager((self.width, self.height))
 
-        self.hello_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((self.width-175, 175), (100, 50)),
-                                                         text='New Game', manager=self.manager)
+        self.new_game_button = pygame_gui.elements.UIButton(
+            relative_rect=pygame.Rect((self.width - 175, 175), (100, 50)),
+            text='New Game', manager=self.manager)
 
         self.pass_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((self.width-175, 275), (100, 50)),
                                                         text='Pass', manager=self.manager)
@@ -153,13 +153,13 @@ class UI:
                     is_running = False
                     continue
 
-                if event.type == pygame.KEYDOWN:
+                elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_LEFT:
                         stones = self.context.bwd()
                         new_image = self.redraw(stones)
 
-                if event.type == pygame_gui.UI_BUTTON_PRESSED:
-                    if event.ui_element == self.hello_button:
+                elif event.type == pygame_gui.UI_BUTTON_PRESSED:
+                    if event.ui_element == self.new_game_button:
                         initial_stones = self.context.new_game()
                         new_image = self.redraw(initial_stones)
                     elif event.ui_element == self.pass_button:
