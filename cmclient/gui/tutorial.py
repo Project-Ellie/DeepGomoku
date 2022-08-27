@@ -18,8 +18,10 @@ SIDE_BUFFER = 30
 PADDING = GRID_SIZE + SIDE_BUFFER
 
 TIME_DELAY = 50
-POLL_NOW = pygame.USEREVENT + 1
 CONTROL_PANE = 200
+
+POLL_NOW = pygame.USEREVENT + 1
+AI_NEXT = pygame.USEREVENT + 2
 
 
 class Game:
@@ -92,8 +94,10 @@ class Game:
         return surface, surface.get_rect()
 
 
-    def redraw(self, background, stones):
+    def redraw(self, stones):
 
+        background = pygame.Surface((self.width, self.height))
+        background.fill(pygame.Color(COLOR_BOARD))
         self.draw_grid(background)
         self.draw_field_names(background)
         if stones is not None:
@@ -135,9 +139,7 @@ class Game:
     def run(self):
         is_running = True
 
-        background = pygame.Surface((self.width, self.height))
-        background.fill(pygame.Color(COLOR_BOARD))
-        self.redraw(background, None)
+        new_image = self.redraw(None)
 
         while is_running:
             time_delta = self.clock.tick(60)/1000.0
@@ -153,24 +155,24 @@ class Game:
                 move = self.move_from_event(event)
                 if isinstance(move, Move):
                     current_stones = self.context.move(move)
-                    background = pygame.Surface((self.width, self.height))
-                    background.fill(pygame.Color(COLOR_BOARD))
-                    self.redraw(background, None)
-                    self.redraw(background, current_stones)
+                    new_image = self.redraw(current_stones)
 
                     # Now is the AI's turn
                     if self.context.ai is not None:
-                        result = self.context.ai_move()
-                        if self.context.winner is not None:
-                            print(f"Player {self.context.winner} wins")
+                        pygame.event.post(pygame.event.Event(AI_NEXT))
 
-                        self.redraw(background, result)
+                elif event.type == AI_NEXT:
+                    current_stones = self.context.ai_move()
+                    new_image = self.redraw(current_stones)
+
+                    if self.context.winner is not None:
+                        print(f"Player {self.context.winner} wins")
 
                 self.manager.process_events(event)
 
             self.manager.update(time_delta)
 
-            self.window_surface.blit(background, (0, 0))
+            self.window_surface.blit(new_image, (0, 0))
             self.manager.draw_ui(self.window_surface)
 
             pygame.display.update()

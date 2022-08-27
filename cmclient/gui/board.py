@@ -17,8 +17,10 @@ SIDE_BUFFER = 30
 PADDING = GRID_SIZE + SIDE_BUFFER
 
 TIME_DELAY = 50
-POLL_NOW = pygame.USEREVENT + 1
 CONTROL_PANE = 200
+
+POLL_NOW = pygame.USEREVENT + 1
+AI_NEXT = pygame.USEREVENT + 2
 
 
 class UI:
@@ -169,6 +171,7 @@ class UI:
 
                         # Now is the AI's turn
                         if self.context.ai is not None:
+                            pygame.event.post(pygame.event.Event(AI_NEXT))
                             result = self.context.ai_move()
                             if self.context.winner is not None:
                                 print(f"Player {self.context.winner} wins")
