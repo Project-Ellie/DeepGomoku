@@ -13,10 +13,15 @@ class GameContext:
         self.board = GomokuBoard(game.board_size)
         self.winner = None
         self.ai_active = True
+        self.temperature = 1.0
 
     def get_advice(self):
-        policy_advice = self.advice.evaluate(self.board.canonical_representation())
-        return policy_advice, (None, None)
+        p_advice, p_value = self.advice.evaluate(self.board.canonical_representation())
+        m_advice = self.mcts.compute_probs(self.board, self.temperature)
+        key = self.board.get_string_representation()
+        m_value = max([self.mcts.Q.get((key, i), -float('inf')) for i in range(225)])
+
+        return (p_advice, p_value), (m_advice, m_value)
 
     def new_game(self):
         self.ai, self.mcts, self.advice = get_player(self.game)
