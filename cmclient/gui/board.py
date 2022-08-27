@@ -7,6 +7,7 @@ from cmclient.api.game_context import GameContext
 
 COLOR_BOARD = (70, 100, 90)
 COLOR_WHITE = (255, 255, 255)
+COLOR_RED = (255, 0, 0)
 COLOR_WHITE_STONES = (200, 255, 255)
 COLOR_BLACK_STONES = (0, 20, 20)
 STONE_COLORS = [COLOR_BLACK_STONES, COLOR_WHITE_STONES]
@@ -31,6 +32,8 @@ class UI:
         width = GRID_SIZE * (self.board_size + 1) + 2 * SIDE_BUFFER + CONTROL_PANE
         height = GRID_SIZE * (self.board_size + 1) + 2 * SIDE_BUFFER
         self.width, self.height = width, height
+        self.disp_threshold = .01
+        self.show_advice = "Policy"
 
     def show(self, title):
         pygame.init()
@@ -41,11 +44,17 @@ class UI:
         self.manager = pygame_gui.UIManager((self.width, self.height))
 
         self.new_game_button = pygame_gui.elements.UIButton(
-            relative_rect=pygame.Rect((self.width - 175, 175), (100, 50)),
+            relative_rect=pygame.Rect((self.width - 125, 50), (100, 50)),
             text='New Game', manager=self.manager)
 
-        self.pass_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((self.width-175, 275), (100, 50)),
+        self.pass_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((self.width-125, 125), (100, 50)),
                                                         text='Pass', manager=self.manager)
+
+        rect = pygame.Rect((self.width - 125, 200), (100, 50))
+        self.advice_button = pygame_gui.elements.UIDropDownMenu(relative_rect=rect,
+                                                                options_list=['Policy', 'MCTS', "None"],
+                                                                starting_option='Policy',
+                                                                manager=self.manager)
 
         self.clock = pygame.time.Clock()
 
@@ -104,28 +113,57 @@ class UI:
         background.fill(pygame.Color(COLOR_BOARD))
         self.draw_grid(background)
         self.draw_field_names(background)
-        if stones is not None:
+        if stones is not None and len(stones) > 0:
             self.draw_stones(background, stones)
         self.window_surface.blit(background, (0, 0))
+        self.draw_advice(background)
+        self.advice_button.update(.1)
         return background
 
     def draw_stones(self, background, stones):
         color = 0
         seqno = 1
-        for stone in stones:
+        for stone in stones[:-1]:
             if stone is not None:  # there may be 'non-moves'
                 self.draw_stone(background, stone, color, seqno)
                 seqno += 1
                 color = 1 - color
+        self.draw_stone(background, stones[-1], color, seqno, mark=True)
 
 
-    def draw_stone(self, background, stone: Move, color, seqno):
+    def draw_stone(self, background, stone: Move, color, seqno, mark=False):
         bx, by = stone.c, stone.r
         x = bx * GRID_SIZE + PADDING
         y = by * GRID_SIZE + PADDING
         pygame.draw.circle(background, STONE_COLORS[color],
                            (x, y), GRID_SIZE // 2 - 1)
         self.draw_text(background, str(seqno), x, y, STONE_COLORS[1-color], 16)
+        if mark:
+            s = GRID_SIZE // 2
+            rect = pygame.Rect((x-s, y-s), (2 * s, 2 * s))
+            pygame.draw.rect(background, COLOR_RED, rect=rect, width=2)
+
+    def draw_advice(self, background):
+        if self.show_advice == 'Policy':
+            advice, value = self.context.get_advice()[0]
+        elif self.show_advice == 'MCTS':
+            advice, value = self.context.get_advice()[1]
+        else:
+            return
+
+        for i, prob in enumerate(advice):
+            if prob > self.disp_threshold:
+                by, bx = divmod(i, self.board_size)
+                pos = self.context.board.Stone(bx, by)
+                if pos not in self.context.board.get_stones():
+                    x = bx * GRID_SIZE + PADDING
+                    y = by * GRID_SIZE + PADDING
+                    intensity = min(255, int(255 * 1.5 * prob))
+                    other = max(0, 255 - 2 * intensity)
+                    color = (intensity, other, other)
+                    pygame.draw.circle(background, color,
+                                       (x, y), GRID_SIZE // 4)
+
 
     def move_from_event(self, event):
         if event.type == pygame.MOUSEBUTTONUP:
@@ -151,7 +189,6 @@ class UI:
 
                 if event.type == pygame.QUIT:
                     is_running = False
-                    continue
 
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_LEFT:
@@ -164,7 +201,12 @@ class UI:
                         new_image = self.redraw(initial_stones)
                     elif event.ui_element == self.pass_button:
                         self.context.ai_active = True
-                        continue
+                        pygame.event.post(pygame.event.Event(AI_NEXT))
+
+                elif event.type == pygame_gui.UI_SELECTION_LIST_NEW_SELECTION:
+                    if event.text in ['MCTS', 'Policy', 'None']:
+                        self.show_advice = event.text
+                        new_image = self.redraw(self.context.board.get_stones())
 
                 elif event.type == AI_NEXT:
                     current_stones = self.context.ai_move()

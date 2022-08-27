@@ -8,14 +8,18 @@ from cmclient.ai import get_player
 class GameContext:
     def __init__(self, game: GomokuGame):
         self.game = game
-        self.ai = get_player(game)
+        self.ai, self.mcts, self.advice = get_player(game)
         self.game_play = GamePlay([])
         self.board = GomokuBoard(game.board_size)
         self.winner = None
         self.ai_active = True
 
+    def get_advice(self):
+        policy_advice = self.advice.evaluate(self.board.canonical_representation())
+        return policy_advice, (None, None)
+
     def new_game(self):
-        self.ai = get_player(self.game)
+        self.ai, self.mcts, self.advice = get_player(self.game)
         self.board = self.game.get_initial_board()
         self.game_play = GamePlay([stone.i for stone in self.board.stones])
         self.winner = None
@@ -55,7 +59,7 @@ class GameContext:
             return self.board.get_stones()
 
         if self.ai is None:
-            self.ai = get_player(self.game)
+            self.ai, self.mcts, self.advice = get_player(self.game)
 
         self.ai.move(self.board)
 

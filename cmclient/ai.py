@@ -8,4 +8,4 @@ def get_player(game: GomokuGame):
     # policy = PolicyParams(model_file_name="models/first_model.model", advice_cutoff=.9)
     policy = PolicyParams(model_file_name=None, advice_cutoff=.2)
     player = PolicyAdvisedGraphSearchPlayer("Policy-advised graph search", game, mcts, policy)
-    return player
+    return player, player.mcts, player.advisor
