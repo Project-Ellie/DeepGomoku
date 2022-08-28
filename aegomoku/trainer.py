@@ -38,7 +38,7 @@ class Trainer:
             with train_summary_writer.as_default():
                 tf.summary.scalar('train_loss', self.train_probs_metric.result(), step=epoch)
 
-            if epoch % report_every == 1:
+            if report_every is not None and epoch > 0 and epoch % report_every == 0:
                 elapsed = default_timer() - start
                 print(f'Epoch: {epoch}, Training: '
                       f'p: {self.train_probs_metric.result().numpy():.5}, '
