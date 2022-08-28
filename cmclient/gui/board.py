@@ -123,6 +123,7 @@ class UI:
 
         background = pygame.Surface((self.width, self.height))
         texture = pygame.image.load(self.base_path + "wooden_board.jpg").convert()
+        texture = pygame.transform.smoothscale(texture, (self.width, self.height))
         background.blit(texture, (0, 0))
 
         # background.fill(pygame.Color(COLOR_BOARD))

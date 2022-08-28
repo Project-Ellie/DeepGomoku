@@ -33,7 +33,8 @@ class GameContext:
     def bwd(self):
         # Deactivate AI when move is withdrawn
         stones = self.board.get_stones()
-        self.board.remove(stones[-1])
+        if len(stones) > 0:
+            self.board.remove(stones[-1])
         self.game_play.bwd()
         self.winner = None
         self.ai_active = False
