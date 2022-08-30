@@ -1,12 +1,12 @@
 import numpy as np
 import tensorflow as tf
-from aegomoku.interfaces import NeuralNet, TerminalDetector
+from aegomoku.interfaces import TerminalDetector, Adviser
 from aegomoku.policies.forward_looking import ForwardLookingLayer
 from aegomoku.policies.naive_infuence import NaiveInfluenceLayer
 from aegomoku.policies.primary_detector import PrimaryDetector
 
 
-class HeuristicPolicy(tf.keras.Model, NeuralNet, TerminalDetector):
+class HeuristicPolicy(tf.keras.Model, Adviser, TerminalDetector):
 
     def __init__(self, board_size: int, cut_off: float = 0.8):
         """
@@ -45,7 +45,7 @@ class HeuristicPolicy(tf.keras.Model, NeuralNet, TerminalDetector):
 
     def get_advisable_actions(self, state):
         """
-        :param: state: the board's math representation
+        :param: state: batch of a single state. 1 x N x N x 3
         :return: a list of integer move representations with probabilities close enough to the maximum (see: cut_off)
         """
         probs, _ = self.call(state)
@@ -83,20 +83,8 @@ class HeuristicPolicy(tf.keras.Model, NeuralNet, TerminalDetector):
         return probs, value
 
 
-    def train(self, *args, **kwargs):
-        raise NotImplementedError
-
-
     def evaluate(self, state):
         state = np.expand_dims(state, 0).astype(float)
         pi, v = self.call(state)
         pi = np.reshape(pi, self.board_size * self.board_size)
         return pi, v
-
-
-    def save_checkpoint(self, folder, filename):
-        raise NotImplementedError
-
-
-    def load_checkpoint(self, folder, filename):
-        raise NotImplementedError

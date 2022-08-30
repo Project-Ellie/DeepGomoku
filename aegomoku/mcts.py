@@ -219,7 +219,7 @@ class MCTS:
 
     def best_act(self, board: Board, s: str) -> Tuple[Move, Dict]:
         # pick the move with the highest upper confidence bound from the probable actions
-        # We're reducing the move space to those actions deemed probable by the model
+        # We're reducing the action space to those actions deemed probable by the model
         valids = self.Vs[s]
         cur_best = -float('inf')
         best_act = None

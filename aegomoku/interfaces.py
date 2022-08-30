@@ -204,7 +204,7 @@ class Player:  # (abc.ABC):
 class TerminalDetector(abc.ABC):
 
     @abc.abstractmethod
-    def get_winner(self, board: Board):
+    def get_winner(self, state):
         pass
 
 

@@ -6,9 +6,13 @@ from cmclient.api.game_context import GameContext
 
 
 COLOR_BOARD = (70, 100, 90)
+COLOR_BRIGHT_WHITE = (255, 255, 255)
 COLOR_WHITE = (192, 192, 192)
 COLOR_BLACK = (64, 64, 64)
+COLOR_GRAY = (136, 136, 136)
 COLOR_RED = (255, 0, 0)
+
+# for the seqno of the stones
 COLOR_WHITE_STONES = (160, 192, 192)
 COLOR_BLACK_STONES = (92, 64, 64)
 STONE_COLORS = [COLOR_BLACK_STONES, COLOR_WHITE_STONES]
@@ -33,7 +37,7 @@ class UI:
         width = GRID_SIZE * (self.board_size + 1) + 2 * SIDE_BUFFER + CONTROL_PANE
         height = GRID_SIZE * (self.board_size + 1) + 2 * SIDE_BUFFER
         self.width, self.height = width, height
-        self.disp_threshold = .01
+        self.disp_threshold = .001
         self.show_advice = "Policy"
         self.base_path = base_path
 
@@ -63,19 +67,19 @@ class UI:
         self.run()
 
 
-    def draw_grid(self, background):
+    def draw_grid(self, background, grid_color=COLOR_GRAY):
 
         middle = self.board_size // 2 + 1
 
         for i in range(1, self.board_size + 1):
-            pygame.draw.line(background, COLOR_BLACK,
+            pygame.draw.line(background, grid_color,
                              [GRID_SIZE * i + SIDE_BUFFER, GRID_SIZE + SIDE_BUFFER],
                              [GRID_SIZE * i + SIDE_BUFFER, self.board_size * GRID_SIZE + SIDE_BUFFER], 2)
-            pygame.draw.line(background, COLOR_BLACK,
+            pygame.draw.line(background, grid_color,
                              [GRID_SIZE + SIDE_BUFFER, GRID_SIZE * i + SIDE_BUFFER],
                              [self.board_size * GRID_SIZE + SIDE_BUFFER, GRID_SIZE * i + SIDE_BUFFER], 2)
 
-        pygame.draw.circle(background, COLOR_BLACK,
+        pygame.draw.circle(background, grid_color,
                            [GRID_SIZE * middle + SIDE_BUFFER,
                             GRID_SIZE * middle + SIDE_BUFFER], 8)
 
@@ -87,22 +91,22 @@ class UI:
         pygame.draw.rect(background, COLOR_WHITE, ((self.width - 125, 350), (100, 50)))
         self.draw_text(background, str(round(float(m_value), 5)), self.width - 75, 375, COLOR_BLACK, 16)
 
-    def draw_field_names(self, background):
+    def draw_field_names(self, background, color=COLOR_GRAY):
         for i in range(1, self.board_size + 1):
 
             wh = GRID_SIZE * (self.board_size + 1) + 2 * SIDE_BUFFER
 
             char = chr(64 + i)
             self.draw_text(background, char, GRID_SIZE * i + SIDE_BUFFER, wh - GRID_SIZE // 2,
-                           COLOR_BLACK, 16)
+                           color, 16)
             self.draw_text(background, char, GRID_SIZE * i + SIDE_BUFFER, GRID_SIZE // 2,
-                           COLOR_BLACK, 16)
+                           color, 16)
 
             char = str(self.board_size + 1 - i)
             self.draw_text(background, char, wh-GRID_SIZE//2, GRID_SIZE * i + SIDE_BUFFER,
-                           COLOR_BLACK, 16)
+                           color, 16)
             self.draw_text(background, char, GRID_SIZE//2, GRID_SIZE * i + SIDE_BUFFER,
-                           COLOR_BLACK, 16)
+                           color, 16)
 
     def draw_text(self, background, text, x_pos, y_pos, font_color, font_size, bg=None):
         ff = pygame.font.Font(pygame.font.get_default_font(), font_size)
@@ -125,8 +129,6 @@ class UI:
         texture = pygame.image.load(self.base_path + "wooden_board.jpg").convert()
         texture = pygame.transform.smoothscale(texture, (self.width, self.height))
         background.blit(texture, (0, 0))
-
-        # background.fill(pygame.Color(COLOR_BOARD))
 
         self.draw_grid(background)
         self.draw_field_names(background)
@@ -160,8 +162,6 @@ class UI:
         y = by * GRID_SIZE + PADDING
 
         background.blit(image, (x-25, y-25))
-        # pygame.draw.circle(background, STONE_COLORS[color],
-        #                    (x, y), GRID_SIZE // 2 - 1)
 
         self.draw_text(background, str(seqno), x, y, STONE_COLORS[1-color], 16)
         if mark:
@@ -184,9 +184,10 @@ class UI:
                 if pos not in self.context.board.get_stones():
                     x = bx * GRID_SIZE + PADDING
                     y = by * GRID_SIZE + PADDING
-                    intensity = min(255, int(255 * 1.5 * prob))
-                    other = max(0, 255 - 2 * intensity)
-                    color = (intensity, other, other)
+
+                    intensity = min(1, 2 * prob)
+                    color = (255 * intensity, (1 - intensity) * 255, 128 * intensity)
+
                     pygame.draw.circle(background, color,
                                        (x, y), GRID_SIZE // 5)
 

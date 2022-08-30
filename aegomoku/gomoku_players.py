@@ -7,6 +7,7 @@ import tensorflow as tf
 from aegomoku.interfaces import Player, Board, Move, MctsParams, PolicyParams, PolicyAdviser, Game
 from aegomoku.mcts import MCTS
 from aegomoku.policies.heuristic_policy import HeuristicPolicy
+from aegomoku.policies.topological_value import TopologicalValuePolicy
 
 
 class PolicyAdvisedGraphSearchPlayer(Player):
@@ -23,7 +24,8 @@ class PolicyAdvisedGraphSearchPlayer(Player):
             model = tf.keras.models.load_model(policy_params.model_file_name)
             self.advisor = PolicyAdviser(model=model, params=policy_params)
         else:
-            self.advisor = HeuristicPolicy(board_size=game.board_size)
+            self.advisor = TopologicalValuePolicy()
+            # self.advisor = HeuristicPolicy(board_size=game.board_size)
 
         self.mcts = MCTS(game, self.advisor, mcts_params)
         super().__init__()
