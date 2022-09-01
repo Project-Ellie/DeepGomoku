@@ -25,7 +25,7 @@ class PolicyAdvisedGraphSearchPlayer(Player):
             self.advisor = PolicyAdviser(model=model, params=policy_params)
         else:
             self.advisor = TopologicalValuePolicy()
-            # self.advisor = HeuristicPolicy(board_size=game.board_size)
+            #  self.advisor = HeuristicPolicy(board_size=game.board_size)
 
         self.mcts = MCTS(game, self.advisor, mcts_params)
         super().__init__()

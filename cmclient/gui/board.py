@@ -37,7 +37,7 @@ class UI:
         width = GRID_SIZE * (self.board_size + 1) + 2 * SIDE_BUFFER + CONTROL_PANE
         height = GRID_SIZE * (self.board_size + 1) + 2 * SIDE_BUFFER
         self.width, self.height = width, height
-        self.disp_threshold = .001
+        self.disp_threshold = .003
         self.show_advice = "Policy"
         self.base_path = base_path
 

@@ -1,11 +1,11 @@
 import numpy as np
 import tensorflow as tf
 
-from aegomoku.interfaces import Adviser, TerminalDetector
+from aegomoku.interfaces import Adviser
 from aegomoku.policies.radial import all_3xnxn
 
 
-class TopologicalValuePolicy(tf.keras.Model, Adviser, TerminalDetector):
+class TopologicalValuePolicy(tf.keras.Model, Adviser):
     """
     computes a value af each position as a topological some of the values of all that position's lines of five
     The value of a line of five is the number of stones of a color if that color is exclusive
@@ -25,6 +25,7 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser, TerminalDetector):
         :param kappa_d: exponent of the pseudo-euclidean sum of different directions
         :param policy_stretch: A factor, applied to logits before they're fed into the softwmax
         :param value_stretch: A factor, applied to the raw value before it's fed into the tanh
+        :param value_gauge: factor applied to the value after tanh has been applied
         :param noise_reduction: factor applied to lowest prob before subtracting from signal
         :param percent_secondary: percentage of not-so-popular moves taken into advisable action. Our 'Dirichlet' noise.
         """
@@ -38,17 +39,15 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser, TerminalDetector):
         self.percent_secondary = percent_secondary
         self.min_secondary = min_secondary
         self.value_gauge = value_gauge
-        self.num_filters = 48
 
         self.raw_patterns = [
             [[0, 0, 0, 0, -5, 1, 1, 1, 1], [0, 0, 0, 0, -5, -5, -5, -5, -5], 0],
             [[0, 0, 0, 1, -5, 1, 1, 1, 0], [0, 0, 0, -5, -5, -5, -5, -5, 0], 0],
             [[0, 0, 1, 1, -5, 1, 1, 0, 0], [0, 0, -5, -5, -5, -5, -5, 0, 0], 0],
             [[0, 1, 1, 1, -5, 1, 0, 0, 0], [0, -5, -5, -5, -5, -5, 0, 0, 0], 0],
-            [[1, 1, 1, 1, -5, 0, 0, 0, 0], [-5, -5, -5, -5, -5, 0, 0, 0, 0], 0],
+            [[1, 1, 1, 1, -5, 0, 0, 0, 0], [-5, -5, -5, -5, -5, 0, 0, 0, 0], 0]]
 
-            # Terminal detection - note that this won't detect overlines!
-            [[0, -5, 1, 1, 1, 1, 1, -5, 0], [0, 0, -5, -5, -5, -5, -5, 0, 0], -4]]
+        self.num_filters = len(self.raw_patterns) * 8
 
         self.patterns = self.select_patterns()
 
@@ -64,6 +63,52 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser, TerminalDetector):
             padding='same',
             trainable=False)
 
+        sum_s_filters = np.array([
+            5 * [1, 0, 0, 0, 0, 0, 0, 0],
+            5 * [0, 1, 0, 0, 0, 0, 0, 0],
+            5 * [0, 0, 1, 0, 0, 0, 0, 0],
+            5 * [0, 0, 0, 1, 0, 0, 0, 0],
+            5 * [0, 0, 0, 0, 1, 0, 0, 0],
+            5 * [0, 0, 0, 0, 0, 1, 0, 0],
+            5 * [0, 0, 0, 0, 0, 0, 1, 0],
+            5 * [0, 0, 0, 0, 0, 0, 0, 1],
+            ]).T
+
+        self.sum_s = tf.keras.layers.Conv2D(
+            name="sum_s",
+            filters=8,
+            kernel_size=1,
+            kernel_initializer=tf.constant_initializer(sum_s_filters),
+            bias_initializer=tf.constant_initializer(0.),
+            padding='same',
+            trainable=False)
+
+        sum_d_filters = np.array([
+            [1, 1, 1, 1, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 1, 1, 1]
+        ]).T
+
+        self.sum_d = tf.keras.layers.Conv2D(
+            name="sum_d",
+            filters=2,
+            kernel_size=1,
+            kernel_initializer=tf.constant_initializer(sum_d_filters),
+            bias_initializer=tf.constant_initializer(0.),
+            padding='same',
+            trainable=False)
+
+        self.p_v = tf.keras.layers.Conv2D(
+            name="sum_d",
+            filters=2,
+            kernel_size=1,
+            kernel_initializer=tf.constant_initializer([
+                    [1, 1],
+                    [1, -1]
+                ]),
+            bias_initializer=tf.constant_initializer(0.),
+            padding='same',
+            trainable=False)
+
         self.peel = tf.keras.layers.Conv2D(
             filters=1, kernel_size=(3, 3),
             kernel_initializer=tf.constant_initializer([
@@ -72,6 +117,23 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser, TerminalDetector):
             bias_initializer=tf.constant_initializer(0.),
             trainable=False)
 
+
+    def call(self, state):
+        y = self.detector(state)
+        y = tf.math.pow(y, self.kappa_s)
+        y = self.sum_s(y)
+        y = tf.math.pow(y, self.kappa_d/self.kappa_s)
+        y = self.sum_d(y)
+        y = tf.math.pow(y, 1 / self.kappa_d)
+        y = self.p_v(y)
+        p, v = y[:, :, :, 0], y[:, :, :, 1]
+        p = self.peel(tf.expand_dims(p, -1))
+        v = self.peel(tf.expand_dims(v, -1))
+
+        probs = tf.reshape(p, (-1, 361))
+        probs = tf.keras.layers.Softmax()(self.policy_stretch * probs)
+        value = self.value_gauge * tf.nn.tanh(self.value_stretch * tf.math.reduce_sum(v))
+        return probs, value
 
     def get_advisable_actions(self, state, cut_off=None, reduction=None):
         """
@@ -123,73 +185,10 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser, TerminalDetector):
 
         return advisable
 
-
-    def call(self, state):
-        field_current, ftc = self.field(state, channel=0)
-        field_other, fto = self.field(state, channel=1)
-        logits = field_current + field_other
-        logits = np.reshape(logits, -1)
-
-        probs = tf.keras.layers.Softmax()(self.policy_stretch * logits)
-        value = tf.nn.tanh(self.value_stretch * self.value(state))
-        return probs, value
-
     def evaluate(self, state):
         state = np.expand_dims(state, 0).astype(float)
         probs, value = self.call(state)
-        return probs.numpy(), value.numpy()
-
-
-    def get_winner(self, state):
-        _, ftc = self.field(state, 0)
-        _, fto = self.field(state, 1)
-        if np.sum(ftc, axis=None) > 0 or np.sum(fto, axis=None) > 0:
-            return (np.sum(state[:, :, :2]) + 1) % 2
-
-
-    def value(self, state):
-        """
-        :return: the sum of current minus other potential positions
-        """
-        current_value, other_value = [  # for current and other channel
-            np.sum(  # over the entire board positions
-                self.field(state, channel)[0]
-            )
-            for channel in range(2)
-        ]
-
-        return self.value_gauge * (current_value - other_value)
-
-
-    def field(self, state, channel):
-        """
-        Compute a pair of two value fields
-        :param state:
-        :param channel:
-        :return: The field of 'potential' for the given channel and the field of terminal values
-        """
-
-        # feature images of the 48 filters: 4 directions times 5 shifts times 2 channels (current + other) + terminals
-        counts = self.detector(state)
-        features = [np.squeeze(self.peel(tf.expand_dims(counts[:, :, :, feature_no], -1)))
-                    for feature_no in range(self.num_filters)]
-
-        # soft values
-        f = sum([  # over the values of different directions
-            sum([  # over the values of parallel lines
-                features[8 * shift + 4 * channel + direction] ** self.kappa_s
-                for shift in range(5)
-            ]) ** (self.kappa_d / self.kappa_s)
-            for direction in range(4)
-        ]) ** (1 / self.kappa_d)
-
-        # terminal values
-        f_t = sum([  # over the values of different directions
-            features[40 + 4 * channel + direction]
-            for direction in range(4)
-        ])
-
-        return f, f_t
+        return np.squeeze(probs), value.numpy()
 
 
     def select_patterns(self):
