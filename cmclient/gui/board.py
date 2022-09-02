@@ -221,6 +221,9 @@ class UI:
                     if event.key == pygame.K_LEFT:
                         stones = self.context.bwd()
                         new_image = self.redraw(stones)
+                    if event.key == pygame.K_RIGHT:
+                        stones = self.context.fwd()
+                        new_image = self.redraw(stones)
 
                 elif event.type == pygame_gui.UI_BUTTON_PRESSED:
                     if event.ui_element == self.new_game_button:

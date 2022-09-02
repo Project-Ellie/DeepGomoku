@@ -68,7 +68,7 @@ class GamePlay:
                 return None
             else:
                 if len(self.current.children) == 0:
-                    return self.current
+                    return None
 
             if len(self.current.children) == 1:
                 self.current = self.current.children[0]

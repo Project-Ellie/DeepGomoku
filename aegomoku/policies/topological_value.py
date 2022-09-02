@@ -7,7 +7,7 @@ from aegomoku.policies.radial import all_3xnxn
 
 class TopologicalValuePolicy(tf.keras.Model, Adviser):
     """
-    computes a value af each position as a topological some of the values of all that position's lines of five
+    computes a value af each position as a pseudo-euclidean sum of the values of all that position's lines of five
     The value of a line of five is the number of stones of a color if that color is exclusive
     on the respective line, zero otherwise.
     parallel line values add like v = sum(v_s ** 6) ** (1/6); s from range(5) - the shifts from ____. to .____
@@ -130,7 +130,7 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
         p = self.peel(tf.expand_dims(p, -1))
         v = self.peel(tf.expand_dims(v, -1))
 
-        probs = tf.reshape(p, (-1, 361))
+        probs = tf.reshape(p, (-1, ))
         probs = tf.keras.layers.Softmax()(self.policy_stretch * probs)
         value = self.value_gauge * tf.nn.tanh(self.value_stretch * tf.math.reduce_sum(v))
         return probs, value

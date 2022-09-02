@@ -40,6 +40,15 @@ class GameContext:
         self.ai_active = False
         return self.board.get_stones()
 
+    def fwd(self):
+        current = self.game_play.fwd()
+        if current is None:
+            return self.board.get_stones()
+        stones = [stone.i for stone in self.board.get_stones()]
+        if current.move not in stones:
+            self.board.act(current.move)
+        return self.board.get_stones()
+
     def move(self, stone: Move):
         stones = self.board.stones
 
@@ -67,7 +76,8 @@ class GameContext:
         if self.ai is None:
             self.ai, self.mcts, self.advice = get_player(self.game)
 
-        self.ai.move(self.board)
+        _, move = self.ai.move(self.board)
+        self.game_play.fwd(move)
 
         if self.game.get_game_ended(self.board) is not None:
             winner = (1 + len(self.board.get_stones())) % 2
