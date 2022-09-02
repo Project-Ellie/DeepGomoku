@@ -8,8 +8,8 @@ import logging
 import yaml
 from yaml import Loader
 
-import sys
-sys.path.extend(['/Users/wgiersche/workspace/Project-Ellie/DeepGomoku'])
+# import sys
+# sys.path.extend(['/Users/wgiersche/workspace/Project-Ellie/DeepGomoku'])
 
 from aegomoku.gomoku_game import RandomBoardInitializer, GomokuGame
 from aegomoku.interfaces import MctsParams, PolicySpec
@@ -61,7 +61,7 @@ def startup_actors(params):
 
     # Policy Dispatcher
     policy_dispatcher = create_pool(num_workers=n_p, policy=HeuristicRayPolicy(),
-                                    board_size=board_size, cut_off=player['mcts']['advice_cutoff'])
+                                    board_size=board_size, advice_cutoff=player['mcts']['advice_cutoff'])
 
     # Board and Game specifications
     initialize = params['board']['initialize']
@@ -81,8 +81,7 @@ def startup_actors(params):
     # Selfplay params and actors
     mcts_params = MctsParams(
         cpuct=player['mcts']['cpuct'],
-        num_simulations=player['mcts']['num_simulations'],
-        advice_cutoff=player['mcts']['advice_cutoff'])
+        num_simulations=player['mcts']['num_simulations'], temperature=0.3)
 
     selfplay_workers = [SelfPlay.remote(mcts_params=mcts_params) for _ in range(n_sp)]
     for selfplay in selfplay_workers:

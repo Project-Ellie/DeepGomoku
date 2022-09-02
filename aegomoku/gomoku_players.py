@@ -23,7 +23,7 @@ class PolicyAdvisedGraphSearchPlayer(Player):
             model = tf.keras.models.load_model(policy_params.model_file_name)
             self.advisor = PolicyAdviser(model=model, params=policy_params)
         else:
-            self.advisor = HeuristicPolicy(board_size=game.board_size)
+            self.advisor = HeuristicPolicy(board_size=game.board_size, n_fwll=2)
 
         self.mcts = MCTS(game, self.advisor, mcts_params)
         super().__init__()
