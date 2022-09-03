@@ -1,4 +1,5 @@
 import argparse
+import copy
 import logging
 import os
 from pickle import Pickler
@@ -19,6 +20,9 @@ parser.add_argument('--verbose', '-v', action='store',
                     help="Verbosity", default="0")
 parser.add_argument('--seqno', '-s', action='store', type=int,
                     help="Sequence Number", default=0)
+parser.add_argument('--info', '-i', action='store_true',
+                    help="Dont actually act - just say", default=False)
+
 
 args = parser.parse_args()
 
@@ -95,16 +99,17 @@ def one_game(game: Game, player1: Player, player2: Player,
     num_stones = 0
     while game.get_winner(board) is None and num_stones < max_moves:
         num_stones += 1
-        next_board, move = player.move(board)
+        prev_board = copy.deepcopy(board)
+        board, move = player.move(board)
 
-        print(next_board)
-        if game.get_winner(next_board) is not None:
+        print(board)
+        if game.get_winner(board) is not None:
             break
 
-        example = create_example(board, player, eval_temperature)
+        example = create_example(prev_board, player, eval_temperature)
         game_data.append(example)
 
-        board = next_board
+        player = player.opponent
 
     return game_data
 
@@ -134,8 +139,14 @@ def create_players(game, player1, player2):
 def main():
 
     seqno = args.seqno
-
     params = read_params(args.params)
+
+    if args.info:
+        print()
+        print("create_gameplay: ")
+        print(f"Parameters from {os.path.join(os.getcwd(), args.params)}")
+        print(f"Writing to: {params['process']['output_dir']}")
+        exit(0)
 
     game = create_game(params['game'])
 

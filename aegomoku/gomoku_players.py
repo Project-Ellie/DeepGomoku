@@ -56,8 +56,9 @@ class PolicyAdvisedGraphSearchPlayer(Player):
     def evaluate(self, board: Board, temperature: float):
         key = board.get_string_representation()
         probs = self.mcts.compute_probs(board, temperature=temperature)
-        q_advice = [self.mcts.Q.get((key, i), -1.0) for i in range(board.board_size)]
-        v = np.max(q_advice, axis=None)
+        q_advice = [self.mcts.Q.get((key, i)) for i in range(board.board_size * board.board_size)]
+        q_advice = [q for q in q_advice if q is not None]
+        v = 0.0 if len(q_advice) == 0 else np.max(q_advice, axis=None)
         return probs, v
 
 

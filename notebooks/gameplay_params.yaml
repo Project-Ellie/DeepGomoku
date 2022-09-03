@@ -22,8 +22,8 @@ players:
       advice_cutoff: .01
     mcts:
         cpuct: 4.0
-        num_simulations: 100
-        temperature: 0.4
+        num_simulations: 200
+        temperature: 0.0
 
   - name: white
     advice:
@@ -31,12 +31,12 @@ players:
       advice_cutoff: .01
     mcts:
         cpuct: 4.0
-        num_simulations: 200
-        temperature: 0.0
+        num_simulations: 100
+        temperature: 0.4
 
 
 process:
-  num_trajectories_per_file: 20
+  num_trajectories_per_file: 2
   max_moves: 50
   eval_temperature: 2.0
-  output_dir: /Users/wgiersche/workspace/Project-Ellie/DATA/
+  output_dir: /Users/wgiersche/workspace/Project-Ellie/DeepGomoku/notebooks/temp/
