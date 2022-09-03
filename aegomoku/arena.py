@@ -52,7 +52,7 @@ class Arena:
         if switch:
             player = player.opponent
 
-        while self.game.get_game_ended(board) is None and n_moves < self.max_moves:
+        while self.game.get_winner(board) is None and n_moves < self.max_moves:
             player = player.opponent
             _, move = player.move(board)
             if verbose:

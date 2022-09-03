@@ -29,7 +29,7 @@ class MCTS:
         self.Ns = {}  # stores #times board s was visited
         self.Ps = {}  # stores initial policy (returned by neural net)
 
-        self.Es = {}  # stores game.get_game_ended ended for state s
+        self.Es = {}  # stores game.get_winner  for state s
         self.Vs = {}  # stores game.get_valid_moves for state s
         self.As = {}  # stores the policy's advice for state s
         if verbose > 0:
@@ -107,8 +107,8 @@ class MCTS:
         # if I don't know whether this state is terminal...
         if s not in self.Es:
             # ... find out
-            self.Es[s] = self.game.get_game_ended(board)
-            # winner = "BLACK (0)" if self.game.get_game_ended(board) == 0 else 'WHITE (1)'
+            self.Es[s] = self.game.get_winner(board)
+            # winner = "BLACK (0)" if self.game.get_winner(board) == 0 else 'WHITE (1)'
 
         # Now, if it is terminal, ...
         if self.Es[s] is not None:

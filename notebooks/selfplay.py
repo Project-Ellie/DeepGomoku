@@ -8,9 +8,6 @@ import logging
 import yaml
 from yaml import Loader
 
-# import sys
-# sys.path.extend(['/Users/wgiersche/workspace/Project-Ellie/DeepGomoku'])
-
 from aegomoku.gomoku_game import RandomBoardInitializer, GomokuGame
 from aegomoku.interfaces import MctsParams, PolicySpec
 from aegomoku.policies.ray_impl import HeuristicRayPolicy

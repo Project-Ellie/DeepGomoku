@@ -19,7 +19,7 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
                  policy_stretch: float = 2.0, value_stretch: float = 1 / 32.,
                  advice_cutoff: float = .01, noise_reduction: float = 1.1,
                  percent_secondary: float = 34, min_secondary: int = 5,
-                 value_gauge: float = 0.2, board_size=None):
+                 value_gauge: float = 0.1, board_size=None):
         """
         :param kappa_s: exponent of the pseudo-euclidean sum of parallel lines-of-five
         :param kappa_d: exponent of the pseudo-euclidean sum of different directions

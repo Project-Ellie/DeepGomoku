@@ -21,29 +21,6 @@ class PolicyParams:
         self.advice_cutoff = advice_cutoff
 
 
-class PolicySpec:
-    """
-    A means of telling remote actors how to instantiate their policy models.
-    This is to avoid transfering the policy as an argument to a potentially
-    remote actor, which will almost inevitably lead to serialization problems.
-    """
-    HEURISTIC = 'HEURISTIC'
-    POOL_REF = 'POOL_REF'
-
-    def __init__(self, checkpoint=None, pool_ref=None):
-        """
-        If no checkpoint is provided, heuristic policy is indicated
-        :param checkpoint:
-        """
-        if checkpoint is not None:
-            raise NotImplementedError("Can only support HEURISTIC for now.")
-        elif pool_ref is not None:
-            self.pool_ref = pool_ref
-            self.type = PolicySpec.POOL_REF
-        else:
-            self.type = PolicySpec.HEURISTIC
-
-
 class IllegalMoveException(Exception):
     def __int__(self, message):
         super().__init__(message)
@@ -200,6 +177,17 @@ class Player:  # (abc.ABC):
     def meet(self, other: Player):
         pass
 
+    @abc.abstractmethod
+    def evaluate(self, board: Board, temperature: float):
+        """
+        Provide an opinion about the board - typically from MCTS stats
+        :param board:
+        :param temperature:
+        :return:
+        """
+        pass
+
+
 
 class TerminalDetector(abc.ABC):
 
@@ -318,7 +306,7 @@ class Game:  # (abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_game_ended(self, board: Board):
+    def get_winner(self, board: Board):
         """
         Input:
             board: current board

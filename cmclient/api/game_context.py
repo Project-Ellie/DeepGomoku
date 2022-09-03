@@ -67,7 +67,7 @@ class GameContext:
 
     def ai_move(self):
 
-        if self.game.get_game_ended(self.board) is not None:
+        if self.game.get_winner(self.board) is not None:
             winner = (1 + len(self.board.get_stones())) % 2
             self.winner = winner
             self.ai_active = False
@@ -79,7 +79,7 @@ class GameContext:
         _, move = self.ai.move(self.board)
         self.game_play.fwd(move)
 
-        if self.game.get_game_ended(self.board) is not None:
+        if self.game.get_winner(self.board) is not None:
             winner = (1 + len(self.board.get_stones())) % 2
             self.winner = winner
             self.ai_active = False

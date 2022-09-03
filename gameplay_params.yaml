@@ -1,0 +1,42 @@
+game:
+  board_size: 15
+  opening:
+    # alternative (one fine day): swap2
+    initializer:
+      type: random
+      num_stones: 4
+      left: 5
+      right: 9
+      upper: 5
+      lower: 9
+
+      # alternative
+      # type: constant
+      # stones: H8G7I7F7 or so
+
+players:
+  - name: black
+    advice:
+      type: TOPOLOGICAL_VALUE
+      model_file_name:
+      advice_cutoff: .01
+    mcts:
+        cpuct: 4.0
+        num_simulations: 200
+        temperature: 0.0
+
+  - name: white
+    advice:
+      type: TOPOLOGICAL_VALUE
+      advice_cutoff: .01
+    mcts:
+        cpuct: 4.0
+        num_simulations: 100
+        temperature: 0.4
+
+
+process:
+  num_trajectories_per_file: 100
+  max_moves: 100
+  eval_temperature: 2.0
+  output_dir: /Users/wgiersche/workspace/Project-Ellie/DATA

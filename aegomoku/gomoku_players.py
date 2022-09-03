@@ -42,7 +42,7 @@ class PolicyAdvisedGraphSearchPlayer(Player):
         :return: the very same board instance containing one more stone.
         """
         # No move when game is over
-        winner = self.game.get_game_ended(board)
+        winner = self.game.get_winner(board)
         if winner is not None:
             return board, None
 
@@ -51,6 +51,14 @@ class PolicyAdvisedGraphSearchPlayer(Player):
         move = board.stone(np.random.choice(list(range(board.board_size**2)), p=probs))
         board.act(move)
         return board, move
+
+
+    def evaluate(self, board: Board, temperature: float):
+        key = board.get_string_representation()
+        probs = self.mcts.compute_probs(board, temperature=temperature)
+        q_advice = [self.mcts.Q.get((key, i), -1.0) for i in range(board.board_size)]
+        v = np.max(q_advice, axis=None)
+        return probs, v
 
 
     def __str__(self):
