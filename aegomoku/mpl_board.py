@@ -22,7 +22,7 @@ class MplBoard:
     """
     
     def __init__(self, n, heuristics=None, disp_width=6, stones=None, suppress_move_numbers=False,
-                 policy_cutoff = 50):
+                 policy_cutoff=50):
         self.N = n
         self.heuristics = heuristics
         self.suppress_move_numbers = suppress_move_numbers
