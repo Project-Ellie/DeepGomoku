@@ -31,12 +31,12 @@ players:
       advice_cutoff: .01
     mcts:
         cpuct: 4.0
-        num_simulations: 200
+        num_simulations: 400
         temperature: 0.0
 
 
 process:
   num_trajectories_per_file: 20
-  max_moves: 50
+  max_moves: 80
   eval_temperature: 2.0
-  output_dir: /Users/wgiersche/workspace/Project-Ellie/DATA/
+  output_dir: /home/wgiersche/workspace/Project-Ellie/DATA1/
