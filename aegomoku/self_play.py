@@ -1,13 +1,11 @@
 import copy
 import numpy as np
-import ray
 
 from aegomoku.interfaces import Board, PolicySpec, Game, MctsParams
 from aegomoku.mcts import MCTS
 from aegomoku.policies.heuristic_policy import HeuristicPolicy
 
 
-@ray.remote
 class SelfPlay:
     def __init__(self, mcts_params: MctsParams):
         self.mcts_params = mcts_params
@@ -29,12 +27,12 @@ class SelfPlay:
 
     def _self_play(self, board: Board, mcts: MCTS, verbose=False) -> Board:
 
-        # Two mood versions of the champion playing against each other = less draws
+        # Two mood versions of the champion playing against each other = fewer draws
         # These settings may change over the training period, once opponents get stronger.
         temperatures = [1, 0]  # more tight vs more explorative
 
         episode_step = 0
-        done = self.game.get_game_ended(board)
+        done = self.game.get_winner(board)
         while done is None:
             episode_step += 1
             t = temperatures[episode_step % 2]
@@ -42,7 +40,7 @@ class SelfPlay:
             action = np.random.choice(len(pi), p=pi)
 
             board.act(action)
-            done = self.game.get_game_ended(board)
+            done = self.game.get_winner(board)
             if episode_step > 50:
                 done = "draw"
 

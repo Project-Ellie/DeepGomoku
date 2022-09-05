@@ -14,7 +14,7 @@ class HeuristicRayPolicy(StatefulRayPolicy):
         return self.policy.get_advisable_actions(state)
 
     def predict(self, board, **_):
-        return self.policy.predict(board)
+        return self.policy.evaluate(board)
 
     def load_checkpoint(self, folder, filename, **_):
         raise NotImplementedError

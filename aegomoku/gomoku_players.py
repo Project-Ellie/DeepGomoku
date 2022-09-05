@@ -3,22 +3,29 @@ from __future__ import annotations
 from typing import Tuple, Optional
 
 import numpy as np
-
-from aegomoku.interfaces import Player, Board, Move
+import tensorflow as tf
+from aegomoku.interfaces import Player, Board, Move, MctsParams, PolicyParams, PolicyAdviser, Game
 from aegomoku.mcts import MCTS
+from aegomoku.policies.heuristic_policy import HeuristicPolicy
 
 
-class HeuristicPlayer(Player):
+class PolicyAdvisedGraphSearchPlayer(Player):
 
-    def __init__(self, name: str, mcts: MCTS, temperature: float):
+    def __init__(self, name: str, game: Game, mcts_params: MctsParams, policy_params: PolicyParams):
         """
-        :param mcts: The search tree to use
-        :param temperature: a float between 1.0 for more exploration and 0.0 for only the best move to take
+        :param mcts_params: The graph search parameters
+        :param policy_params: the policy-related parameters
         """
         self.opponent: Optional[Player] = None
         self.name = name
-        self.mcts = mcts
-        self.temperature = temperature
+        self.game = game
+        if policy_params.model_file_name is not None:
+            model = tf.keras.models.load_model(policy_params.model_file_name)
+            self.advisor = PolicyAdviser(model=model, params=policy_params)
+        else:
+            self.advisor = HeuristicPolicy(board_size=game.board_size, n_fwll=2)
+
+        self.mcts = MCTS(game, self.advisor, mcts_params)
         super().__init__()
 
 
@@ -27,18 +34,32 @@ class HeuristicPlayer(Player):
         other.opponent = self
 
 
-    def move(self, board: Board, temperature=None) -> Tuple[Board, Move]:
+    def move(self, board: Board, temperature=None) -> Tuple[Board, Optional[Move]]:
         """
         Procedural (not functional) interface. It changes the board!
         :param board: the board to use
-        :param temperature: if provided, overrides the default temperature of the player. Good for self-play.
+        :param temperature: if provided, overrides the default training_data of the player. Good for self-play.
         :return: the very same board instance containing one more stone.
         """
-        temperature = temperature if temperature is not None else self.temperature
+        # No move when game is over
+        winner = self.game.get_winner(board)
+        if winner is not None:
+            return board, None
+
+        temperature = temperature if temperature is not None else self.mcts.params.temperature
         probs = self.mcts.get_action_prob(board, temperature=temperature)
-        move = board.stone(np.random.choice(225, p=probs))
+        move = board.stone(np.random.choice(list(range(board.board_size**2)), p=probs))
         board.act(move)
         return board, move
+
+
+    def evaluate(self, board: Board, temperature: float):
+        key = board.get_string_representation()
+        probs = self.mcts.compute_probs(board, temperature=temperature)
+        q_advice = [self.mcts.Q.get((key, i)) for i in range(board.board_size * board.board_size)]
+        q_advice = [q for q in q_advice if q is not None]
+        v = 0.0 if len(q_advice) == 0 else np.max(q_advice, axis=None)
+        return probs, v
 
 
     def __str__(self):

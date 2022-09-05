@@ -1,14 +1,14 @@
 import numpy as np
 import tensorflow as tf
-from aegomoku.interfaces import NeuralNet, TrainParams, TerminalDetector
+from aegomoku.interfaces import TerminalDetector, Adviser
 from aegomoku.policies.forward_looking import ForwardLookingLayer
 from aegomoku.policies.naive_infuence import NaiveInfluenceLayer
 from aegomoku.policies.primary_detector import PrimaryDetector
 
 
-class HeuristicPolicy(tf.keras.Model, NeuralNet, TerminalDetector):
+class HeuristicPolicy(tf.keras.Model, Adviser, TerminalDetector):
 
-    def __init__(self, board_size: int, cut_off: float = 0.8):
+    def __init__(self, board_size: int, cut_off: float = 0.8, n_fwll: int = 1):
         """
         :param board_size:
         :param cut_off: discard advisable actions with probability less than cut_off * highest
@@ -16,6 +16,8 @@ class HeuristicPolicy(tf.keras.Model, NeuralNet, TerminalDetector):
 
         self.board_size = board_size
         self.cut_off = cut_off
+        self.n_fwll = n_fwll
+
         super().__init__()
 
         self.peel = tf.keras.layers.Conv2D(
@@ -45,7 +47,7 @@ class HeuristicPolicy(tf.keras.Model, NeuralNet, TerminalDetector):
 
     def get_advisable_actions(self, state):
         """
-        :param state: the board's math representation
+        :param: state: batch of a single state. 1 x N x N x 3
         :return: a list of integer move representations with probabilities close enough to the maximum (see: cut_off)
         """
         probs, _ = self.call(state)
@@ -56,7 +58,10 @@ class HeuristicPolicy(tf.keras.Model, NeuralNet, TerminalDetector):
 
 
     def logits(self, s):
-        raw = self.fwll(self.detector(s)) + self.influence(s) * self.influence_weight # noqa
+        raw = self.detector.call(s)
+        for i in range(self.n_fwll):
+            raw = self.fwll.call(raw)
+        raw = raw + self.influence(s) * self.influence_weight # noqa
         logits_c = self.squeeze_and_peel(raw, 3)
         logits_o = self.squeeze_and_peel(raw, 4)
         return logits_c, logits_o
@@ -83,19 +88,8 @@ class HeuristicPolicy(tf.keras.Model, NeuralNet, TerminalDetector):
         return probs, value
 
 
-    def train(self, examples, params: TrainParams):
-        raise NotImplementedError
-
-
-    def predict(self, board):
-        pi, v = self.call(board)
+    def evaluate(self, state):
+        state = np.expand_dims(state, 0).astype(float)
+        pi, v = self.call(state)
         pi = np.reshape(pi, self.board_size * self.board_size)
         return pi, v
-
-
-    def save_checkpoint(self, folder, filename):
-        raise NotImplementedError
-
-
-    def load_checkpoint(self, folder, filename):
-        raise NotImplementedError

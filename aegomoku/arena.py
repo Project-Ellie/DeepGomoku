@@ -20,7 +20,7 @@ class Arena:
     def __init__(self, player1: Player, player2: Player, game: Game, max_moves: int,
                  display: Optional[Callable] = None):
         """
-        :param player1: The player to move first
+        :param: player1: The player to move first
         :param player2: the other player
         :param game: the game
         :param max_moves: the max number of moves. Failing to terminate before makes the game a draw
@@ -38,7 +38,7 @@ class Arena:
     def play_game(self, switch=False, verbose=False) -> Optional[Player]:
         """
         :param switch: if True, player2 will make the first move
-        :param verbose: debug info
+        :param verbose: provide debug info
         :return:
         """
         self.board = board = self.game.get_initial_board()
@@ -52,7 +52,7 @@ class Arena:
         if switch:
             player = player.opponent
 
-        while self.game.get_game_ended(board) is None and n_moves < self.max_moves:
+        while self.game.get_winner(board) is None and n_moves < self.max_moves:
             player = player.opponent
             _, move = player.move(board)
             if verbose:

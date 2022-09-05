@@ -23,6 +23,8 @@ gmpy2 = "*"
 ray = {extras = ["default"], version = "*"}
 pyyaml = "*"
 poetry = "*"
+pygame = "*"
+pygame_gui = "*"
 
 [dev-packages]
 

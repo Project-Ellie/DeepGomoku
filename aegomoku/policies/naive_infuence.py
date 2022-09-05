@@ -40,7 +40,7 @@ class NaiveInfluenceLayer(tf.keras.layers.Layer, Callable):
         # add two more channels filled with zeros. They'll be carrying the 'influence' of the surrounding stones.
         # That allows for arbitrarily deep chaining within our architecture
         n = self.input_size
-        extended = np.concatenate([sample, np.zeros((n, n, 2))], axis=2).reshape((-1, n, n, 5))
+        extended = np.concatenate([sample, np.zeros((1, n, n, 2))], axis=3)  # .reshape((-1, n, n, 5))
 
         y = self.potential(extended)
         y = self.potential(y)

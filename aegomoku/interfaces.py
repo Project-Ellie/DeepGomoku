@@ -4,37 +4,21 @@ import abc
 from typing import Tuple, Optional
 from pydantic import BaseModel
 import numpy as np
+from keras import models
 
 
 class MctsParams:
 
-    def __init__(self, cpuct: float, num_simulations: int, advice_cutoff: float):
+    def __init__(self, cpuct: float, temperature: float, num_simulations: int):
         self.cpuct = cpuct
         self.num_simulations = num_simulations
+        self.temperature = temperature
+
+
+class PolicyParams:
+    def __init__(self, model_file_name: Optional[str], advice_cutoff: float):
+        self.model_file_name = model_file_name
         self.advice_cutoff = advice_cutoff
-
-
-class PolicySpec:
-    """
-    A means of telling remote actors how to instantiate their policy models.
-    This is to avoid transfering the policy as an argument to a potentially
-    remote actor, which will almost inevitably lead to serialization problems.
-    """
-    HEURISTIC = 'HEURISTIC'
-    POOL_REF = 'POOL_REF'
-
-    def __init__(self, checkpoint=None, pool_ref=None):
-        """
-        If no checkpoint is provided, heuristic policy is indicated
-        :param checkpoint:
-        """
-        if checkpoint is not None:
-            raise NotImplementedError("Can only support HEURISTIC for now.")
-        elif pool_ref is not None:
-            self.pool_ref = pool_ref
-            self.type = PolicySpec.POOL_REF
-        else:
-            self.type = PolicySpec.HEURISTIC
 
 
 class IllegalMoveException(Exception):
@@ -59,11 +43,57 @@ class TrainParams(BaseModel):
     num_iters_for_train_examples_history: int
 
 
-class LeadModel:  # (abc.ABC):
+class Adviser:  # (abc.ABC):
 
     @abc.abstractmethod
     def get_advisable_actions(self, state):
         pass
+
+    @abc.abstractmethod
+    def evaluate(self, state):
+        """
+        Input:
+            board: current board in its canonical form.
+
+        Returns:
+            pi: a policy vector for the current board- a numpy array of length
+                game.get_action_size
+            v: a float in [-1,1] that gives the value of the current board
+        """
+        pass
+
+
+class PolicyAdviser(Adviser):
+
+    def __init__(self, model: models.Model, params: PolicyParams):
+        self.model = model
+        self.params = params
+
+    def get_advisable_actions(self, state):
+        """
+        :param state: nxnx3 representation of a go board
+        :return:
+        """
+        probs, _ = self.model(state)
+        max_prob = np.max(probs, axis=None)
+        probs = np.squeeze(probs)
+        advisable = np.where(probs > max_prob * self.params.advice_cutoff, probs, 0.)
+
+        # ####################################################################################
+        # TODO: remember randomly adding seemingly random moves to overcome potential bias!!!
+        # ####################################################################################
+
+        return [int(n) for n in advisable.nonzero()[0]]
+
+
+    def evaluate(self, state):
+        """
+        :param state: nxnx3 representation of a go board
+        :return:
+        """
+        inputs = np.expand_dims(state, 0).astype(float)
+        p, v = self.model(inputs)
+        return np.squeeze(p), np.squeeze(v)
 
 
 class Move:
@@ -75,6 +105,8 @@ class Move:
 
 
 class Board:  # (abc.ABC):
+
+    board_size: int
 
     @abc.abstractmethod
     def stone(self, pos: int) -> Move:
@@ -145,15 +177,26 @@ class Player:  # (abc.ABC):
     def meet(self, other: Player):
         pass
 
+    @abc.abstractmethod
+    def evaluate(self, board: Board, temperature: float):
+        """
+        Provide an opinion about the board - typically from MCTS stats
+        :param board:
+        :param temperature:
+        :return:
+        """
+        pass
+
+
 
 class TerminalDetector(abc.ABC):
 
     @abc.abstractmethod
-    def get_winner(self, board: Board):
+    def get_winner(self, state):
         pass
 
 
-class NeuralNet(LeadModel):  # , abc.ABC):
+class NeuralNet(Adviser):  # , abc.ABC):
     """
     This class specifies the base NeuralNet class. To define your own neural
     network, subclass this class and implement the functions below. The neural
@@ -165,29 +208,17 @@ class NeuralNet(LeadModel):  # , abc.ABC):
         pass
 
     @abc.abstractmethod
-    def train(self, examples, params: TrainParams):
+    def train(self, train_examples, test_exaples=None, n_epochs=1):
         """
         This function trains the neural network with examples obtained from
         self-play.
 
-        Input:
-            examples: a list of training examples, where each example is of form
-                      (board, pi, v). pi is the MCTS informed policy vector for
-                      the given board, and v is its value. The examples has
-                      board in its canonical form.
-        """
-        pass
-
-    @abc.abstractmethod
-    def predict(self, board):
-        """
-        Input:
-            board: current board in its canonical form.
-
-        Returns:
-            pi: a policy vector for the current board- a numpy array of length
-                game.get_action_size
-            v: a float in [-1,1] that gives the value of the current board
+        :param test_exaples:
+        :param train_examples: a list of training examples, where each example is of form
+                  (board, pi, v). pi is the MCTS informed policy vector for
+                  the given board, and v is its value. The examples has
+                  board in its canonical form.
+        :param n_epochs
         """
         pass
 
@@ -217,6 +248,8 @@ class Game:  # (abc.ABC):
 
     See othello/OthelloGame.py for an example implementation.
     """
+    board_size: int
+
     def __init__(self):
         pass
 
@@ -273,7 +306,7 @@ class Game:  # (abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_game_ended(self, board: Board):
+    def get_winner(self, board: Board):
         """
         Input:
             board: current board

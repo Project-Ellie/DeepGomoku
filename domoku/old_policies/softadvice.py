@@ -4,7 +4,7 @@ import numpy as np
 from pydantic import BaseModel
 import tensorflow as tf
 
-from aegomoku.interfaces import NeuralNet, LeadModel
+from aegomoku.interfaces import NeuralNet, Adviser
 from domoku.interfaces import AbstractGanglion
 from domoku.policies.maximal_criticality import MaxCriticalityPolicy
 from domoku.policies.radial import radial_3xnxn, radial_2xnxn
@@ -19,7 +19,7 @@ class MaxInfluencePolicyParams(BaseModel):
     iota: float  # The greed. Higher values make exploitation less likely. 50 is a good start
 
 
-class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion, LeadModel):
+class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion, Adviser):
     """
     A policy that vaguely *feels* where the move is. This may help create reasonable
     trajectories in Deep RL approaches. The underlying CNN *measures* the radial influence
@@ -221,13 +221,13 @@ class MaxInfluencePolicy(tf.keras.Model, AbstractGanglion, LeadModel):
         self.filters = np.reshape(filters, (self.kernel_size, self.kernel_size, 5, 5))
 
 
-class NeuralNetAdapter(NeuralNet, LeadModel):
+class NeuralNetAdapter(NeuralNet, Adviser):
 
     #
     #   Find a reasonable implementation for reasonable actions...;-)
     #
     def get_reasonable_actions(self, state):
-        probs, _ = self.predict(state)
+        probs, _ = self.evaluate(state)
         max_prob = np.max(probs, axis=None)
         return probs[[probs > max_prob * 0.8]]
 
@@ -240,7 +240,7 @@ class NeuralNetAdapter(NeuralNet, LeadModel):
         raise NotImplementedError
 
 
-    def predict(self, state):
+    def evaluate(self, state):
         output = self.policy(state)  # noqa
         board_size = self.policy.params.board_size  # noqa
         output = np.reshape(output, [board_size * board_size])

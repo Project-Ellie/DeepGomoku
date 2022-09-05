@@ -1,4 +1,8 @@
 from pickle import Unpickler
+from typing import List, Tuple, Any
+
+import numpy as np
+import tensorflow as tf
 
 from aegomoku.gomoku_board import GomokuBoard
 from aegomoku.gomoku_game import GomokuGame
@@ -16,19 +20,39 @@ def read_training_data(filename: str, board_size: int):
     :param board_size: board size
     :return: Array of (state, probabiltiy (float), value(float)) triples
     """
-    examples = []
+    all_examples = []
     game = GomokuGame(board_size, None)
     with open(filename, "rb") as file:
         while True:
             try:
                 traj = Unpickler(file).load()
-                for position in traj:
-                    stones, probs, value = position
-                    probabilities = probs / 255.
-                    state = GomokuBoard(board_size, stones).canonical_representation()
-                    symmetries = game.get_symmetries(state, probabilities)
-                    for state, prediction in symmetries:
-                        examples.append((state, prediction, value))
-            except EOFError:
-                return examples
+                all_examples += expand_trajectory(game, board_size, traj)
 
+            except EOFError:
+                return all_examples
+
+
+def expand_trajectory(game, board_size, trajectory):
+    examples = []
+    for position in trajectory:
+        stones, probs, value = position
+        probabilities = probs / 255.
+        state = GomokuBoard(board_size, stones).canonical_representation()
+        symmetries = game.get_symmetries(state, probabilities)
+        for state, prediction in symmetries:
+            examples.append((state, prediction, value))
+    return examples
+
+
+def create_dataset(data: List[Tuple[Any, Any, Any]], batch_size=1024, shuffle=True):
+    subset = data
+    x = np.asarray([t[0] for t in subset], dtype=float)
+    pi = np.asarray([t[1] for t in subset])
+    v = np.asarray([t[2] for t in subset])
+    x_ds = tf.data.Dataset.from_tensor_slices(x).batch(batch_size)
+    pi_ds = tf.data.Dataset.from_tensor_slices(pi).batch(batch_size)
+    v_ds = tf.data.Dataset.from_tensor_slices(v).batch(batch_size)
+    all_ds = tf.data.Dataset.zip((x_ds, pi_ds, v_ds))
+    if shuffle:
+        all_ds = all_ds.shuffle(buffer_size=batch_size)
+    return all_ds

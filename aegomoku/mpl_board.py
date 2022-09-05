@@ -21,7 +21,8 @@ class MplBoard:
     A display tools based on Matplotlib
     """
     
-    def __init__(self, n, heuristics=None, disp_width=6, stones=None, suppress_move_numbers=False):
+    def __init__(self, n, heuristics=None, disp_width=6, stones=None, suppress_move_numbers=False,
+                 policy_cutoff=50):
         self.N = n
         self.heuristics = heuristics
         self.suppress_move_numbers = suppress_move_numbers
@@ -29,6 +30,7 @@ class MplBoard:
         if isinstance(stones, str):
             stones = gt.string_to_stones(stones)
         self.disp_width = disp_width
+        self.policy_cutoff = policy_cutoff
         self.stones = []
         self.current_color = BLACK
         self.cursor = -1
@@ -120,7 +122,7 @@ class MplBoard:
         if self.cursor >= 0:
             self.display_stones(axis)
 
-        self.display_heuristics(axis)
+        self.display_heuristics(axis, cut_off=self.policy_cutoff)
 
     def display_helpers(self, axis):
         if self.N == 15:
@@ -169,7 +171,8 @@ class MplBoard:
         if isinstance(self.heuristics, list):
             q = np.reshape(self.heuristics, (self.N, self.N))
         else:
-            q, _ = self.heuristics(position.canonical_representation())
+            state = np.expand_dims(position.canonical_representation(), 0).astype(float)
+            q, _ = self.heuristics(state)
 
         heatmap = np.squeeze(self.heatmap(q))
 

@@ -1,11 +1,11 @@
 import copy
-from typing import Tuple
+from typing import Tuple, Optional
 
 import random
 import abc
 
 import numpy as np
-from aegomoku.interfaces import Game, Move
+from aegomoku.interfaces import Game, Move, TerminalDetector
 from aegomoku.gomoku_board import GomokuBoard
 from aegomoku.policies.heuristic_policy import HeuristicPolicy
 
@@ -72,7 +72,7 @@ class GomokuGame(Game):
         self.board_size = board_size
         self.initializer = initializer
         self.n_in_row = 5
-        self.detector = None
+        self.detector: Optional[TerminalDetector] = None
 
     def get_initial_board(self) -> GomokuBoard:
         initial_stones = self.initializer.initial_stones()
@@ -101,10 +101,12 @@ class GomokuGame(Game):
         bits[legal_indices] = 1
         return bits
 
-    def get_game_ended(self, board: GomokuBoard):
+    def get_winner(self, board: GomokuBoard):
         if self.detector is None:
             self.detector = HeuristicPolicy(self.board_size)
-        return self.detector.get_winner(board.canonical_representation())
+        state = board.canonical_representation()
+        inputs = np.expand_dims(state, 0).astype(float)
+        return self.detector.get_winner(inputs)
 
     # modified
     def get_symmetries(self, board, pi):

@@ -1,9 +1,41 @@
 import datetime as dt
+
+import keras.losses
 import numpy as np
 import tensorflow as tf
-from tqdm import tqdm
 
-from aegomoku.interfaces import NeuralNet, TrainParams
+
+from aegomoku.interfaces import NeuralNet
+
+
+class ResnetIdentityBlock(tf.keras.Model):
+    def __init__(self, kernel_size, filters, name, **kwargs):
+        super(ResnetIdentityBlock, self).__init__(name=name, **kwargs)
+        filters1, filters2, filters3 = filters
+
+        self.conv2a = tf.keras.layers.Conv2D(filters1, (1, 1))
+        self.bn2a = tf.keras.layers.BatchNormalization()
+
+        self.conv2b = tf.keras.layers.Conv2D(filters2, kernel_size, padding='same')
+        self.bn2b = tf.keras.layers.BatchNormalization()
+
+        self.conv2c = tf.keras.layers.Conv2D(filters3, (1, 1))
+        self.bn2c = tf.keras.layers.BatchNormalization()
+
+    def call(self, input_tensor, training=False):
+        x = self.conv2a(input_tensor)
+        x = self.bn2a(x, training=training)
+        x = tf.nn.relu(x)
+
+        x = self.conv2b(x)
+        x = self.bn2b(x, training=training)
+        x = tf.nn.relu(x)
+
+        x = self.conv2c(x)
+        x = self.bn2c(x, training=training)
+
+        x += input_tensor
+        return x
 
 
 class GomokuModel(tf.keras.Model):
@@ -14,9 +46,10 @@ class GomokuModel(tf.keras.Model):
     def __init__(self, input_size: int, kernel_size):
         super().__init__()
         self.input_size = input_size
-        self.kernel_size = kernel_size
+        self.kernel_size = 6  # kernel_size
 
         first, pot, agg_p, agg_v, flatten, dense, peel = self.create_model()
+
         self.first = first
         self.potentials = pot
         self.policy_aggregate = agg_p
@@ -34,8 +67,10 @@ class GomokuModel(tf.keras.Model):
         sample = sample / self.input_size / self.input_size
 
         y = self.first(sample)
-        for potential in self.potentials:
-            y = potential(y)
+        for p1, p2 in self.potentials:
+            y_in = y
+            y = p1(y)
+            y = p2(y+y_in)
 
         if debug:
             print(f"Potential: {tf.reduce_sum(y).numpy()}")
@@ -63,20 +98,31 @@ class GomokuModel(tf.keras.Model):
             filters=32, kernel_size=self.kernel_size,
             kernel_initializer=tf.random_normal_initializer(),
             bias_initializer=tf.random_normal_initializer(),
-            activation=tf.nn.relu,
+            activation=tf.nn.elu,
             padding='same',
             input_shape=(self.input_size, self.input_size, 3))
 
-        potentials = [
+        potentials = [(
             tf.keras.layers.Conv2D(
-                name=f'potential_{i}',
+                name=f'potential_{i}_1',
+                filters=32, kernel_size=self.kernel_size,
+                kernel_initializer=tf.random_normal_initializer(),
+                bias_initializer=tf.random_normal_initializer(),
+                activation=tf.nn.elu,
+                padding='same',
+                input_shape=(self.input_size, self.input_size, 5)),
+
+            tf.keras.layers.Conv2D(
+                name=f'potential_{i}_2',
                 filters=32, kernel_size=self.kernel_size,
                 kernel_initializer=tf.random_normal_initializer(),
                 bias_initializer=tf.random_normal_initializer(),
                 activation=tf.nn.relu,
                 padding='same',
                 input_shape=(self.input_size, self.input_size, 5))
-            for i in range(5)
+
+        )
+            for i in range(7)
             ]
 
         policy_aggregate = tf.keras.layers.Conv2D(
@@ -86,7 +132,7 @@ class GomokuModel(tf.keras.Model):
             bias_initializer=tf.random_normal_initializer(),
             activation=tf.nn.relu,
             padding='same',
-            input_shape=(self.input_size-1, self.input_size-1, 5))
+            input_shape=(self.input_size-2, self.input_size-2, 5))
 
         value_aggregate = tf.keras.layers.Conv2D(
             name="value_aggregator",
@@ -95,7 +141,7 @@ class GomokuModel(tf.keras.Model):
             bias_initializer=tf.random_normal_initializer(),
             activation=tf.nn.tanh,
             padding='same',
-            input_shape=(self.input_size-1, self.input_size-1, 5))
+            input_shape=(self.input_size-2, self.input_size-2, 5))
 
         flatten = tf.keras.layers.Flatten()
         dense = tf.keras.layers.Dense(units=1, activation=tf.nn.tanh)
@@ -106,9 +152,17 @@ class GomokuModel(tf.keras.Model):
             filters=1, kernel_size=(3, 3),
             kernel_initializer=tf.constant_initializer([[0., 0., 0.], [0., 1., 0.], [0., 0., 0.]]),
             bias_initializer=tf.constant_initializer(0.),
-            trainable=False)
+            trainable=False,
+            padding='valid')
 
         return first, potentials, policy_aggregate, value_aggregate, flatten, dense, peel
+
+
+def special_loss(y_true, y_pre):
+    import keras.backend as k
+    y_true = tf.cast(y_true, tf.float32)
+    diff = y_true - y_pre
+    return k.sum(y_true * diff * diff, axis=1)
 
 
 class NeuralNetAdapter(NeuralNet):
@@ -118,12 +172,18 @@ class NeuralNetAdapter(NeuralNet):
         :param input_size: size of the input signal: it's boardsize + 2, if you include the boundary!!
         """
         self.input_size = input_size
+        self.board_size = input_size - 2
         self.policy_loss = tf.keras.losses.CategoricalCrossentropy()
+        # self.policy_loss = tf.keras.losses.MeanSquaredError()
+        #self.policy_loss = special_loss
+
         self.value_loss = tf.keras.losses.MeanSquaredError()
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
         self.train_loss = tf.keras.metrics.Mean('train_loss', dtype=tf.float32)
+        self.test_loss = tf.keras.metrics.Mean('train_loss', dtype=tf.float32)
         self.policy = GomokuModel(input_size=input_size, kernel_size=11)
         self.policy.build(input_shape=(None, input_size, input_size, 3))
+        self.cut_off = 0.8  # TODO: provide from params
         super().__init__(*args)
 
 
@@ -132,14 +192,19 @@ class NeuralNetAdapter(NeuralNet):
         :param state: the board's math representation
         :return: a list of integer move representations with probabilities close enough to the maximum (see: cut_off)
         """
-        probs, _ = self.call(state)
+        probs, _ = self.policy.call(state)
         max_prob = np.max(probs, axis=None)
         probs = probs.reshape(self.board_size * self.board_size)
         advisable = np.where(probs > max_prob * self.cut_off, probs, 0.)
+
+        # ####################################################################################
+        # TODO: remember randomly adding seemingly random moves to overcome potential bias!!!
+        # ####################################################################################
+
         return [int(n) for n in advisable.nonzero()[0]]
 
 
-    def predict(self, state, debug=False):
+    def evaluate(self, state, debug=False):
         return self.policy.call(state, debug)
 
 
@@ -150,12 +215,14 @@ class NeuralNetAdapter(NeuralNet):
     def load_checkpoint(self, folder, filename):
         raise NotImplementedError
 
-    def train(self, examples, epochs_per_train, report_every=100):
+    def train(self, train_examples, test_examples=None, epochs_per_train=1, report_every=100):
         current_time = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
         train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
         train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
-        all_train_ds = self.create_dataset(examples)
+        all_train_ds = self.create_dataset(train_examples)
+        if test_examples is not None:
+            all_test_ds = self.create_dataset(test_examples)
 
         # for epoch in tqdm(range(params.epochs_per_train), desc="   Training"):
         for epoch in range(epochs_per_train):
@@ -165,15 +232,17 @@ class NeuralNetAdapter(NeuralNet):
                 tf.summary.scalar('loss', self.train_loss.result(), step=epoch)
 
             if epoch % report_every == 1:
-                print(f'Epoch: {epoch}, Loss: {self.train_loss.result()}')
+                print(f'Epoch: {epoch}, Training: {self.train_loss.result()}, '
+                      f'Test: {self.test_loss.result()}')
 
-            # for x_test, y_test in test_dataset:
-            #     test_step(model, x_test, y_test)
-            # with train_summary_writer.as_default():
-            #     tf.summary.scalar('loss', test_loss.result(), step=epoch)
-            #     tf.summary.scalar('accuracy', test_accuracy.result(), step=epoch)
+            if test_examples is not None:
+                for x_test, pi_test, v_test in all_test_ds:
+                    self.test_step(x_test, pi_test, v_test)
+                with train_summary_writer.as_default():
+                    tf.summary.scalar('test_loss', self.test_loss.result(), step=epoch)
 
-        print(f'Epochs: {epochs_per_train}, Loss: {self.train_loss.result()}')
+        print(f'Epochs: {epochs_per_train}, Loss: {self.train_loss.result()}, ')
+              #f'Test: {self.test_loss.result()}')
 
         self.train_loss.reset_states()
 
@@ -188,14 +257,14 @@ class NeuralNetAdapter(NeuralNet):
 
         self.train_loss(total_loss)
 
-    def test_step(self, x_test, y_test):
-        raise NotImplementedError()
-        # predictions = self.policy.call(x_test)
-        # loss = self.policy_loss(y_test, predictions)
+    def test_step(self, x_test, pi_test, v_test):
+        p, v = self.call(x_test, training=False)  # noqa: training should be recognized?!
+        loss1 = self.policy_loss(pi_test, p)
+        loss2 = self.value_loss(v_test, v)
+        total_loss = loss1 + loss2
+        self.test_loss(total_loss)
 
-        # test_loss(loss)
-        # test_accuracy(y_test, predictions)
-
+    # TODO: This mustn't be a model method!
     @staticmethod
     def create_dataset(examples, num_subset: int = None, batch_size=1024):
         subset = examples[num_subset] if num_subset is not None else examples
@@ -206,12 +275,13 @@ class NeuralNetAdapter(NeuralNet):
         pi_train_ds = tf.data.Dataset.from_tensor_slices(pi_train).batch(batch_size)
         v_train_ds = tf.data.Dataset.from_tensor_slices(v_train).batch(batch_size)
         all_train_ds = tf.data.Dataset.zip((x_train_ds, pi_train_ds, v_train_ds))
+        all_train_ds = all_train_ds.shuffle(buffer_size=batch_size)
         return all_train_ds
 
     #
     #   Find a reasonable implementation for reasonable actions...;-)
     #
     def get_reasonable_actions(self, state):
-        probs, _ = self.predict(state)
+        probs, _ = self.evaluate(state)
         max_prob = np.max(probs, axis=None)
         return probs[[probs > max_prob * 0.8]]

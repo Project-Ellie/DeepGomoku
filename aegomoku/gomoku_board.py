@@ -36,7 +36,7 @@ class GomokuBoard(Board):
 
         class Stone(Move):
             """
-            Stones only make sense in the context of a board instance!
+            Stones only make sense in the game_context of a board instance!
             """
 
             # Note that this is Board.self!
@@ -94,7 +94,7 @@ class GomokuBoard(Board):
                         x = ord(x) - 64
                     self.r, self.c = n-y, x-1
 
-                # single-digit representation for vector operations in the ML context
+                # single-digit representation for vector operations in the ML game_context
                 self.i = self.r * self.board_size + self.c
 
             def __str__(self):
@@ -103,6 +103,10 @@ class GomokuBoard(Board):
             __repr__ = __str__
 
             def __eq__(self, other):
+
+                if not isinstance(other, Move):
+                    return False
+
                 if self.r == other.r and self.c == other.c and self.field_size == other.field_size:
                     return True
                 else:
@@ -199,7 +203,10 @@ class GomokuBoard(Board):
         assert all([self.board_size - 1 >= s.c >= 0 for s in stones]), "Not all stones in valid range"
 
     def plot(self, x_is_next=None, mark=None):
-        mark = self.stones[-1] if mark is None else mark
+        if self.stones is not None and len(self.stones) > 0:
+            mark = self.stones[-1] if mark is None else mark
+        else:
+            mark = None
 
         x_is_next = x_is_next if x_is_next is not None else self.x_is_next
 
@@ -298,7 +305,7 @@ class GomokuBoard(Board):
 
 
     def remove(self, stone):
-        assert isinstance(stone, self.Stone), "Can only remove this board's stones"
+        assert isinstance(stone, Move), "Can only remove Move instances."
         self.math_rep[stone.r+1, stone.c+1] = [0, 0, 0]
         self.stones.remove(stone)
 

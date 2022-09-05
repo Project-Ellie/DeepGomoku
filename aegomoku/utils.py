@@ -1,18 +1,19 @@
 import numpy as np
 from timeit import default_timer
 import aegomoku.tools as gt
+from aegomoku.gomoku_board import GomokuBoard
 from aegomoku.mpl_board import MplBoard
 
 
-def analyse_board(board_size, stones, policy, suppress_move_numbers=False):
+def analyse_board(board_size, stones, policy, suppress_move_numbers=False, disp_width=6, policy_cutoff=50):
     if all([isinstance(i, (np.integer, int)) for i in stones]):
         stones = [gt.m2b2(divmod(i, 15), 15) for i in stones]
-    lb = MplBoard(n=board_size, disp_width=8, stones=stones, heuristics=policy,
-                  suppress_move_numbers=suppress_move_numbers)
+    lb = MplBoard(n=board_size, disp_width=disp_width, stones=stones, heuristics=policy,
+                  suppress_move_numbers=suppress_move_numbers, policy_cutoff=policy_cutoff)
     lb.display()
 
 
-def analyse_example(board_size, example):
+def analyse_example(board_size, example, disp_width=6, policy_cutoff=50):
 
     s, p, v = example
     n_current = np.sum(s[:, :, 0], axis=None)
@@ -35,8 +36,22 @@ def analyse_example(board_size, example):
             stones.append(int(whites.pop()))
         except IndexError:
             break
-    analyse_board(board_size, stones, policy=p, suppress_move_numbers=True)
+    analyse_board(board_size, stones, policy=p, suppress_move_numbers=True, disp_width=disp_width,
+                  policy_cutoff=policy_cutoff)
     print(f"Value from {current}'s point of view: {v}")
+
+
+def expand(the_board):
+    """
+    Expand the NxNx3 representation of the board to prepare for ingestion into neural networks
+    :param the_board: either NxNx3 or a GomokuBoard instance
+    :return:
+    """
+    if isinstance(the_board, GomokuBoard):
+        state = the_board.math_rep
+    else:
+        state = the_board
+    return np.expand_dims(state, axis=0).astype(float)
 
 
 class AverageMeter(object):
