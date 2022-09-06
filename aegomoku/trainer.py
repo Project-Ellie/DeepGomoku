@@ -11,10 +11,10 @@ class Trainer:
                  policy_loss=losses.CategoricalCrossentropy(),
                  value_loss=losses.MeanSquaredError(),
                  optimizer=optimizers.Adam(learning_rate=1e-3),
-                 train_probs_metric=metrics.Mean('train_loss', dtype=tf.float32),
-                 train_value_metric=metrics.Mean('train_loss', dtype=tf.float32),
-                 test_probs_metric=metrics.Mean('train_loss', dtype=tf.float32),
-                 test_value_metric=metrics.Mean('train_loss', dtype=tf.float32)):
+                 train_probs_metric=metrics.Mean('train_probs', dtype=tf.float32),
+                 train_value_metric=metrics.Mean('train_value', dtype=tf.float32),
+                 test_probs_metric=metrics.Mean('test_probs', dtype=tf.float32),
+                 test_value_metric=metrics.Mean('test_value', dtype=tf.float32)):
 
         self.model = model
         self.policy_loss = policy_loss
@@ -41,8 +41,8 @@ class Trainer:
             if report_every is not None and epoch > 0 and epoch % report_every == 0:
                 elapsed = default_timer() - start
                 print(f'Epoch: {epoch}, Training: '
-                      f'p: {self.train_probs_metric.result().numpy():.5}, '
-                      f'v: {self.train_value_metric.result().numpy():.5} - '
+                      f'p: {self.train_probs_metric.result().numpy():.7}, '
+                      f'v: {self.train_value_metric.result().numpy():.7} - '
                       f'elapsed: {elapsed:.5}s')
                 start = default_timer()
 

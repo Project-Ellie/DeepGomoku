@@ -27,7 +27,7 @@ players:
 
   - name: white
     advice:
-      type: TOPOLOGICAL_VALUE
+      type: TOPOLOGICAL_VALUE # alternative: CANDIDATE: the newest n_cx, eg 5_c1
       advice_cutoff: .01
     mcts:
         cpuct: 4.0

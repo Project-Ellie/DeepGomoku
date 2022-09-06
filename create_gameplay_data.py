@@ -103,7 +103,7 @@ def one_game(game: Game, player1: Player, player2: Player,
         board, move = player.move(board)
 
         print(board)
-        if game.get_winner(board) is not None:
+        if game.get_winner(prev_board) is not None:
             break
 
         example = create_example(prev_board, player, eval_temperature)
