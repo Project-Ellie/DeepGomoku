@@ -1,7 +1,13 @@
+import tempfile
+from enum import Enum
+from typing import Dict
+
 import tensorflow as tf
 from keras import losses, optimizers, metrics
 import datetime as dt
 from timeit import default_timer
+
+from aegomoku.tfrecords import to_tfrecords, load_dataset
 
 
 class Trainer:
@@ -65,3 +71,53 @@ class Trainer:
 
         self.train_probs_metric(train_loss_p)
         self.train_value_metric(train_loss_v)
+
+
+class Focus(Enum):
+    TERMINAL_OPPORTUNITY = "TERMINAL_OPPORTUNITY"
+    TERMINAL_THREAT = "TERMINAL_THREAT"
+    ENDGAME = "ENDGAME"
+    ALL_GAMEPLAY = "ALL_GAMEPLAY"
+
+
+def create_curriculum(pickles_dir) -> Dict:
+    """
+    :param pickles_dir: directory containing the original game play pickle data
+    :return: dictionary of coiurses
+    """
+    def is_opportunity(_s, _p, v):
+        return v > .99
+
+    def is_threat(_s, _p, v):
+        return v < -.99
+
+    def is_endgame(_s, _p, v):
+        return -.8 > v > -.95 or .8 < v < .95
+
+    courses = {
+        Focus.TERMINAL_OPPORTUNITY: {'title': "Terminal Opportunities",
+                                     'filter': is_opportunity},
+        Focus.TERMINAL_THREAT: {'title': "Terminal Threats",
+                                'filter': is_threat},
+        Focus.ENDGAME: {'title': "General Endgame",
+                        'filter': is_endgame},
+        Focus.ALL_GAMEPLAY: {'title': "All Gameplay",
+                             'filter': None}
+    }
+
+    for course_type, course in courses.items():
+        print(f"Preparing course: {course['title']}")
+        tfrecords_dir = tempfile.mkdtemp()
+        tfrecords_files = to_tfrecords(pickles_dir, target_dir=tfrecords_dir, condition=course['filter'])
+
+        ds = load_dataset(tfrecords_files, batch_size=1)
+        count = 0
+        for _ in ds:
+            count += 1
+        course['num_examples'] = count
+        course['dataset'] = ds
+        course['data_dir'] = tfrecords_dir
+        print(f"Prepared course: {course['title']}: {count} examples")
+        print()
+
+    return courses
