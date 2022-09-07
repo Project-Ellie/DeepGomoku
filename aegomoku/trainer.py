@@ -80,8 +80,9 @@ class Focus(Enum):
     ALL_GAMEPLAY = "ALL_GAMEPLAY"
 
 
-def create_curriculum(pickles_dir) -> Dict:
+def create_curriculum(pickles_dir, batch_size) -> Dict:
     """
+    :param batch_size:
     :param pickles_dir: directory containing the original game play pickle data
     :return: dictionary of coiurses
     """
@@ -110,9 +111,10 @@ def create_curriculum(pickles_dir) -> Dict:
         tfrecords_dir = tempfile.mkdtemp()
         tfrecords_files = to_tfrecords(pickles_dir, target_dir=tfrecords_dir, condition=course['filter'])
 
-        ds = load_dataset(tfrecords_files, batch_size=1)
+        ds = load_dataset(tfrecords_files, batch_size=batch_size)
+        ds1 = load_dataset(tfrecords_files, batch_size=1)
         count = 0
-        for _ in ds:
+        for _ in ds1:
             count += 1
         course['num_examples'] = count
         course['dataset'] = ds
