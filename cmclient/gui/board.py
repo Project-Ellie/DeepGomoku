@@ -83,18 +83,12 @@ class UI:
                            [GRID_SIZE * middle + SIDE_BUFFER,
                             GRID_SIZE * middle + SIDE_BUFFER], 8)
 
-        (_, p_value), (_, m_value) = self.context.get_advice()
-
-        pygame.draw.rect(background, COLOR_WHITE, ((self.width - 125, 275), (100, 50)))
-        self.draw_text(background, str(round(float(p_value), 5)), self.width - 75, 300, COLOR_BLACK, 16)
-
-        pygame.draw.rect(background, COLOR_WHITE, ((self.width - 125, 350), (100, 50)))
-        self.draw_text(background, str(round(float(m_value), 5)), self.width - 75, 375, COLOR_BLACK, 16)
 
     def draw_field_names(self, background, color=COLOR_GRAY):
-        for i in range(1, self.board_size + 1):
 
-            wh = GRID_SIZE * (self.board_size + 1) + 2 * SIDE_BUFFER
+        wh = GRID_SIZE * (self.board_size + 1) + 2 * SIDE_BUFFER
+
+        for i in range(1, self.board_size + 1):
 
             char = chr(64 + i)
             self.draw_text(background, char, GRID_SIZE * i + SIDE_BUFFER, wh - GRID_SIZE // 2,
@@ -107,6 +101,12 @@ class UI:
                            color, 16)
             self.draw_text(background, char, GRID_SIZE//2, GRID_SIZE * i + SIDE_BUFFER,
                            color, 16)
+
+        aegomoku = pygame.image.load(self.base_path + "aegomoku1.png").convert_alpha()
+        aegomoku = pygame.transform.smoothscale(aegomoku, (144, 36))
+        background.blit(aegomoku, (wh-GRID_SIZE//2 + 60,
+                                   GRID_SIZE * self.board_size + SIDE_BUFFER + 35))
+
 
     def draw_text(self, background, text, x_pos, y_pos, font_color, font_size, bg=None):
         ff = pygame.font.Font(pygame.font.get_default_font(), font_size)
@@ -129,9 +129,6 @@ class UI:
         texture = pygame.image.load(self.base_path + "wooden_board.jpg").convert()
         texture = pygame.transform.smoothscale(texture, (self.width, self.height))
         background.blit(texture, (0, 0))
-
-        aegomoku = pygame.image.load(self.base_path + "aegomoku.png").convert()
-        background.blit(aegomoku, (500, 500))
 
         self.draw_grid(background)
         self.draw_field_names(background)
@@ -173,10 +170,18 @@ class UI:
             pygame.draw.rect(background, COLOR_RED, rect=rect, width=2)
 
     def draw_advice(self, background):
+        (p_advice, p_value), (m_advice, m_value) = self.context.get_advice()
+
+        pygame.draw.rect(background, COLOR_WHITE, ((self.width - 125, 275), (100, 50)))
+        self.draw_text(background, str(round(float(p_value), 5)), self.width - 75, 300, COLOR_BLACK, 16)
+
+        pygame.draw.rect(background, COLOR_WHITE, ((self.width - 125, 350), (100, 50)))
+        self.draw_text(background, str(round(float(m_value), 5)), self.width - 75, 375, COLOR_BLACK, 16)
+
         if self.show_advice == 'Policy':
-            advice, value = self.context.get_advice()[0]
+            advice = p_advice
         elif self.show_advice == 'MCTS':
-            advice, value = self.context.get_advice()[1]
+            advice = m_advice
         else:
             return
 
@@ -211,7 +216,8 @@ class UI:
     def run(self):
         is_running = True
 
-        new_image = self.redraw(None)
+        stones = self.context.board.get_stones()
+        new_image = self.redraw(stones)
 
         while is_running:
             time_delta = self.clock.tick(5)/1000.0

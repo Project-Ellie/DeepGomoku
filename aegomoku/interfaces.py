@@ -98,15 +98,15 @@ class PolicyAdviser(Adviser):
 
 
 class Move:
-    i: int
     r: int
     c: int
     field_size: int
 
 
-    def __init__(self, x, y):
+    def __init__(self, x, y, i):
         self.x = x
         self.y = y
+        self.i = i
 
 
 class Board:  # (abc.ABC):

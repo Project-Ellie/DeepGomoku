@@ -1,16 +1,17 @@
 from aegomoku.game_play import GamePlay
-from aegomoku.gomoku_board import GomokuBoard
 from aegomoku.gomoku_game import GomokuGame
 from aegomoku.interfaces import Move
 from cmclient.ai import get_player
 
 
 class GameContext:
-    def __init__(self, game: GomokuGame):
+    def __init__(self, game: GomokuGame, ai, num_simu):
         self.game = game
-        self.ai, self.mcts, self.advice = get_player(game)
-        self.game_play = GamePlay([])
-        self.board = GomokuBoard(game.board_size)
+        self.num_simu = num_simu
+        self.ai_spec = ai
+        self.ai, self.mcts, self.advice = get_player(game, ai, num_simu)
+        self.board = game.get_initial_board()
+        self.game_play = GamePlay([s.i for s in self.board.stones])
         self.winner = None
         self.ai_active = True
         self.temperature = 1.0
@@ -24,7 +25,7 @@ class GameContext:
         return (p_advice, p_value), (m_advice, m_value)
 
     def new_game(self):
-        self.ai, self.mcts, self.advice = get_player(self.game)
+        self.ai, self.mcts, self.advice = get_player(self.game, self.ai_spec, self.num_simu)
         self.board = self.game.get_initial_board()
         self.game_play = GamePlay([stone.i for stone in self.board.stones])
         self.winner = None
@@ -74,7 +75,7 @@ class GameContext:
             return self.board.get_stones()
 
         if self.ai is None:
-            self.ai, self.mcts, self.advice = get_player(self.game)
+            self.ai, self.mcts, self.advice = get_player(self.game, self.ai_spec, self.num_simu)
 
         _, move = self.ai.move(self.board)
         self.game_play.fwd(move)
