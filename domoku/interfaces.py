@@ -1,7 +1,7 @@
 import abc
 from typing import Any, Optional, List
 
-from domoku.constants import Move
+from aegomoku.interfaces import Move
 
 
 class Game(abc.ABC):

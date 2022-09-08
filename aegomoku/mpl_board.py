@@ -34,6 +34,8 @@ class MplBoard:
         self.stones = []
         self.current_color = BLACK
         self.cursor = -1
+        if len(stones) > 0 and isinstance(stones[0], Move):
+            stones = [(s.x, s.y) for s in stones]
         for stone in stones:
             self.set(*stone)
 
