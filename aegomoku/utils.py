@@ -17,7 +17,8 @@ def analyse_board(board_size, stones, policy, suppress_move_numbers=False, disp_
 
 def stones_from_example(example) -> Tuple[List[int], str]:
 
-    s, p, v = example
+    s, _, _ = example
+    s = np.squeeze(s)
     board_size = s.shape[0] - 2
     n_current = np.sum(s[:, :, 0], axis=None)
     n_other = np.sum(s[:, :, 1], axis=None)

@@ -12,6 +12,7 @@ class MctsParams:
     def __init__(self, cpuct: float, temperature: float, num_simulations: int):
         self.cpuct = cpuct
         self.num_simulations = num_simulations
+        assert temperature == 0 or temperature > .1, "Temperature near but not exactly zero are numerically instable."
         self.temperature = temperature
 
 
@@ -98,10 +99,14 @@ class PolicyAdviser(Adviser):
 
 class Move:
     i: int
-    x: int
-    y: int
     r: int
     c: int
+    field_size: int
+
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
 
 
 class Board:  # (abc.ABC):
@@ -186,7 +191,6 @@ class Player:  # (abc.ABC):
         :return:
         """
         pass
-
 
 
 class TerminalDetector(abc.ABC):

@@ -71,6 +71,7 @@ class GomokuBoard(Board):
                         r, c = divmod(r_x, self.board_size)
                         x, y = None, None
                     else:
+                        print(f"Got {r_x} of type {type(r_x)}")
                         raise ValueError("If a single argument is provided, "
                                          "it must be a string or integer representation of the move.")
 
@@ -96,6 +97,8 @@ class GomokuBoard(Board):
 
                 # single-digit representation for vector operations in the ML game_context
                 self.i = self.r * self.board_size + self.c
+                self.x = x
+                self.y = y
 
             def __str__(self):
                 return f"{chr(self.c+65)}{self.board_size-self.r}"

@@ -48,7 +48,22 @@ class PolicyAdvisedGraphSearchPlayer(Player):
 
         temperature = temperature if temperature is not None else self.mcts.params.temperature
         probs = self.mcts.get_action_prob(board, temperature=temperature)
-        move = board.stone(np.random.choice(list(range(board.board_size**2)), p=probs))
+
+        patience = 5
+        move = None
+
+        while patience > 0:
+            move = board.stone(np.random.choice(list(range(board.board_size**2)), p=probs))
+            if move not in board.get_stones():
+                break
+            patience -= 1
+
+        if move is None:
+            # TODO: Are there more reasonable alternatives?
+            print("Truly sorry, but on...")
+            print(board.get_stones())
+            raise ArithmeticError("I can't find a possible move anymore")
+
         board.act(move)
         return board, move
 

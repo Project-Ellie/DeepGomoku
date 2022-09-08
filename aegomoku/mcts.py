@@ -212,6 +212,8 @@ class MCTS:
         if advisable is None:
             inputs = np.expand_dims(board.canonical_representation(), 0).astype(float)
             advisable = self.adviser.get_advisable_actions(inputs)
+            advisable = set(advisable).difference([s.i for s in board.get_stones()])
+
             self.As[s] = advisable
 
         return [board.stone(i) for i in advisable]
