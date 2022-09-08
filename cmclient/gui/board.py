@@ -130,6 +130,9 @@ class UI:
         texture = pygame.transform.smoothscale(texture, (self.width, self.height))
         background.blit(texture, (0, 0))
 
+        aegomoku = pygame.image.load(self.base_path + "aegomoku.png").convert()
+        background.blit(aegomoku, (500, 500))
+
         self.draw_grid(background)
         self.draw_field_names(background)
         if stones is not None and len(stones) > 0:
