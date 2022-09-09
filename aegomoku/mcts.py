@@ -209,7 +209,7 @@ class MCTS:
     def probable_actions(self, board: Board) -> List:
         s = board.get_string_representation()
         advisable = self.As.get(s)
-        if advisable is None:
+        if advisable is None or len(advisable) == 0:
             inputs = np.expand_dims(board.canonical_representation(), 0).astype(float)
             advisable = self.adviser.get_advisable_actions(inputs)
             advisable = set(advisable).difference([s.i for s in board.get_stones()])
@@ -245,6 +245,9 @@ class MCTS:
                 if u > cur_best:
                     cur_best = u
                     best_act = a
+
+        if best_act is None:
+            print("Oops!")
 
         return board.stone(best_act), debug_info
 

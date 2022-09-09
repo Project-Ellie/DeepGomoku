@@ -320,7 +320,12 @@ class GomokuBoard(Board):
 
 
 def stones_from_example(example) -> Tuple[List[int], str]:
-
+    """
+    encodes the stones as a sorted list of 1-dim positions, where black positions come with negative numbers.
+    Note that different trajectories may lead to the same result here, which is intended!
+    :param example:
+    :return:
+    """
     s, _, _ = example
     s = np.squeeze(s)
     board_size = s.shape[0] - 2
@@ -339,7 +344,7 @@ def stones_from_example(example) -> Tuple[List[int], str]:
     stones = []
     while True:
         try:
-            stones.append(int(blacks.pop()))
+            stones.append(-int(blacks.pop()))
             stones.append(int(whites.pop()))
         except IndexError:
             break
