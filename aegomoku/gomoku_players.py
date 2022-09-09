@@ -19,14 +19,24 @@ class PolicyAdvisedGraphSearchPlayer(Player):
         self.opponent: Optional[Player] = None
         self.name = name
         self.game = game
+        self.mcts_params = mcts_params
         if policy_params.model_file_name is not None:
             model = tf.keras.models.load_model(policy_params.model_file_name)
             self.advisor = PolicyAdviser(model=model, params=policy_params)
         else:
             self.advisor = HeuristicPolicy(board_size=game.board_size, n_fwll=2)
 
-        self.mcts = MCTS(game, self.advisor, mcts_params)
+        self.mcts = self.refresh()
+
         super().__init__()
+
+
+    def refresh(self):
+        """
+        resets all persistent state
+        :return:
+        """
+        return MCTS(self.game, self.advisor, self.mcts_params)
 
 
     def meet(self, other: Player):

@@ -41,6 +41,14 @@ class UI:
         self.show_advice = "Policy"
         self.base_path = base_path
 
+        self.clock = pygame.time.Clock()
+
+        self.window_surface = None
+        self.manager = None
+        self.new_game_button = None
+        self.pass_button = None
+        self.advice_button = None
+
     def show(self, title):
         pygame.init()
 
@@ -61,8 +69,6 @@ class UI:
                                                                 options_list=['Policy', 'MCTS', "None"],
                                                                 starting_option='Policy',
                                                                 manager=self.manager)
-
-        self.clock = pygame.time.Clock()
 
         self.run()
 

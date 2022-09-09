@@ -64,7 +64,7 @@ def prepare():
     pass
 
 
-def create_gameplay_data(game, player1, player2, params, seqno):
+def create_gameplay_data(game, player1: Player, player2: Player, params, seqno):
     output_dir = params['output_dir']
     logger.info(f"Writing results to directory: {output_dir}")
     temperature = params['eval_temperature']
@@ -75,6 +75,10 @@ def create_gameplay_data(game, player1, player2, params, seqno):
             one_game_data = one_game(game, player1, player2, temperature, max_moves)
             gameplay_data.append(one_game_data)
             Pickler(f).dump(one_game_data)
+
+            player1, player2 = player2, player1
+            player1.refresh()
+            player2.refresh()
 
     return gameplay_data
 

@@ -183,6 +183,14 @@ class Player:  # (abc.ABC):
         pass
 
     @abc.abstractmethod
+    def refresh(self):
+        """
+        Reset all persistent state to 'factory settings'
+        :return: May return whatever is representing the new fresh state
+        """
+        pass
+
+    @abc.abstractmethod
     def evaluate(self, board: Board, temperature: float):
         """
         Provide an opinion about the board - typically from MCTS stats

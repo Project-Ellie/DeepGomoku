@@ -36,7 +36,7 @@ players:
 
 
 process:
-  num_trajectories_per_file: 50
-  max_moves: 80
+  num_trajectories_per_file: 10
+  max_moves: 60
   eval_temperature: 2.0
   output_dir: /home/wgiersche/workspace/Project-Ellie/DATA1/

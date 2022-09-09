@@ -73,53 +73,62 @@ class Trainer:
         self.train_value_metric(train_loss_v)
 
 
-class Focus(Enum):
-    TERMINAL_OPPORTUNITY = "TERMINAL_OPPORTUNITY"
-    TERMINAL_THREAT = "TERMINAL_THREAT"
-    ENDGAME = "ENDGAME"
-    ALL_GAMEPLAY = "ALL_GAMEPLAY"
+TERMINAL_OPPORTUNITY = "TERMINAL_OPPORTUNITY"
+TERMINAL_THREAT = "TERMINAL_THREAT"
+ENDGAME = "ENDGAME"
+ALL_GAMEPLAY = "ALL_GAMEPLAY"
+ALL_COURSES = [TERMINAL_OPPORTUNITY, TERMINAL_THREAT, ENDGAME, ALL_GAMEPLAY]
 
 
-def create_curriculum(pickles_dir, batch_size) -> Dict:
+def create_curriculum(pickles_dir, batch_size, *focus) -> Dict:
     """
+    :param kwargs: one or more Focus values
     :param batch_size:
     :param pickles_dir: directory containing the original game play pickle data
     :return: dictionary of coiurses
     """
+
+    # referencing the name is necessary as in Jupyter, enums are not necessarily equal although they appear to be.
+    # The reason is obviously that they are instantiated more than once in a multi-process environment
+    if len(focus) == 0:
+        focus = ALL_COURSES
+
     def is_opportunity(_s, _p, v):
-        return v > .99
+        return v > .9999
 
     def is_threat(_s, _p, v):
-        return v < -.99
+        return v < -.95
 
     def is_endgame(_s, _p, v):
-        return -.8 > v > -.95 or .8 < v < .95
+        return -.8 > v < .8
+
 
     courses = {
-        Focus.TERMINAL_OPPORTUNITY: {'title': "Terminal Opportunities",
-                                     'filter': is_opportunity},
-        Focus.TERMINAL_THREAT: {'title': "Terminal Threats",
-                                'filter': is_threat},
-        Focus.ENDGAME: {'title': "General Endgame",
-                        'filter': is_endgame},
-        Focus.ALL_GAMEPLAY: {'title': "All Gameplay",
-                             'filter': None}
+        TERMINAL_OPPORTUNITY: {'title': "Terminal Opportunities",
+                               'filter': is_opportunity},
+        TERMINAL_THREAT: {'title': "Terminal Threats",
+                          'filter': is_threat},
+        ENDGAME: {'title': "General Endgame",
+                  'filter': is_endgame},
+        ALL_GAMEPLAY: {'title': "All Gameplay",
+                       'filter': None}
     }
 
     for course_type, course in courses.items():
-        print(f"Preparing course: {course['title']}")
-        tfrecords_dir = tempfile.mkdtemp()
-        tfrecords_files = to_tfrecords(pickles_dir, target_dir=tfrecords_dir, condition=course['filter'])
+        if course_type in focus:
+            print(f"Preparing course: {course['title']}")
+            tfrecords_dir = tempfile.mkdtemp()
+            tfrecords_files = to_tfrecords(pickles_dir, target_dir=tfrecords_dir, condition=course['filter'])
 
-        ds = load_dataset(tfrecords_files, batch_size=batch_size)
-        ds1 = load_dataset(tfrecords_files, batch_size=1)
-        count = 0
-        for _ in ds1:
-            count += 1
-        course['num_examples'] = count
-        course['dataset'] = ds
-        course['data_dir'] = tfrecords_dir
-        print(f"Prepared course: {course['title']}: {count} examples")
-        print()
+            ds = load_dataset(tfrecords_files, batch_size=batch_size)
+            ds1 = load_dataset(tfrecords_files, batch_size=1)
+            count = 0
+            for _ in ds1:
+                count += 1
+            course['num_examples'] = count
+            course['dataset'] = ds
+            course['data_dir'] = tfrecords_dir
+            print(f"Prepared course: {course['title']}: {count} examples")
+            print()
 
     return courses

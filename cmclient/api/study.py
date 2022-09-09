@@ -14,7 +14,7 @@ class StudyHandler:
         self.config = config
         self.current_state = initializer.initial_stones()
         self.board = GomokuBoard(config.board_size, stones=self.current_state)
-        stones = gt.string_to_stones(self.current_state)
+        stones = gt.string_to_stones(self.current_state) if self.current_state != "" else []
         self.game_play = GamePlay([self.board.Stone(*coords).i for coords in stones])
         self.game = GomokuGame(board_size=config.board_size, initializer=initializer)
         self.context = GameContext(self.game, ai, num_simu)
