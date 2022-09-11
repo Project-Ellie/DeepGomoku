@@ -1,11 +1,12 @@
 from aegomoku.interfaces import Board
+from aegomoku.policies.topological_value import TopologicalValuePolicy
 from aegomoku.ray.policy import StatefulRayPolicy
 from aegomoku.policies.heuristic_policy import HeuristicPolicy
 
 
 class HeuristicRayPolicy(StatefulRayPolicy):
     def init(self, *args, **kwargs):
-        self.policy = HeuristicPolicy(*args, **kwargs)
+        self.policy = TopologicalValuePolicy(*args, **kwargs)
 
     def get_winner(self, board: Board, **_):
         return self.policy.get_winner(board)

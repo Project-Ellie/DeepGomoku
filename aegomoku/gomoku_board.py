@@ -1,6 +1,5 @@
-from typing import List, Union, Callable
+from typing import List, Union, Callable, Tuple
 
-import bitarray
 import numpy as np
 from aegomoku.interfaces import Board, Move
 
@@ -71,6 +70,7 @@ class GomokuBoard(Board):
                         r, c = divmod(r_x, self.board_size)
                         x, y = None, None
                     else:
+                        print(f"Got {r_x} of type {type(r_x)}")
                         raise ValueError("If a single argument is provided, "
                                          "it must be a string or integer representation of the move.")
 
@@ -96,6 +96,11 @@ class GomokuBoard(Board):
 
                 # single-digit representation for vector operations in the ML game_context
                 self.i = self.r * self.board_size + self.c
+                self.x = x
+                self.y = y
+
+                super().__init__(x, y, self.i)
+
 
             def __str__(self):
                 return f"{chr(self.c+65)}{self.board_size-self.r}"
@@ -254,13 +259,16 @@ class GomokuBoard(Board):
 
     __repr__ = __str__
 
+
     def get_string_representation(self):
         """
         :return: hash string of the board bits. Note that we don't use the moves,
          because the order of the moves must not matter for this method.
         """
-        bita = bitarray.bitarray(list(self.math_rep.flatten()))
-        return str(hash(str(bita)))
+        example = self.math_rep, [], 0
+        stones, current = stones_from_example(example)
+        res = str(sorted(stones))
+        return res
 
     def get_legal_actions(self):
         """
@@ -308,26 +316,36 @@ class GomokuBoard(Board):
         assert isinstance(stone, Move), "Can only remove Move instances."
         self.math_rep[stone.r+1, stone.c+1] = [0, 0, 0]
         self.stones.remove(stone)
+        self.swap()
 
-# convenience for playing on the console
 
-
-A = 'A'
-B = 'B'
-C = 'C'
-D = 'D'
-E = 'E'
-F = 'F'
-G = 'G'
-H = 'H'
-I = 'I'  # noqa
-J = 'J'
-K = 'K'
-L = 'L'
-M = 'M'
-N = 'N'
-O = 'O'  # noqa
-P = 'P'
-Q = 'Q'
-R = 'R'
-S = 'S'
+def stones_from_example(example) -> Tuple[List[int], str]:
+    """
+    encodes the stones as a sorted list of 1-dim positions, where black positions come with negative numbers.
+    Note that different trajectories may lead to the same result here, which is intended!
+    :param example:
+    :return:
+    """
+    s, _, _ = example
+    s = np.squeeze(s)
+    board_size = s.shape[0] - 2
+    n_current = np.sum(s[:, :, 0], axis=None)
+    n_other = np.sum(s[:, :, 1], axis=None)
+    if n_other == n_current:
+        current = 'BLACK'
+        black = 0
+    else:
+        current = 'WHITE'
+        black = 1
+    whites = np.where(s[:, :, 1 - black] == 1)
+    blacks = np.where(s[:, :, black] == 1)
+    whites = list((whites[0] - 1) * board_size + whites[1]-1)
+    blacks = list((blacks[0] - 1) * board_size + blacks[1]-1)
+    stones = []
+    while True:
+        try:
+            stones.append(-int(blacks.pop()))
+            stones.append(int(whites.pop()))
+        except IndexError:
+            break
+    return stones, current

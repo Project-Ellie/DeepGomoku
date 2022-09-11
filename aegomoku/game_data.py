@@ -1,5 +1,5 @@
 from pickle import Unpickler
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Callable
 
 import numpy as np
 import tensorflow as tf
@@ -8,7 +8,7 @@ from aegomoku.gomoku_board import GomokuBoard
 from aegomoku.gomoku_game import GomokuGame
 
 
-def read_training_data(filename: str, board_size: int):
+def read_training_data(filename: str, condition: Callable = None):
     """
     Reads training data as
         stones: array(np.uint8) of flat board positions of subsequent moves up until that state
@@ -16,26 +16,41 @@ def read_training_data(filename: str, board_size: int):
         values: float
     from file and returns eight (N+2)x(N+2) position symmetries and the corresponding probabilities and values
     as a straight array of (state, probabiltiy (float), value(float)) triples
+    :param condition: a filter condition (s, p, v)->bool
     :param filename: file name
-    :param board_size: board size
-    :return: Array of (state, probabiltiy (float), value(float)) triples
+    :return: Array of (state, probabiltiy (float), value(float)) triples and an list of the game trajectories
     """
     all_examples = []
-    game = GomokuGame(board_size, None)
+    all_games = []
     with open(filename, "rb") as file:
         while True:
             try:
-                traj = Unpickler(file).load()
-                all_examples += expand_trajectory(game, board_size, traj)
+                trajectory = Unpickler(file).load()
+                all_examples += expand_trajectory(trajectory, condition)
+                first, stones, _ = trajectory
+                all_games.append((first, stones))
 
             except EOFError:
-                return all_examples
+                return all_examples, all_games
 
 
-def expand_trajectory(game, board_size, trajectory):
+def expand_trajectory(trajectory, condition: Callable = None):
+    """
+    read the training data from the trajectory record, ignore name and stones. They're for analysis purposes.
+    :param trajectory: A record like (name, stones, positions) where positions are like (stones, probs, value)
+    :param condition: a predicate function that defines whether to consider a particular tuple of (stones, prob, value)
+    :return: fully expanded (from symmetries) examples (state, pred, value)
+    """
     examples = []
+
+    _, _, trajectory = trajectory
     for position in trajectory:
         stones, probs, value = position
+        if condition is not None:
+            if not condition(stones, probs, value):
+                continue
+        board_size = np.sqrt(probs.shape[0]).astype(int)
+        game = GomokuGame(board_size)
         probabilities = probs / 255.
         state = GomokuBoard(board_size, stones).canonical_representation()
         symmetries = game.get_symmetries(state, probabilities)

@@ -8,7 +8,7 @@ from aegomoku.policies.primary_detector import PrimaryDetector
 
 class HeuristicPolicy(tf.keras.Model, Adviser, TerminalDetector):
 
-    def __init__(self, board_size: int, cut_off: float = 0.8):
+    def __init__(self, board_size: int, cut_off: float = 0.8, n_fwll: int = 1):
         """
         :param board_size:
         :param cut_off: discard advisable actions with probability less than cut_off * highest
@@ -16,6 +16,8 @@ class HeuristicPolicy(tf.keras.Model, Adviser, TerminalDetector):
 
         self.board_size = board_size
         self.cut_off = cut_off
+        self.n_fwll = n_fwll
+
         super().__init__()
 
         self.peel = tf.keras.layers.Conv2D(
@@ -56,7 +58,10 @@ class HeuristicPolicy(tf.keras.Model, Adviser, TerminalDetector):
 
 
     def logits(self, s):
-        raw = self.fwll(self.detector(s)) + self.influence(s) * self.influence_weight # noqa
+        raw = self.detector.call(s)
+        for i in range(self.n_fwll):
+            raw = self.fwll.call(raw)
+        raw = raw + self.influence(s) * self.influence_weight # noqa
         logits_c = self.squeeze_and_peel(raw, 3)
         logits_o = self.squeeze_and_peel(raw, 4)
         return logits_c, logits_o

@@ -1,17 +1,17 @@
-from typing import Callable, List
+from typing import Callable
 import tensorflow as tf
 import numpy as np
-from pydantic import BaseModel
 
 from aegomoku.policies.radial import radial_3xnxn, radial_2xnxn
 
 
-class MaxInfluencePolicyParams(BaseModel):
-    board_size: int  # board n
-    radial_constr: List[float]
-    radial_obstr: List[float]
-    sigma: float  # Preference for offensive play, 1 >= sigma > 0
-    iota: float  # The greed. Higher values make exploitation less likely. 50 is a good start
+class MaxInfluencePolicyParams:
+    def __init__(self, board_size, radial_constr, radial_obstr, sigma, iota):
+        self.board_size = board_size
+        self.radial_constr = radial_constr
+        self.radial_obstr = radial_obstr
+        self.sigma = sigma
+        self.iota = iota
 
 
 class NaiveInfluenceLayer(tf.keras.layers.Layer, Callable):

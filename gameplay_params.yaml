@@ -1,0 +1,45 @@
+game:
+  board_size: 19
+  opening:
+    # alternative (one fine day): swap2
+    initializer:
+      type: random
+      num_stones: 4
+      left: 7
+      right: 11
+      upper: 7
+      lower: 11
+
+      # alternative
+      # type: constant
+      # stones: H8G7I7F7 or so
+
+players:
+  - name: P400_1.5
+    advice:
+      type: TOPOLOGICAL_VALUE
+      advice_cutoff: .02
+      kappa_d: 5
+      kappa_s: 6
+    mcts:
+        cpuct: 1.5
+        num_simulations: 400
+        temperature: .0
+
+  - name: P200_1.0
+    advice:
+      type: TOPOLOGICAL_VALUE
+      advice_cutoff: .02
+      kappa_d: 5
+      kappa_s: 6
+    mcts:
+        cpuct: 1.0
+        num_simulations: 200
+        temperature: 0.
+
+
+process:
+  num_trajectories_per_file: 40
+  max_moves: 80
+  eval_temperature: 3.0
+  output_dir: workspace/Project-Ellie/DATA/selfplay/0

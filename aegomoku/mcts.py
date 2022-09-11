@@ -29,7 +29,7 @@ class MCTS:
         self.Ns = {}  # stores #times board s was visited
         self.Ps = {}  # stores initial policy (returned by neural net)
 
-        self.Es = {}  # stores game.get_game_ended ended for state s
+        self.Es = {}  # stores game.get_winner  for state s
         self.Vs = {}  # stores game.get_valid_moves for state s
         self.As = {}  # stores the policy's advice for state s
         if verbose > 0:
@@ -107,8 +107,8 @@ class MCTS:
         # if I don't know whether this state is terminal...
         if s not in self.Es:
             # ... find out
-            self.Es[s] = self.game.get_game_ended(board)
-            # winner = "BLACK (0)" if self.game.get_game_ended(board) == 0 else 'WHITE (1)'
+            self.Es[s] = self.game.get_winner(board)
+            # winner = "BLACK (0)" if self.game.get_winner(board) == 0 else 'WHITE (1)'
 
         # Now, if it is terminal, ...
         if self.Es[s] is not None:
@@ -209,9 +209,11 @@ class MCTS:
     def probable_actions(self, board: Board) -> List:
         s = board.get_string_representation()
         advisable = self.As.get(s)
-        if advisable is None:
+        if advisable is None or len(advisable) == 0:
             inputs = np.expand_dims(board.canonical_representation(), 0).astype(float)
             advisable = self.adviser.get_advisable_actions(inputs)
+            advisable = set(advisable).difference([s.i for s in board.get_stones()])
+
             self.As[s] = advisable
 
         return [board.stone(i) for i in advisable]
@@ -243,6 +245,9 @@ class MCTS:
                 if u > cur_best:
                     cur_best = u
                     best_act = a
+
+        if best_act is None:
+            print("Oops!")
 
         return board.stone(best_act), debug_info
 
