@@ -73,8 +73,8 @@ def create_gameplay_data(game, player1: Player, player2: Player, params, seqno):
     max_moves = params['max_moves']
     gameplay_data = []
     with open(os.path.join(output_dir, f"{seqno:05}.pickle"), 'wb+') as f:
-        for _ in range(params['num_trajectories_per_file']):
-            one_game_data = one_game(game, player1, player2, temperature, max_moves)
+        for seqno in range(params['num_trajectories_per_file']):
+            one_game_data = one_game(seqno, game, player1, player2, temperature, max_moves)
             gameplay_data.append(one_game_data)
             Pickler(f).dump(one_game_data)
 
@@ -96,9 +96,10 @@ def create_example(the_board: Board, player: Player, temperature: float):
     return position, probs, value
 
 
-def one_game(game: Game, player1: Player, player2: Player,
+def one_game(seqno: int, game: Game, player1: Player, player2: Player,
              eval_temperature: float, max_moves: int):
     """
+    :param seqno: A sequence number for the game in the file
     :param game:
     :param player1: the player to make the first move
     :param player2: the other player
@@ -116,7 +117,7 @@ def one_game(game: Game, player1: Player, player2: Player,
         prev_board = copy.deepcopy(board)
         board, move = player.move(board)
 
-        print(board)
+        print(f"{seqno:02}: {board}")
         if game.get_winner(prev_board) is not None:
             break
 
