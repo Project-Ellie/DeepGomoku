@@ -147,7 +147,7 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
         :return: List of integers representing the avisable moves
         """
         cut_off = cut_off if cut_off is not None else self.advice_cutoff
-        reduction = reduction if reduction is not None else self.noise_reduction
+        # reduction = reduction if reduction is not None else self.noise_reduction
         percent_secondary = percent_secondary if percent_secondary is not None else self.percent_secondary
         min_secondary = min_secondary if min_secondary is not None else self.min_secondary
 
@@ -155,8 +155,8 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
         max_prob = np.max(probs, axis=None)
         probs = np.squeeze(probs)
 
-        noise = np.min(probs, axis=None)
-        probs = tf.keras.activations.relu(probs - reduction * noise)
+        # noise = np.min(probs, axis=None)
+        # probs = tf.keras.activations.relu(probs - reduction * noise)
 
         threshold = max_prob * cut_off
 
@@ -168,7 +168,7 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
         secondary = [int(n) for n in underdogs.nonzero()[0]]
 
         # stretch to increase the softmax focus
-        subset = probs.numpy()[secondary]
+        subset = probs[secondary]
 
         # rule out the lowest of the lower quality moves
 

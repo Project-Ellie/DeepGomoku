@@ -1,5 +1,4 @@
 import tempfile
-from enum import Enum
 from typing import Dict
 
 import tensorflow as tf
@@ -30,7 +29,6 @@ class Trainer:
         self.train_value_metric = train_value_metric
         self.test_probs_metric = test_probs_metric
         self.test_value_metric = test_value_metric
-
 
     def train(self, train_data_set, epochs_per_train=100, report_every=100, v_weight=10.):
         current_time = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -82,9 +80,9 @@ ALL_COURSES = [TERMINAL_OPPORTUNITY, TERMINAL_THREAT, ENDGAME, ALL_GAMEPLAY]
 
 def create_curriculum(pickles_dir, batch_size, *focus) -> Dict:
     """
-    :param kwargs: one or more Focus values
-    :param batch_size:
+    Recursively searches the pickles_dir for "*.pickles* files and creates a curriculum using the given focus
     :param pickles_dir: directory containing the original game play pickle data
+    :param batch_size:
     :return: dictionary of coiurses
     """
 
@@ -100,8 +98,7 @@ def create_curriculum(pickles_dir, batch_size, *focus) -> Dict:
         return v < -.95
 
     def is_endgame(_s, _p, v):
-        return -.8 > v < .8
-
+        return -.8 > v or v > .8
 
     courses = {
         TERMINAL_OPPORTUNITY: {'title': "Terminal Opportunities",

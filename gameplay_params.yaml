@@ -42,4 +42,4 @@ process:
   num_trajectories_per_file: 40
   max_moves: 80
   eval_temperature: 3.0
-  output_dir: workspace/Project-Ellie/DATA/selfplay/0.1
+  output_dir: workspace/Project-Ellie/DATA/selfplay/0

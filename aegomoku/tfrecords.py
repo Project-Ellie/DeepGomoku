@@ -69,7 +69,7 @@ def to_tfrecords(source, target_dir=None, condition: Callable = None) -> List[st
         target_dir = Path(tempfile.mkdtemp())
 
     if os.path.isdir(source):
-        filenames = [(Path(source).resolve() / file).as_posix() for file in os.listdir(source)]
+        filenames = [(Path(source).resolve() / file).as_posix() for file in list(source.rglob("*.pickle"))]
     elif isinstance(source, Iterable):
         filenames = [Path(file).resolve().as_posix() for file in source]
     else:
@@ -79,7 +79,7 @@ def to_tfrecords(source, target_dir=None, condition: Callable = None) -> List[st
     for filename in tqdm(filenames):
 
         name = Path(filename).stem
-        examples = read_training_data(filename, condition)
+        examples, _ = read_training_data(filename, condition)
         outfile = os.path.join(target_dir, '.'.join([name, 'tfrecords']))
         outfiles.append(outfile)
         with tf.io.TFRecordWriter(outfile) as writer:

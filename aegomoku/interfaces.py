@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import abc
 from typing import Tuple, Optional
-from pydantic import BaseModel
 import numpy as np
 from keras import models
 
@@ -25,23 +24,6 @@ class PolicyParams:
 class IllegalMoveException(Exception):
     def __int__(self, message):
         super().__init__(message)
-
-
-class TrainParams(BaseModel):
-    update_threshold: float  # During arena play, new neural net will be accepted if threshold or more games are won.
-    max_queue_length: int    # Number of game examples to train the neural networks.
-
-    epochs_per_train: int
-    num_iterations: int
-    num_episodes: int
-    num_simulations: int     # Number of games moves for MCTS to simulate.
-    arena_compare: int       # Number of games to play during arena play to determine if new net will be accepted.
-    temperature_threshold: float
-    cpuct: float
-    checkpoint_dir: str
-    load_model: bool
-    load_folder_file: Tuple[str, str]
-    num_iters_for_train_examples_history: int
 
 
 class Adviser:  # (abc.ABC):
