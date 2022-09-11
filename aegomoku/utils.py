@@ -9,8 +9,14 @@ from aegomoku.mpl_board import MplBoard
 
 def analyse_board(board_size, stones, policy, suppress_move_numbers=False, disp_width: float = 6, policy_cutoff=50):
     if all([isinstance(i, (np.integer, int)) for i in stones]):
-        stones = [gt.m2b2(divmod(i, 15), 15) for i in stones]
-    lb = MplBoard(n=board_size, disp_width=disp_width, stones=stones, heuristics=policy,
+        b2 = []
+        for i in stones:
+            stone = gt.m2b2(divmod(i, board_size), board_size)
+            b2.append(stone)
+    else:
+        b2 = stones
+
+    lb = MplBoard(n=board_size, disp_width=disp_width, stones=b2, policy=policy,
                   suppress_move_numbers=suppress_move_numbers, policy_cutoff=policy_cutoff)
     lb.display()
 
@@ -42,8 +48,9 @@ def stones_from_example(example) -> Tuple[List[int], str]:
     return stones, current
 
 
-def analyse_example(board_size, example, disp_width=7.5, policy_cutoff=50):
+def analyse_example(example, disp_width=7.5, policy_cutoff=50):
     s, p, v = example
+    board_size = int(np.sqrt(len(p)))
     stones, current = stones_from_example(example)
     analyse_board(board_size, stones, policy=p, suppress_move_numbers=True, disp_width=disp_width,
                   policy_cutoff=policy_cutoff)

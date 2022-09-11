@@ -2,6 +2,7 @@ import argparse
 import copy
 import logging
 import os
+from pathlib import Path
 from pickle import Pickler
 
 import numpy as np
@@ -10,8 +11,8 @@ from yaml import Loader
 
 from aegomoku.gomoku_game import RandomBoardInitializer, GomokuGame, ConstantBoardInitializer
 from aegomoku.gomoku_players import PolicyAdvisedGraphSearchPlayer
-from aegomoku.interfaces import MctsParams, PolicyParams, Player, Board, Game
-
+from aegomoku.interfaces import MctsParams, PolicyParams, Player, Board, Game, PolicyAdviser
+from aegomoku.policies.topological_value import TopologicalValuePolicy
 
 parser = argparse.ArgumentParser(description="Create Selfplay data with a given parameter config")
 parser.add_argument('--params', '-p', action='store', default="gameplay_params.yaml",
@@ -65,7 +66,8 @@ def prepare():
 
 
 def create_gameplay_data(game, player1: Player, player2: Player, params, seqno):
-    output_dir = params['output_dir']
+    output_dir = Path.home() / params['output_dir'] / os.uname()[1]
+    os.makedirs(output_dir, exist_ok=True)
     logger.info(f"Writing results to directory: {output_dir}")
     temperature = params['eval_temperature']
     max_moves = params['max_moves']
@@ -96,6 +98,14 @@ def create_example(the_board: Board, player: Player, temperature: float):
 
 def one_game(game: Game, player1: Player, player2: Player,
              eval_temperature: float, max_moves: int):
+    """
+    :param game:
+    :param player1: the player to make the first move
+    :param player2: the other player
+    :param eval_temperature: the temperature at which to read the MCTS scores
+    :param max_moves: games are considered draw when no winner after this
+    :return: tuple: Player1 name,
+    """
     game_data = []
     board = game.get_initial_board()
     player2.meet(player1)
@@ -115,7 +125,7 @@ def one_game(game: Game, player1: Player, player2: Player,
 
         player = player.opponent
 
-    return game_data
+    return player1.name, [s.i for s in board.get_stones()], game_data
 
 
 def create_players(game, player1, player2):
@@ -131,25 +141,31 @@ def create_players(game, player1, player2):
 
         if advice['type'] == 'TOPOLOGICAL_VALUE':
             advice_cutoff = advice['advice_cutoff']
+            kappa_d = advice['kappa_d']
+            kappa_s = advice['kappa_s']
             policy_params = PolicyParams(model_file_name=None, advice_cutoff=advice_cutoff)
+            policy = TopologicalValuePolicy(kappa_s=kappa_s, kappa_d=kappa_d)
+            adviser = PolicyAdviser(model=policy, params=policy_params)
         else:
             raise ValueError("Advice type not supported yet.")
 
-        players.append(PolicyAdvisedGraphSearchPlayer(name, game, mcts_params, policy_params))
+        players.append(PolicyAdvisedGraphSearchPlayer(name, game, mcts_params, adviser=adviser))
 
     return players
 
 
 def main():
 
+    # np.warnings.filterwarnings('error', category=np.VisibleDeprecationWarning)
     seqno = args.seqno
     params = read_params(args.params)
 
+    print()
+    print("create_gameplay: ")
+    print(f"Parameters from {os.path.join(os.getcwd(), args.params)}")
+    print(f"Writing to: {params['process']['output_dir']}")
+
     if args.info:
-        print()
-        print("create_gameplay: ")
-        print(f"Parameters from {os.path.join(os.getcwd(), args.params)}")
-        print(f"Writing to: {params['process']['output_dir']}")
         exit(0)
 
     game = create_game(params['game'])

@@ -8,7 +8,7 @@ from aegomoku.gomoku_board import GomokuBoard
 from aegomoku.gomoku_game import GomokuGame
 
 
-def read_training_data(filename: str, condition):
+def read_training_data(filename: str, condition: Callable = None):
     """
     Reads training data as
         stones: array(np.uint8) of flat board positions of subsequent moves up until that state
@@ -18,21 +18,32 @@ def read_training_data(filename: str, condition):
     as a straight array of (state, probabiltiy (float), value(float)) triples
     :param condition: a filter condition (s, p, v)->bool
     :param filename: file name
-    :return: Array of (state, probabiltiy (float), value(float)) triples
+    :return: Array of (state, probabiltiy (float), value(float)) triples and an list of the game trajectories
     """
     all_examples = []
+    all_games = []
     with open(filename, "rb") as file:
         while True:
             try:
-                traj = Unpickler(file).load()
-                all_examples += expand_trajectory(traj, condition)
+                trajectory = Unpickler(file).load()
+                all_examples += expand_trajectory(trajectory, condition)
+                first, stones, _ = trajectory
+                all_games.append((first, stones))
 
             except EOFError:
-                return all_examples
+                return all_examples, all_games
 
 
 def expand_trajectory(trajectory, condition: Callable = None):
+    """
+    read the training data from the trajectory record, ignore name and stones. They're for analysis purposes.
+    :param trajectory: A record like (name, stones, positions) where positions are like (stones, probs, value)
+    :param condition: a predicate function that defines whether to consider a particular tuple of (stones, prob, value)
+    :return: fully expanded (from symmetries) examples (state, pred, value)
+    """
     examples = []
+
+    _, _, trajectory = trajectory
     for position in trajectory:
         stones, probs, value = position
         if condition is not None:

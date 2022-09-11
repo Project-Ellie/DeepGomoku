@@ -4,29 +4,39 @@ from typing import Tuple, Optional
 
 import numpy as np
 import tensorflow as tf
-from aegomoku.interfaces import Player, Board, Move, MctsParams, PolicyParams, PolicyAdviser, Game
+from aegomoku.interfaces import Player, Board, Move, MctsParams, PolicyParams, PolicyAdviser, Game, Adviser
 from aegomoku.mcts import MCTS
 from aegomoku.policies.heuristic_policy import HeuristicPolicy
 
 
 class PolicyAdvisedGraphSearchPlayer(Player):
 
-    def __init__(self, name: str, game: Game, mcts_params: MctsParams, policy_params: PolicyParams):
+    def __init__(self, name: str, game: Game, mcts_params: MctsParams,
+                 policy_params: PolicyParams = None, adviser: Adviser = None):
         """
-        :param mcts_params: The graph search parameters
-        :param policy_params: the policy-related parameters
+        :param name: Name of the player for logging and analysis
+        :param game: the game, obviously
+        :param mcts_params:
+        :param policy_params: if provided, a PolicyAdvisor is created from these. Must be from a model file.
+        :param adviser: if provided, that advisor is used, otherwise a Naive Heuristic Policy is created.
         """
         self.opponent: Optional[Player] = None
         self.name = name
         self.game = game
         self.mcts_params = mcts_params
-        if policy_params.model_file_name is not None:
-            model = tf.keras.models.load_model(policy_params.model_file_name)
-            self.advisor = PolicyAdviser(model=model, params=policy_params)
+        if policy_params is not None:
+            if policy_params.model_file_name is not None:
+                model = tf.keras.models.load_model(policy_params.model_file_name)
+                self.advisor = PolicyAdviser(model=model, params=policy_params)
+            else:
+                raise ValueError("Must provide model file name")
+        elif adviser is not None:
+            self.advisor = adviser
         else:
             self.advisor = HeuristicPolicy(board_size=game.board_size, n_fwll=2)
 
-        self.mcts = self.refresh()
+        self.mcts = None
+        self.refresh()
 
         super().__init__()
 
@@ -36,7 +46,7 @@ class PolicyAdvisedGraphSearchPlayer(Player):
         resets all persistent state
         :return:
         """
-        return MCTS(self.game, self.advisor, self.mcts_params)
+        self.mcts = MCTS(self.game, self.advisor, self.mcts_params)
 
 
     def meet(self, other: Player):
