@@ -163,12 +163,12 @@ class ForwardLookingLayer(tf.keras.layers.Layer, Callable):
         projectors[4, 4, 1, 1] = 1.
         projectors[4, 4, 2, 2] = 1.
 
-        filters = np.concatenate([projectors, curr, oth], axis=3)
+        np.concatenate([projectors, curr, oth], axis=3)
 
         return projectors, curr, oth
 
 
-    def call(self, signal):
+    def call(self, signal, **_):
         """
         :param signal: state, representated as (n+2) x (n+2) x 3 board with boundary
         :return: the logit, clipped
