@@ -43,7 +43,12 @@ def expand_trajectory(trajectory, condition: Callable = None):
     """
     examples = []
 
-    _, _, trajectory = trajectory
+    # We keep supporting trajectories without headers
+    try:
+        _, _, trajectory = trajectory
+    except ValueError as e:
+        trajectory = trajectory
+
     for position in trajectory:
         stones, probs, value = position
         if condition is not None:
