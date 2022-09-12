@@ -3,3 +3,6 @@ __pycache__/
 /notebooks/logs/
 /notebooks/external_tutorials/logs/
 /notebooks/training_data/
+/Pipfile.lock
+/notebooks/.ipynb_checkpoints/
+/notebooks/checkpoints/

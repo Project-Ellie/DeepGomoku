@@ -1,4 +1,5 @@
 import logging
+from pickle import Pickler
 from typing import Optional, Callable, Dict
 
 from tqdm import tqdm
@@ -26,6 +27,7 @@ class Arena:
         :param max_moves: the max number of moves. Failing to terminate before makes the game a draw
         :param display: a callable for debugging purposes.
         """
+        self.games = []
         self.player1 = player1
         self.player2 = player2
         player1.meet(player2)
@@ -35,16 +37,13 @@ class Arena:
         self.board = None  # for reference after the match
 
 
-    def play_game(self, switch=False, verbose=False) -> Optional[Player]:
+    def play_game(self, switch=False, verbose=0) -> Optional[Player]:
         """
         :param switch: if True, player2 will make the first move
         :param verbose: provide debug info
         :return:
         """
         self.board = board = self.game.get_initial_board()
-        if verbose:
-            first_color = _current_color(self.board)
-            print(f"{self.player1.name} to begin with {first_color}.")
 
         n_moves = 0
         # The player will change a last time before the first move
@@ -52,19 +51,26 @@ class Arena:
         if switch:
             player = player.opponent
 
+        if verbose:
+            first_color = _current_color(self.board)
+            print(f"{player.opponent.name} to begin with {first_color}.")
+
         while self.game.get_winner(board) is None and n_moves < self.max_moves:
             player = player.opponent
             _, move = player.move(board)
-            if verbose:
-                print(f"{player.name}: {move}")
             if verbose > 1:
+                print(f"{n_moves + 1}: {player.name}: {move}")
+            if verbose > 2:
                 board.plot()
+                print(board.get_stones())
+                print()
+            n_moves += 1
         if verbose:
             print(f"{player.name} ({_previous_color(board)}) won.")
         return player
 
 
-    def play_games(self, num, verbose=False):
+    def play_games(self, num, verbose=0, save_to=None):
         """
         Plays num games in which player1 starts num/2 games and player2 starts
         num/2 games.
@@ -77,13 +83,38 @@ class Arena:
                  self.player2: 0,
                  "draws": 0}
 
-        for _ in tqdm(range(num), desc="Arena.play_games (1)"):
-            winner = self.play_game(verbose=verbose)
-            self._update_stats(stats, winner)
+        for nr in range(num):
+            try:
+                if verbose > 0:
+                    print(f"Game {nr + 1}: ", end='')
+                winner = self.play_game(verbose=verbose)
+                self.games.append([stone.i for stone in self.board.stones])
+                self._update_stats(stats, winner)
+                if verbose > 0:
+                    print([self.board.Stone(i) for i in self.games[-1]])
+            except Exception as e:
+                print(e)
+                "Simply ignoring this game."
 
-        for _ in tqdm(range(num), desc="Arena.play_games (2)"):
-            winner = self.play_game(switch=True, verbose=verbose)
-            self._update_stats(stats, winner)
+        for nr in range(num):
+            try:
+                if verbose > 0:
+                    print(f"Game {num + nr + 1}: ", end='')
+                winner = self.play_game(switch=True, verbose=verbose)
+                self.games.append([stone.i for stone in self.board.stones])
+                self._update_stats(stats, winner)
+                if verbose > 0:
+                    print([self.board.Stone(i) for i in self.games[-1]])
+            except Exception as e:
+                print(e)
+                "Simply ignoring this game."
+
+        if save_to is not None:
+
+            with open(save_to, 'wb+') as f:
+                Pickler(f).dump(self.games)
+                if verbose > 0:
+                    print(f"Saved gameplay data to {save_to}")
 
         return stats
 

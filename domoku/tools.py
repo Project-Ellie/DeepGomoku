@@ -1,6 +1,6 @@
 import numpy as np
 
-from domoku.constants import Move
+from aegomoku.interfaces import Move
 
 
 def print_bin(*_args, **_kwargs):

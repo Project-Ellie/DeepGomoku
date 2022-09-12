@@ -136,22 +136,27 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
         value = self.value_gauge * tf.nn.tanh(self.value_stretch * tf.math.reduce_sum(v))
         return probs, value
 
-    def get_advisable_actions(self, state, cut_off=None, reduction=None):
+    def get_advisable_actions(self, state, cut_off=None, reduction=None,
+                              percent_secondary=None, min_secondary=None):
         """
         :param state: nxnx3 representation of a go board
         :param cut_off: override advice_cutoff
         :param reduction: override noise reduction
-        :return:
+        :param percent_secondary: override the percentage of low quality moves to include.
+        :param min_secondary: override the minumum of low quality moves to include
+        :return: List of integers representing the avisable moves
         """
         cut_off = cut_off if cut_off is not None else self.advice_cutoff
-        reduction = reduction if reduction is not None else self.noise_reduction
+        # reduction = reduction if reduction is not None else self.noise_reduction
+        percent_secondary = percent_secondary if percent_secondary is not None else self.percent_secondary
+        min_secondary = min_secondary if min_secondary is not None else self.min_secondary
 
         probs, _ = self.evaluate(np.squeeze(state))
         max_prob = np.max(probs, axis=None)
         probs = np.squeeze(probs)
 
-        noise = np.min(probs, axis=None)
-        probs = tf.keras.activations.relu(probs - reduction * noise)
+        # noise = np.min(probs, axis=None)
+        # probs = tf.keras.activations.relu(probs - reduction * noise)
 
         threshold = max_prob * cut_off
 
@@ -163,7 +168,7 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
         secondary = [int(n) for n in underdogs.nonzero()[0]]
 
         # stretch to increase the softmax focus
-        subset = probs.numpy()[secondary]
+        subset = probs[secondary]
 
         # rule out the lowest of the lower quality moves
 
@@ -179,7 +184,7 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
             secondary_probs /= sum_probs
 
             # take a certain percentage of sub-prime choices, but at least two.
-            num_additional = max(self.min_secondary, int((len(advisable) * self.percent_secondary / 100)))
+            num_additional = max(min_secondary, int((len(advisable) * percent_secondary / 100)))
             selected_secondary = np.random.choice(secondary, size=num_additional, p=secondary_probs)
 
             advisable += list(selected_secondary)

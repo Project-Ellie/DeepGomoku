@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import abc
 from typing import Tuple, Optional
-from pydantic import BaseModel
 import numpy as np
 from keras import models
 
@@ -12,6 +11,7 @@ class MctsParams:
     def __init__(self, cpuct: float, temperature: float, num_simulations: int):
         self.cpuct = cpuct
         self.num_simulations = num_simulations
+        assert temperature == 0 or temperature > .1, "Temperature near but not exactly zero are numerically instable."
         self.temperature = temperature
 
 
@@ -26,23 +26,6 @@ class IllegalMoveException(Exception):
         super().__init__(message)
 
 
-class TrainParams(BaseModel):
-    update_threshold: float  # During arena play, new neural net will be accepted if threshold or more games are won.
-    max_queue_length: int    # Number of game examples to train the neural networks.
-
-    epochs_per_train: int
-    num_iterations: int
-    num_episodes: int
-    num_simulations: int     # Number of games moves for MCTS to simulate.
-    arena_compare: int       # Number of games to play during arena play to determine if new net will be accepted.
-    temperature_threshold: float
-    cpuct: float
-    checkpoint_dir: str
-    load_model: bool
-    load_folder_file: Tuple[str, str]
-    num_iters_for_train_examples_history: int
-
-
 class Adviser:  # (abc.ABC):
 
     @abc.abstractmethod
@@ -52,10 +35,9 @@ class Adviser:  # (abc.ABC):
     @abc.abstractmethod
     def evaluate(self, state):
         """
-        Input:
-            board: current board in its canonical form.
+        :param state: current board in its canonical form NxNx3.
 
-        Returns:
+        :returns:
             pi: a policy vector for the current board- a numpy array of length
                 game.get_action_size
             v: a float in [-1,1] that gives the value of the current board
@@ -97,11 +79,15 @@ class PolicyAdviser(Adviser):
 
 
 class Move:
-    i: int
-    x: int
-    y: int
     r: int
     c: int
+    field_size: int
+
+
+    def __init__(self, x, y, i):
+        self.x = x
+        self.y = y
+        self.i = i
 
 
 class Board:  # (abc.ABC):
@@ -178,6 +164,14 @@ class Player:  # (abc.ABC):
         pass
 
     @abc.abstractmethod
+    def refresh(self):
+        """
+        Reset all persistent state to 'factory settings'
+        :return: May return whatever is representing the new fresh state
+        """
+        pass
+
+    @abc.abstractmethod
     def evaluate(self, board: Board, temperature: float):
         """
         Provide an opinion about the board - typically from MCTS stats
@@ -186,7 +180,6 @@ class Player:  # (abc.ABC):
         :return:
         """
         pass
-
 
 
 class TerminalDetector(abc.ABC):

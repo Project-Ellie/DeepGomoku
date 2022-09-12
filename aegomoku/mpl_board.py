@@ -21,10 +21,10 @@ class MplBoard:
     A display tools based on Matplotlib
     """
     
-    def __init__(self, n, heuristics=None, disp_width=6, stones=None, suppress_move_numbers=False,
+    def __init__(self, n, policy=None, disp_width=6, stones=None, suppress_move_numbers=False,
                  policy_cutoff=50):
         self.N = n
-        self.heuristics = heuristics
+        self.policy = policy
         self.suppress_move_numbers = suppress_move_numbers
         stones = stones or []
         if isinstance(stones, str):
@@ -34,6 +34,8 @@ class MplBoard:
         self.stones = []
         self.current_color = BLACK
         self.cursor = -1
+        if len(stones) > 0 and isinstance(stones[0], Move):
+            stones = [(s.x, s.y) for s in stones]
         for stone in stones:
             self.set(*stone)
 
@@ -122,7 +124,7 @@ class MplBoard:
         if self.cursor >= 0:
             self.display_stones(axis)
 
-        self.display_heuristics(axis, cut_off=self.policy_cutoff)
+        self.display_policy(axis, cut_off=self.policy_cutoff)
 
     def display_helpers(self, axis):
         if self.N == 15:
@@ -162,19 +164,20 @@ class MplBoard:
         image = (image / np.max(image, axis=None) * 255).astype(int)
         return image
 
-    def display_heuristics(self, axis, cut_off=50):
+    def display_policy(self, axis, cut_off=50):
 
-        if self.heuristics is None:
+        if self.policy is None:
             return
 
         position = new_board.GomokuBoard(self.N, stones=gt.stones_to_string(self.stones[:self.cursor+1]))
-        if isinstance(self.heuristics, list):
-            q = np.reshape(self.heuristics, (self.N, self.N))
+        if isinstance(self.policy, (list, np.ndarray)):
+            q = np.reshape(self.policy, (self.N, self.N))
         else:
             state = np.expand_dims(position.canonical_representation(), 0).astype(float)
-            q, _ = self.heuristics(state)
+            q, _ = self.policy(state)
 
         heatmap = np.squeeze(self.heatmap(q))
+        heatmap = heatmap.reshape((self.N, self.N))
 
         for c in range(self.N):
             for r in range(self.N):

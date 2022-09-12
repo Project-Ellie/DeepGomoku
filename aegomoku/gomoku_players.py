@@ -4,29 +4,49 @@ from typing import Tuple, Optional
 
 import numpy as np
 import tensorflow as tf
-from aegomoku.interfaces import Player, Board, Move, MctsParams, PolicyParams, PolicyAdviser, Game
+from aegomoku.interfaces import Player, Board, Move, MctsParams, PolicyParams, PolicyAdviser, Game, Adviser
 from aegomoku.mcts import MCTS
 from aegomoku.policies.heuristic_policy import HeuristicPolicy
 
 
 class PolicyAdvisedGraphSearchPlayer(Player):
 
-    def __init__(self, name: str, game: Game, mcts_params: MctsParams, policy_params: PolicyParams):
+    def __init__(self, name: str, game: Game, mcts_params: MctsParams,
+                 policy_params: PolicyParams = None, adviser: Adviser = None):
         """
-        :param mcts_params: The graph search parameters
-        :param policy_params: the policy-related parameters
+        :param name: Name of the player for logging and analysis
+        :param game: the game, obviously
+        :param mcts_params:
+        :param policy_params: if provided, a PolicyAdvisor is created from these. Must be from a model file.
+        :param adviser: if provided, that advisor is used, otherwise a Naive Heuristic Policy is created.
         """
         self.opponent: Optional[Player] = None
         self.name = name
         self.game = game
-        if policy_params.model_file_name is not None:
-            model = tf.keras.models.load_model(policy_params.model_file_name)
-            self.advisor = PolicyAdviser(model=model, params=policy_params)
+        self.mcts_params = mcts_params
+        if policy_params is not None:
+            if policy_params.model_file_name is not None:
+                model = tf.keras.models.load_model(policy_params.model_file_name)
+                self.advisor = PolicyAdviser(model=model, params=policy_params)
+            else:
+                raise ValueError("Must provide model file name")
+        elif adviser is not None:
+            self.advisor = adviser
         else:
             self.advisor = HeuristicPolicy(board_size=game.board_size, n_fwll=2)
 
-        self.mcts = MCTS(game, self.advisor, mcts_params)
+        self.mcts = None
+        self.refresh()
+
         super().__init__()
+
+
+    def refresh(self):
+        """
+        resets all persistent state
+        :return:
+        """
+        self.mcts = MCTS(self.game, self.advisor, self.mcts_params)
 
 
     def meet(self, other: Player):
@@ -48,7 +68,22 @@ class PolicyAdvisedGraphSearchPlayer(Player):
 
         temperature = temperature if temperature is not None else self.mcts.params.temperature
         probs = self.mcts.get_action_prob(board, temperature=temperature)
-        move = board.stone(np.random.choice(list(range(board.board_size**2)), p=probs))
+
+        patience = 5
+        move = None
+
+        while patience > 0:
+            move = board.stone(np.random.choice(list(range(board.board_size**2)), p=probs))
+            if move not in board.get_stones():
+                break
+            patience -= 1
+
+        if move is None:
+            # TODO: Are there more reasonable alternatives?
+            print("Truly sorry, but on...")
+            print(board.get_stones())
+            raise ArithmeticError("I can't find a possible move anymore")
+
         board.act(move)
         return board, move
 

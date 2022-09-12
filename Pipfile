@@ -9,24 +9,19 @@ pandas = "*"
 seaborn = "*"
 numpy = "*"
 certifi = "*"
-jupyter = "*"
 tensorflow = "*"
 tensorboard = "*"
 tensorflow_probability = "*"
-flask = "*"
-Flask_SocketIO = "*"
-pydantic = "*"
 tqdm = "*"
 coloredlogs = "*"
 bitarray = "*"
 gmpy2 = "*"
-ray = {extras = ["default"], version = "*"}
 pyyaml = "*"
-poetry = "*"
 pygame = "*"
 pygame_gui = "*"
+jupyter = "*"
 
 [dev-packages]
 
 [requires]
-python_version = "3.10"
+python_version = "3.8"
