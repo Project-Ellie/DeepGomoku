@@ -4,6 +4,7 @@ import logging
 import os
 from pathlib import Path
 from pickle import Pickler
+import tensorflow as tf
 
 import numpy as np
 import yaml
@@ -148,7 +149,11 @@ def create_players(game, player1, player2):
             policy = TopologicalValuePolicy(kappa_s=kappa_s, kappa_d=kappa_d)
             adviser = PolicyAdviser(model=policy, params=policy_params)
         else:
-            raise ValueError("Advice type not supported yet.")
+            model_file = Path.home() / "workspace" / "Project-Ellie" / "DATA" / 'models' / advice['type']
+            advice_cutoff = advice['advice_cutoff']
+            policy_params = PolicyParams(model_file_name=model_file.as_posix(), advice_cutoff=advice_cutoff)
+            model = tf.keras.models.load_model(model_file.as_posix())
+            adviser = PolicyAdviser(model=model, params=policy_params)
 
         players.append(PolicyAdvisedGraphSearchPlayer(name, game, mcts_params, adviser=adviser))
 

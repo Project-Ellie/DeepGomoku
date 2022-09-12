@@ -17,7 +17,7 @@ game:
 players:
   - name: P400_1.5
     advice:
-      type: TOPOLOGICAL_VALUE
+      type: 1_c3.model
       advice_cutoff: .02
       kappa_d: 5
       kappa_s: 6
@@ -28,7 +28,7 @@ players:
 
   - name: P200_1.0
     advice:
-      type: TOPOLOGICAL_VALUE
+      type: 1_c3.model
       advice_cutoff: .02
       kappa_d: 5
       kappa_s: 6
@@ -39,7 +39,7 @@ players:
 
 
 process:
-  num_trajectories_per_file: 40
+  num_trajectories_per_file: 10
   max_moves: 80
   eval_temperature: 3.0
-  output_dir: workspace/Project-Ellie/DATA/selfplay/0
+  output_dir: workspace/Project-Ellie/DATA/selfplay/1
