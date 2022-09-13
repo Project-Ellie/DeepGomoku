@@ -10,21 +10,6 @@ from aegomoku.gomoku_board import GomokuBoard
 from aegomoku.policies.heuristic_policy import HeuristicPolicy
 
 
-# Remove this
-def __initial_stones(board_size: int, n_stones: int):
-    """
-    :return: a function that returns a list of n_stones randomly positioned stones,
-        at least 3 positions away from the boundary
-    """
-    def inner():
-        move = GomokuBoard(board_size).Stone
-        the_stones = set()
-        while len(the_stones) < n_stones:
-            the_stones.add(move(np.random.randint(3, 12), np.random.randint(3, board_size-3)))
-        return list(the_stones)
-    return inner
-
-
 class BoardInitializer:
     @abc.abstractmethod
     def initial_stones(self):
@@ -135,3 +120,23 @@ class GomokuGame(Game):
                     new_pi = np.fliplr(new_pi)
                 symmetries += [(new_b, list(new_pi.ravel()))]
         return symmetries
+
+
+SWAP2_FIRST_THREE = -1
+SWAP2_TWO_MORE = -2
+SWAP2_PASS = -3
+
+
+class Swap2(GomokuGame):
+
+    def __init__(self, board_size):
+        super().__init__(board_size)
+
+
+    def get_valid_moves(self, board: GomokuBoard):
+        if len(board.get_stones()) == 0:
+            return [-1]
+        elif len(board.get_stones()) == 3:
+            return [-2, -3, -4] + super().get_valid_moves(board)
+        else:
+            return super().get_valid_moves(board)
