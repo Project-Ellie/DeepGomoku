@@ -5,13 +5,66 @@ from typing import Tuple, Optional
 import numpy as np
 from keras import models
 
+GAMESTATE_NORMAL = 0
+
+SWAP2_FIRST_THREE = -1
+SWAP2_AFTER_THREE = -2
+SWAP2_PASSED_THREE = -3
+SWAP2_AFTER_FIVE = -4
+SWAP2_PASSED_FIVE = -5
+SWAP2_DONE = -6
+
+PASS = -1
+
+
+BLACK = 0
+WHITE = 1
+
+FIRST_PLAYER = 0
+OTHER_PLAYER = 1
+
+
+class GameState:
+    @abc.abstractmethod
+    def get_current_player(self):
+        raise NotImplementedError("Please consider implementing this method.")
+
+    def link(self, board: Board):
+        self.board = board
+
+    @abc.abstractmethod
+    def get_phase(self):
+        raise NotImplementedError("Please consider implementing this method.")
+
+    @abc.abstractmethod
+    def transition(self, move):
+        raise NotImplementedError("Please consider implementing this method.")
+
+
+class DefaultGomokuState(GameState):
+
+    def __int__(self):
+        self.board = None
+
+    def get_phase(self):
+        return GAMESTATE_NORMAL
+
+    def link(self, board: Board):
+        self.board = board
+
+    def get_current_player(self):
+        pass
+
+    def transition(self, move):
+        pass
+
 
 class MctsParams:
 
     def __init__(self, cpuct: float, temperature: float, num_simulations: int):
         self.cpuct = cpuct
         self.num_simulations = num_simulations
-        assert temperature == 0 or temperature > .1, "Temperature near but not exactly zero are numerically instable."
+        assert temperature == 0 or temperature > .1, "Temperatures near but not exactly zero are numerically instable."
         self.temperature = temperature
 
 
@@ -26,7 +79,7 @@ class IllegalMoveException(Exception):
         super().__init__(message)
 
 
-class Adviser:  # (abc.ABC):
+class Adviser:
 
     @abc.abstractmethod
     def get_advisable_actions(self, state):
@@ -61,10 +114,6 @@ class PolicyAdviser(Adviser):
         probs = np.squeeze(probs)
         advisable = np.where(probs > max_prob * self.params.advice_cutoff, probs, 0.)
 
-        # ####################################################################################
-        # TODO: remember randomly adding seemingly random moves to overcome potential bias!!!
-        # ####################################################################################
-
         return [int(n) for n in advisable.nonzero()[0]]
 
 
@@ -90,9 +139,13 @@ class Move:
         self.i = i
 
 
-class Board:  # (abc.ABC):
+class Board:
 
-    board_size: int
+    def __int__(self, board_size: int):
+        self.board_size = board_size
+
+    def get_board_size(self):
+        return self.board_size
 
     @abc.abstractmethod
     def stone(self, pos: int) -> Move:
@@ -100,10 +153,6 @@ class Board:  # (abc.ABC):
 
     @abc.abstractmethod
     def get_stones(self):
-        pass
-
-    @abc.abstractmethod
-    def get_current_player(self):
         pass
 
     @abc.abstractmethod
@@ -135,6 +184,18 @@ class Board:  # (abc.ABC):
 
     @abc.abstractmethod
     def plot(self):
+        pass
+
+    @abc.abstractmethod
+    def get_current_color(self):
+        pass
+
+    @abc.abstractmethod
+    def get_current_player(self):
+        pass
+
+    @abc.abstractmethod
+    def get_phase(self):
         pass
 
 

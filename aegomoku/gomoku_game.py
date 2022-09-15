@@ -1,12 +1,14 @@
+import abc
 import copy
+import random
 from typing import Tuple, Optional
 
-import random
-import abc
-
 import numpy as np
-from aegomoku.interfaces import Game, Move, TerminalDetector
+
 from aegomoku.gomoku_board import GomokuBoard
+from aegomoku.interfaces import Game, Move, TerminalDetector, SWAP2_FIRST_THREE, PASS, \
+    SWAP2_AFTER_THREE, SWAP2_AFTER_FIVE, SWAP2_PASSED_THREE, SWAP2_PASSED_FIVE, FIRST_PLAYER, OTHER_PLAYER, GameState, \
+    BLACK, SWAP2_DONE
 from aegomoku.policies.heuristic_policy import HeuristicPolicy
 
 
@@ -60,7 +62,7 @@ class GomokuGame(Game):
         self.detector: Optional[TerminalDetector] = None
 
     def get_initial_board(self) -> GomokuBoard:
-        initial_stones = self.initializer.initial_stones()
+        initial_stones = self.initializer.initial_stones() if self.initializer else ''
         return GomokuBoard(self.board_size, stones=initial_stones)
 
     def get_board_size(self, board) -> int:
@@ -122,21 +124,106 @@ class GomokuGame(Game):
         return symmetries
 
 
-SWAP2_FIRST_THREE = -1
-SWAP2_TWO_MORE = -2
-SWAP2_PASS = -3
+class Swap2GameState(GameState):
+
+    def __init__(self):
+
+        self.board = None
+        self.phase = SWAP2_FIRST_THREE
+        self.current_player = FIRST_PLAYER
+
+    def __str__(self):
+        player = "Player 1" if self.current_player == FIRST_PLAYER else "Player 2"
+        color = "black" if self.board.get_current_color() == BLACK else "white"
+        return f"{player} to move with {color}"
+
+    __repr__ = __str__
+
+    def get_current_player(self) -> int:
+        """
+        :return: the color of the original seating. Effectively, colors may change by passing
+        """
+        return self.current_player
+
+
+    def get_next_player(self):
+        if self.phase == SWAP2_FIRST_THREE:
+            return FIRST_PLAYER
+
+        elif self.phase == SWAP2_AFTER_THREE:
+            return OTHER_PLAYER
+
+        elif self.phase == SWAP2_PASSED_THREE:
+            return FIRST_PLAYER
+
+        elif self.phase == SWAP2_AFTER_FIVE:
+            return FIRST_PLAYER
+
+        elif self.phase == SWAP2_PASSED_FIVE:
+            return OTHER_PLAYER
+
+        else:
+            self.current_player = 1 - self.current_player
+            return self.current_player
+
+
+    def transition(self, move: int) -> Tuple[int, int]:
+        # update phase of the opening, return without change on the board if player passed
+        # Swap the player - not the color
+
+        if move == PASS:
+            self.current_player = 1 - self.current_player
+            if self.phase == SWAP2_AFTER_THREE:
+                self.phase = SWAP2_PASSED_THREE
+                return self.phase, self.current_player
+
+            elif self.phase == SWAP2_AFTER_FIVE:
+                self.phase = SWAP2_PASSED_FIVE
+                return self.phase, self.current_player
+
+        # same player continues
+        if len(self.board.stones) in [1, 2, 4] and self.phase != SWAP2_PASSED_THREE:
+            return self.phase, self.current_player
+
+        elif len(self.board.stones) == 3:
+            self.phase = SWAP2_AFTER_THREE
+
+        elif len(self.board.stones) == 5:
+            self.phase = SWAP2_AFTER_FIVE
+
+        elif len(self.board.stones) == 6 or self.phase == SWAP2_PASSED_THREE and len(self.board.stones) == 4:
+            self.phase = SWAP2_DONE
+
+        self.current_player = self.get_next_player()
+
+        return self.phase, self.current_player
+
+    def get_phase(self):
+        return self.phase
 
 
 class Swap2(GomokuGame):
+    """
+    The board knows the phase, the game knows the rules
+    """
 
     def __init__(self, board_size):
         super().__init__(board_size)
 
+    @staticmethod
+    def get_current_player(board) -> int:
+        return board.get_current_player()
+
 
     def get_valid_moves(self, board: GomokuBoard):
-        if len(board.get_stones()) == 0:
-            return [-1]
-        elif len(board.get_stones()) == 3:
-            return [-2, -3, -4] + super().get_valid_moves(board)
+        if len(board.stones) == 3 and board.get_phase() == SWAP2_AFTER_THREE:
+            return [PASS] + super().get_valid_moves(board)
+        elif len(board.stones) == 5 and board.get_phase() == SWAP2_AFTER_FIVE:
+            return [PASS] + super().get_valid_moves(board)
         else:
             return super().get_valid_moves(board)
+
+
+    def get_initial_board(self) -> GomokuBoard:
+        initial_stones = self.initializer.initial_stones() if self.initializer else ''
+        return GomokuBoard(self.board_size, game_state=Swap2GameState(), stones=initial_stones)

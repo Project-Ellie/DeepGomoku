@@ -46,7 +46,7 @@ def expand_trajectory(trajectory, condition: Callable = None):
     # We keep supporting trajectories without headers
     try:
         _, _, trajectory = trajectory
-    except ValueError as e:
+    except ValueError:
         trajectory = trajectory
 
     for position in trajectory:
