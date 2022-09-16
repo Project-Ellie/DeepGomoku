@@ -8,14 +8,82 @@ import numpy as np
 from aegomoku.gomoku_board import GomokuBoard
 from aegomoku.interfaces import Game, Move, TerminalDetector, SWAP2_FIRST_THREE, PASS, \
     SWAP2_AFTER_THREE, SWAP2_AFTER_FIVE, SWAP2_PASSED_THREE, SWAP2_PASSED_FIVE, FIRST_PLAYER, OTHER_PLAYER, GameState, \
-    BLACK, SWAP2_DONE
+    BLACK, SWAP2_DONE, Player
 from aegomoku.policies.heuristic_policy import HeuristicPolicy
+from aegomoku.policies.topological_value import TopologicalValuePolicy
 
 
 class BoardInitializer:
     @abc.abstractmethod
     def initial_stones(self):
         pass
+
+
+class TopoSwap2BoardInitializer(BoardInitializer):
+    """
+    TopoSwap2BoardInitializer produces boards of five stones with valuations close to
+    half a sole stone's value, making it hard for the white player to choose between continuation and passing.
+    """
+    def __init__(self, board_size, num_searches=100, perimeter_width=5):
+        """
+        :param board_size: board_size
+        :param num_searches: just a performance parameter, default is just fine
+        :param perimeter_width: just a performance parameter, default is just fine
+        """
+        self.num_searches = num_searches
+        self.board_size = board_size
+        self.perimeter_width = perimeter_width
+
+    def initial_stones(self):
+
+        policy = TopologicalValuePolicy(kappa_s=6, kappa_d=5)
+        board = GomokuBoard(self.board_size, stones=[200])
+        d = self.perimeter_width
+
+        # This is half the value of a board with a single black in the center
+        center_value = policy.evaluate(board.canonical_representation())[1] / 2
+
+        # Choose three stones somewhere in the perimeter area, so that the position is as neutral as can be
+        corner = [i*self.board_size + j for i in range(d) for j in range(d)]
+        left = [(i + d) * self.board_size + j for i in range(d) for j in range(d)]
+        top = [i * self.board_size + j + d for i in range(d) for j in range(d)]
+        perimeter = corner + left + top
+
+        candidates = []
+        dist = 1
+        for i in range(self.num_searches):
+            while True:
+                moves = [board.Stone(random.choice(perimeter)) for _ in range(3)]
+                try:
+                    board = GomokuBoard(self.board_size, stones=moves)
+                    value = policy.evaluate(board.canonical_representation())[1]
+                    dist = (value - center_value) ** 2
+                    break
+                except AssertionError as e:
+                    continue
+            candidates.append((moves, dist))
+
+        most_neutral = sorted(candidates, key=lambda e: e[1])[0][0]
+
+        # Choose two more stones in the center area
+        r = range(d, self.board_size-d+1)
+        center = [i*self.board_size + j for i in r for j in r]
+
+        candidates = []
+        for i in range(self.num_searches):
+            while True:
+                moves = [board.Stone(random.choice(center)) for _ in range(2)]
+                try:
+                    moves = most_neutral + moves
+                    board = GomokuBoard(self.board_size, stones=moves)
+                    value = policy.evaluate(board.canonical_representation())[1]
+                    dist = (value - center_value) ** 2
+                    break
+                except AssertionError as e:
+                    continue
+            candidates.append((moves, dist))
+
+        return sorted(candidates, key=lambda e: e[1])[0][0]
 
 
 class ConstantBoardInitializer(BoardInitializer):
@@ -227,3 +295,31 @@ class Swap2(GomokuGame):
     def get_initial_board(self) -> GomokuBoard:
         initial_stones = self.initializer.initial_stones() if self.initializer else ''
         return GomokuBoard(self.board_size, game_state=Swap2GameState(), stones=initial_stones)
+
+
+def one_game(game: GomokuGame, player1: Player, player2: Player, max_moves: int):
+    """
+    :param seqno: A sequence number for the game in the file
+    :param game:
+    :param player1: the player to make the first move
+    :param player2: the other player
+    :param eval_temperature: the temperature at which to read the MCTS scores
+    :param max_moves: games are considered draw when no winner after this
+    :return: tuple: Player1 name,
+    """
+    board = game.get_initial_board()
+    player2.meet(player1)
+    player = player1
+    players = [player1, player2]
+    num_stones = 0
+    while game.get_winner(board) is None and num_stones < max_moves:
+
+        board, move = player.move(board)
+        next_player = board.get_current_player()
+        player = players[next_player]
+
+        print(f"{board}")
+        if game.get_winner(board) is not None:
+            break
+
+    return player1.name, [s.i for s in board.get_stones()], game_data
