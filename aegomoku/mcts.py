@@ -242,7 +242,7 @@ class MCTS:
                     u = self.params.cpuct * p * sns  # Q = 0 ?
                     debug_info[a] = {'u': u, 'q': None, 'p': p, 'nsa': None}
 
-                if u > cur_best:
+                if u >= cur_best:
                     cur_best = u
                     best_act = a
 

@@ -74,5 +74,5 @@ class RewardEnvironment():
         """Matplotlib output of first two dimensions of reward environment.
         :return: (None) Matplotlib figure object
         """
-        top_slice = tuple([slice(0,self.length),slice(0,self.length)] + [0]*(self.dim - 2))
-        plt.imshow(self.reward[top_slice], origin='lower');
+        top_slice = tuple([slice(0,self.length),slice(0, self.length)] + [0] * (self.dim - 2))
+        plt.imshow(self.reward[top_slice], origin='lower')

@@ -65,9 +65,12 @@ class Arena:
                 print(board.get_stones())
                 print()
             n_moves += 1
-        if verbose:
+        if verbose and n_moves < self.max_moves:
             print(f"{player.name} ({_previous_color(board)}) won.")
-        return player
+            return player
+        else:
+            print(f"Draw after {n_moves} moves.")
+            return None
 
 
     def play_games(self, num, verbose=0, save_to=None):

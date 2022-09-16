@@ -1,7 +1,8 @@
 from typing import List, Union, Callable, Tuple
 
 import numpy as np
-from aegomoku.interfaces import Board, Move
+
+from aegomoku.interfaces import Board, Move, GameState, DefaultGomokuState, PASS
 
 EMPTY_BOARDS = {
     n: np.rollaxis(
@@ -21,9 +22,10 @@ class GomokuBoard(Board):
     The boundary stones in the third channel are there to support the learning process
     """
 
-    def __init__(self, board_size, stones: Union[str, List] = None, x_means='black'):
+    def __init__(self, board_size, game_state: GameState = None, stones: Union[str, List] = None, x_means='black'):
         """
         :param board_size: Usable side length without boundary perimeter
+        :param game_state: state of the game, unbeknownst to the board, injected by the specific game
         :param stones: current stones on the board as a single string like 'h8f7g12d8' or so.
         :param x_means: for plotting: 'black' for X  always black or 'next' for X always next
         """
@@ -32,6 +34,8 @@ class GomokuBoard(Board):
 
         self.x_is_next = True if x_means[0] in ['N', 'n'] else False if x_means[0] in ['B', 'b'] else None
         self.board_size = board_size
+        self.game_state = game_state if game_state is not None else DefaultGomokuState()
+        self.game_state.link(self)
 
         class Stone(Move):
             """
@@ -166,11 +170,17 @@ class GomokuBoard(Board):
     def stone(self, pos):
         return self.Stone(int(pos)) if pos is not None else None
 
-    def get_current_player(self) -> int:
-        return len(self.get_stones()) % 2
+    def get_phase(self) -> GameState:
+        return self.game_state.get_phase()
 
     def get_stones(self):
         return self.stones
+
+    def get_current_color(self) -> int:
+        return len(self.stones) % 2
+
+    def get_current_player(self) -> int:
+        return self.game_state.get_current_player()
 
     def string_to_stones(self, encoded):
         """
@@ -250,7 +260,7 @@ class GomokuBoard(Board):
 
 
     def __str__(self):
-        next_player = "Black" if self.get_current_player() == 0 else 'White'
+        next_player = "Black" if len(self.get_stones()) % 2 == 0 else 'White'
         first, stones = self.stones[:-8], self.stones[-8:]
         if len(first) > 0:
             first = ['...']
@@ -287,16 +297,22 @@ class GomokuBoard(Board):
         return len(self.get_legal_actions()) > 0
 
     def act(self, *args):
-        if isinstance(args[0], Move):
-            stone = args[0]
-        else:
-            stone = self.Stone(*args)
-        m = self.math_rep
-        assert m[stone.r+1, stone.c+1, 0] == m[stone.r+1, stone.c+1, 1] == 0, f"{stone} is occupied."
-        m[stone.r+1, stone.c+1, 0] = 1
-        self.swap()
-        self.stones.append(stone)
+
+        if args[0] != PASS:
+            if isinstance(args[0], Move):
+                stone = args[0]
+            else:
+                stone = self.Stone(*args)
+            m = self.math_rep
+            assert m[stone.r+1, stone.c+1, 0] == m[stone.r+1, stone.c+1, 1] == 0, f"{stone} is occupied."
+            m[stone.r+1, stone.c+1, 0] = 1
+            self.swap()
+            self.stones.append(stone)
+
+        self.game_state.transition(*args)
+
         return self
+
 
     def undo(self):
         if not self.stones:

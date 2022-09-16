@@ -50,5 +50,3 @@ class TreeNode:
         if level < depth:
             for c in self.children.values():
                 c.plot(level=level)
-
-
