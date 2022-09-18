@@ -50,7 +50,7 @@ class MCTS:
         s = board.get_string_representation()
         advisable = self.As.get(s)
         if advisable is None:
-            state = np.expand_dims(board.canonical_representation(), 0).astype(float)
+            state = board.canonical_representation()
             advisable = self.adviser.get_advisable_actions(state)
             self.As[s] = advisable
 
@@ -180,9 +180,7 @@ class MCTS:
 
         # evaluate the policy for the move probablities and the value estimate.
         inputs = board.canonical_representation()
-        self.Ps[s], v = self.adviser.evaluate(inputs)
-
-        pot_next_move = self.pot_best(board, s)  # noqa: for DEBUG only
+        self.Ps[s], v = self.adviser.advise(inputs)
 
         # rule out illegal moves and renormalize
         valids = self.game.get_valid_moves(board)
@@ -210,7 +208,7 @@ class MCTS:
         s = board.get_string_representation()
         advisable = self.As.get(s)
         if advisable is None or len(advisable) == 0:
-            inputs = np.expand_dims(board.canonical_representation(), 0).astype(float)
+            inputs = board.canonical_representation()
             advisable = self.adviser.get_advisable_actions(inputs)
             advisable = set(advisable).difference([s.i for s in board.get_stones()])
 

@@ -3,7 +3,6 @@ from typing import List, Tuple
 import numpy as np
 from timeit import default_timer
 import aegomoku.tools as gt
-from aegomoku.gomoku_board import GomokuBoard
 from aegomoku.mpl_board import MplBoard
 
 
@@ -56,19 +55,6 @@ def analyse_example(example, disp_width=7.5, policy_cutoff=50):
                   policy_cutoff=policy_cutoff)
     print(f"Next to play: {current}")
     print(f"Value from {current}'s point of view: {v}")
-
-
-def expand(the_board):
-    """
-    Expand the NxNx3 representation of the board to prepare for ingestion into neural networks
-    :param the_board: either NxNx3 or a GomokuBoard instance
-    :return:
-    """
-    if isinstance(the_board, GomokuBoard):
-        state = the_board.math_rep
-    else:
-        state = the_board
-    return np.expand_dims(state, axis=0).astype(float)
 
 
 class AverageMeter(object):

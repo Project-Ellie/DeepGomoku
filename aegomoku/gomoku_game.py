@@ -8,7 +8,7 @@ import numpy as np
 from aegomoku.gomoku_board import GomokuBoard
 from aegomoku.interfaces import Game, Move, TerminalDetector, SWAP2_FIRST_THREE, PASS, \
     SWAP2_AFTER_THREE, SWAP2_AFTER_FIVE, SWAP2_PASSED_THREE, SWAP2_PASSED_FIVE, FIRST_PLAYER, OTHER_PLAYER, GameState, \
-    BLACK, SWAP2_DONE, Player
+    BLACK, SWAP2_DONE
 from aegomoku.policies.heuristic_policy import HeuristicPolicy
 from aegomoku.policies.topological_value import TopologicalValuePolicy
 
@@ -59,7 +59,7 @@ class TopoSwap2BoardInitializer(BoardInitializer):
                     value = policy.evaluate(board.canonical_representation())[1]
                     dist = (value - center_value) ** 2
                     break
-                except AssertionError as e:
+                except AssertionError:
                     continue
             candidates.append((moves, dist))
 
@@ -79,11 +79,16 @@ class TopoSwap2BoardInitializer(BoardInitializer):
                     value = policy.evaluate(board.canonical_representation())[1]
                     dist = (value - center_value) ** 2
                     break
-                except AssertionError as e:
+                except AssertionError:
                     continue
             candidates.append((moves, dist))
 
-        return sorted(candidates, key=lambda e: e[1])[0][0]
+        as_list = sorted(candidates, key=lambda e: e[1])[0][0]
+        as_string = ""
+        for c in as_list:
+            as_string += str(c)
+
+        return as_string
 
 
 class ConstantBoardInitializer(BoardInitializer):
@@ -159,7 +164,7 @@ class GomokuGame(Game):
     def get_winner(self, board: GomokuBoard):
         if self.detector is None:
             self.detector = HeuristicPolicy(self.board_size)
-        state = board.canonical_representation()
+        state, _ = board.canonical_representation()
         inputs = np.expand_dims(state, 0).astype(float)
         return self.detector.get_winner(inputs)
 
@@ -275,8 +280,10 @@ class Swap2(GomokuGame):
     The board knows the phase, the game knows the rules
     """
 
-    def __init__(self, board_size):
+    def __init__(self, board_size, initializer=None):
+        self.initializer = initializer
         super().__init__(board_size)
+
 
     @staticmethod
     def get_current_player(board) -> int:
@@ -284,42 +291,23 @@ class Swap2(GomokuGame):
 
 
     def get_valid_moves(self, board: GomokuBoard):
+
         if len(board.stones) == 3 and board.get_phase() == SWAP2_AFTER_THREE:
-            return [PASS] + super().get_valid_moves(board)
+            # seocond player may pass immediately
+            return list(super().get_valid_moves(board)) + [1.]
+
+        if len(board.stones) == 4 and board.get_phase() == SWAP2_AFTER_THREE:
+            # second player may choose to play 1 stone, then pass
+            return list(super().get_valid_moves(board)) + [1.]
+
         elif len(board.stones) == 5 and board.get_phase() == SWAP2_AFTER_FIVE:
-            return [PASS] + super().get_valid_moves(board)
+            # first player may pass after 2 moves from second
+            return list(super().get_valid_moves(board)) + [1.]
+
         else:
-            return super().get_valid_moves(board)
+            return list(super().get_valid_moves(board)) + [0.]
 
 
     def get_initial_board(self) -> GomokuBoard:
         initial_stones = self.initializer.initial_stones() if self.initializer else ''
         return GomokuBoard(self.board_size, game_state=Swap2GameState(), stones=initial_stones)
-
-
-def one_game(game: GomokuGame, player1: Player, player2: Player, max_moves: int):
-    """
-    :param seqno: A sequence number for the game in the file
-    :param game:
-    :param player1: the player to make the first move
-    :param player2: the other player
-    :param eval_temperature: the temperature at which to read the MCTS scores
-    :param max_moves: games are considered draw when no winner after this
-    :return: tuple: Player1 name,
-    """
-    board = game.get_initial_board()
-    player2.meet(player1)
-    player = player1
-    players = [player1, player2]
-    num_stones = 0
-    while game.get_winner(board) is None and num_stones < max_moves:
-
-        board, move = player.move(board)
-        next_player = board.get_current_player()
-        player = players[next_player]
-
-        print(f"{board}")
-        if game.get_winner(board) is not None:
-            break
-
-    return player1.name, [s.i for s in board.get_stones()], game_data

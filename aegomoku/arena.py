@@ -52,7 +52,7 @@ class Arena:
             player = player.opponent
 
         if verbose:
-            first_color = _current_color(self.board)
+            first_color = board.get_current_color()
             print(f"{player.opponent.name} to begin with {first_color}.")
 
         while self.game.get_winner(board) is None and n_moves < self.max_moves:

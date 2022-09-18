@@ -1,3 +1,4 @@
+import copy
 from pickle import Unpickler
 from typing import List, Tuple, Any, Callable
 
@@ -6,6 +7,7 @@ import tensorflow as tf
 
 from aegomoku.gomoku_board import GomokuBoard
 from aegomoku.gomoku_game import GomokuGame
+from aegomoku.interfaces import Game, Player, Board
 
 
 def read_training_data(filename: str, condition: Callable = None):
@@ -76,3 +78,49 @@ def create_dataset(data: List[Tuple[Any, Any, Any]], batch_size=1024, shuffle=Tr
     if shuffle:
         all_ds = all_ds.shuffle(buffer_size=batch_size)
     return all_ds
+
+
+def one_game(game: Game, player1: Player, player2: Player,
+             eval_temperature: float, max_moves: int, seqno: int = 0):
+    """
+    :param seqno: A sequence number for the game in the file
+    :param game:
+    :param player1: the player to make the first move
+    :param player2: the other player
+    :param eval_temperature: the temperature at which to read the MCTS scores
+    :param max_moves: games are considered draw when no winner after this
+    :return: tuple: Player1 name,
+    """
+    game_data = []
+    board = game.get_initial_board()
+    player2.meet(player1)
+    player = player1
+    players = [player1, player2]
+    num_stones = 0
+    while game.get_winner(board) is None and num_stones < max_moves:
+        num_stones += 1
+        prev_board = copy.deepcopy(board)
+        board, move = player.move(board)
+
+        print(f"{player.name}: {board}")
+        if game.get_winner(prev_board) is not None:
+            break
+
+        example = create_example(prev_board, player, eval_temperature)
+        game_data.append(example)
+
+        player_index = board.get_current_player()
+        player = players[player_index]
+
+    return player1.name, [s.i for s in board.get_stones()], game_data
+
+
+def create_example(the_board: Board, player: Player, temperature: float):
+    """
+    Create a single board image with the player's (MCTS-based) evaluation, ready for training
+    """
+    position = [stone.i for stone in the_board.get_stones()]
+    # state = np.expand_dims(the_board.canonical_representation(), 0).astype(float)
+    probs, value = player.evaluate(the_board, temperature)
+    probs = (np.array(probs)*255).astype(np.uint8)
+    return position, probs, value

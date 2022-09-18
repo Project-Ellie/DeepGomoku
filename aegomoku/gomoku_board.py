@@ -1,8 +1,10 @@
 from typing import List, Union, Callable, Tuple
 
 import numpy as np
+from keras import models
+from numpy import ndarray
 
-from aegomoku.interfaces import Board, Move, GameState, DefaultGomokuState, PASS
+from aegomoku.interfaces import Board, Move, GameState, DefaultGomokuState, PASS, Adviser, PolicyParams
 
 EMPTY_BOARDS = {
     n: np.rollaxis(
@@ -60,8 +62,8 @@ class GomokuBoard(Board):
 
                 if c_y is None:
                     if isinstance(r_x, (int, np.integer)):
-                        assert self.ord_min <= r_x <= self.ord_max, \
-                            f"Expecting a number between {self.ord_min} and {self.ord_max}"
+                        assert self.ord_min <= r_x <= self.ord_max + 1, \
+                            f"Expecting a number between {self.ord_min} and {self.ord_max+1}"
                         r, c = divmod(r_x, self.board_size)
                         x, y = None, None
                     elif isinstance(r_x, str):
@@ -84,24 +86,32 @@ class GomokuBoard(Board):
                 else:
                     x, y, r, c = None, None, r_x, c_y
 
-                if r is not None and c is not None:
-                    assert x is None and y is None, \
-                        "Please provide either r,c matrix coordinates or x, y, n board coordinates"
-                    assert n > r >= 0, f"row {r} out of range 0 <= r < {n}"
-                    assert n > c >= 0, f"col {c} out of range 0 <= c < {n}"
+                if r_x == self.board_size * self.board_size or r_x == -1:
+                    self.i = -1
+                    self.r = -1
+                    self.x = -1
+                    self.c = -1
+                    self.y = -1
 
-                    self.r, self.c = r, c
-                if x is not None and y is not None and n is not None:
-                    assert r is None and c is None, \
-                        "Please provide either r,c matrix coordinates or x, y, n board coordinates"
-                    if isinstance(x, str):
-                        x = ord(x) - 64
-                    self.r, self.c = n-y, x-1
+                else:
+                    if r is not None and c is not None:
+                        assert x is None and y is None, \
+                            "Please provide either r,c matrix coordinates or x, y, n board coordinates"
+                        assert n > r >= 0, f"row {r} out of range 0 <= r < {n}"
+                        assert n > c >= 0, f"col {c} out of range 0 <= c < {n}"
 
-                # single-digit representation for vector operations in the ML game_context
-                self.i = self.r * self.board_size + self.c
-                self.x = x
-                self.y = y
+                        self.r, self.c = r, c
+                    if x is not None and y is not None and n is not None:
+                        assert r is None and c is None, \
+                            "Please provide either r,c matrix coordinates or x, y, n board coordinates"
+                        if isinstance(x, str):
+                            x = ord(x) - 64
+                        self.r, self.c = n-y, x-1
+
+                    # single-digit representation for vector operations in the ML game_context
+                    self.i = self.r * self.board_size + self.c
+                    self.x = x
+                    self.y = y
 
                 super().__init__(x, y, self.i)
 
@@ -296,14 +306,25 @@ class GomokuBoard(Board):
         """
         return len(self.get_legal_actions()) > 0
 
+    def _is_pass(self, obj):
+        alt_pass = self.board_size * self.board_size
+        if obj == PASS or obj == alt_pass:
+            return True
+        if isinstance(obj, Move):
+            if obj.i == -1 or obj.i == alt_pass:
+                return True
+        return False
+
     def act(self, *args):
 
-        if args[0] != PASS:
+        if not self._is_pass(args[0]):
             if isinstance(args[0], Move):
                 stone = args[0]
             else:
                 stone = self.Stone(*args)
             m = self.math_rep
+            if m[stone.r+1, stone.c+1, 0] != 0 or m[stone.r+1, stone.c+1, 1] != 0:
+                print("See?")
             assert m[stone.r+1, stone.c+1, 0] == m[stone.r+1, stone.c+1, 1] == 0, f"{stone} is occupied."
             m[stone.r+1, stone.c+1, 0] = 1
             self.swap()
@@ -325,7 +346,8 @@ class GomokuBoard(Board):
         self.math_rep[:, :, [0, 1]] = self.math_rep[:, :, [1, 0]]
 
     def canonical_representation(self):
-        return self.math_rep
+        # TODO SWAP2: return math_rep and phase
+        return self.math_rep, self.game_state.get_phase()
 
 
     def remove(self, stone):
@@ -365,3 +387,44 @@ def stones_from_example(example) -> Tuple[List[int], str]:
         except IndexError:
             break
     return stones, current
+
+
+def expand(board_or_canon):
+    """
+    Expand the NxNx3 representation of the board to prepare for ingestion into neural networks
+    :param board_or_canon: either (NxNx3, phase) or a GomokuBoard instance
+    :return:
+    """
+    if isinstance(board_or_canon, GomokuBoard):
+        field, phase = board_or_canon.canonical_representation()
+    else:
+        field, phase = board_or_canon
+    return np.expand_dims(field, axis=0).astype(float), np.expand_dims(phase, axis=0).astype(float)
+
+
+class PolicyAdviser(Adviser):
+
+    def __init__(self, model: models.Model, params: PolicyParams):
+        self.model = model
+        self.params = params
+
+    def get_advisable_actions(self, state: Tuple[ndarray, List[int]]) -> List[float]:
+        """
+        :param state: (nxnx3, phase) representation of a go board
+        :return:
+        """
+        probs, _ = self.model(expand(state))
+        max_prob = np.max(probs, axis=None)
+        probs = np.squeeze(probs)
+        advisable = np.where(probs > max_prob * self.params.advice_cutoff, probs, 0.)
+
+        return [int(n) for n in advisable.nonzero()[0]]
+
+
+    def advise(self, state: Tuple[ndarray, List[int]]):
+        """
+        :param state: nxnx3 representation of a go board
+        :return:
+        """
+        p, v = self.model(expand(state))
+        return np.squeeze(p), np.squeeze(v)

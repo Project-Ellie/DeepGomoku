@@ -1,18 +1,17 @@
 from __future__ import annotations
 
 import abc
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 import numpy as np
-from keras import models
+from numpy import ndarray
 
-GAMESTATE_NORMAL = 0
-
-SWAP2_FIRST_THREE = -1
-SWAP2_AFTER_THREE = -2
-SWAP2_PASSED_THREE = -3
-SWAP2_AFTER_FIVE = -4
-SWAP2_PASSED_FIVE = -5
-SWAP2_DONE = -6
+GAMESTATE_NORMAL = [1, 0, 0, 0, 0, 0, 0]
+SWAP2_FIRST_THREE = [0, 1, 0, 0, 0, 0, 0]
+SWAP2_AFTER_THREE = [0, 0, 1, 0, 0, 0, 0]
+SWAP2_PASSED_THREE = [0, 0, 0, 1, 0, 0, 0]
+SWAP2_AFTER_FIVE = [0, 0, 0, 0, 1, 0, 0]
+SWAP2_PASSED_FIVE = [0, 0, 0, 0, 0, 1, 0]
+SWAP2_DONE = [0, 0, 0, 0, 0, 0, 1]
 
 PASS = -1
 
@@ -82,49 +81,25 @@ class IllegalMoveException(Exception):
 class Adviser:
 
     @abc.abstractmethod
-    def get_advisable_actions(self, state):
+    def get_advisable_actions(self, state: Tuple[ndarray, List[int]]) -> List[float]:
+        """
+        :param state: A pair of board rep NxNx3 and the one-hot encoded phase
+        :return: a list of probabilities for the actions. Here we may apply intentional bias and discard any
+            unreasonable actions - as opposed to
+        """
         pass
 
     @abc.abstractmethod
-    def evaluate(self, state):
+    def advise(self, state: Tuple[ndarray, List[int]]):
         """
-        :param state: current board in its canonical form NxNx3.
+        :param state: A pair of board rep NxNx3 and the one-hot encoded phase
 
         :returns:
             pi: a policy vector for the current board- a numpy array of length
                 game.get_action_size
-            v: a float in [-1,1] that gives the value of the current board
+            v: a float in [-1,1] that represents the value of the current board
         """
         pass
-
-
-class PolicyAdviser(Adviser):
-
-    def __init__(self, model: models.Model, params: PolicyParams):
-        self.model = model
-        self.params = params
-
-    def get_advisable_actions(self, state):
-        """
-        :param state: nxnx3 representation of a go board
-        :return:
-        """
-        probs, _ = self.model(state)
-        max_prob = np.max(probs, axis=None)
-        probs = np.squeeze(probs)
-        advisable = np.where(probs > max_prob * self.params.advice_cutoff, probs, 0.)
-
-        return [int(n) for n in advisable.nonzero()[0]]
-
-
-    def evaluate(self, state):
-        """
-        :param state: nxnx3 representation of a go board
-        :return:
-        """
-        inputs = np.expand_dims(state, 0).astype(float)
-        p, v = self.model(inputs)
-        return np.squeeze(p), np.squeeze(v)
 
 
 class Move:

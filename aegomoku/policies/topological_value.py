@@ -1,7 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from aegomoku.interfaces import Adviser
+from aegomoku.gomoku_board import expand
+from aegomoku.interfaces import Adviser, Game
 from aegomoku.policies.radial import all_3xnxn
 
 
@@ -15,7 +16,8 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
     """
 
 
-    def __init__(self, kappa_s: float = 6.0, kappa_d: float = 5.0,
+    def __init__(self, game: Game,
+                 kappa_s: float = 6.0, kappa_d: float = 5.0,
                  policy_stretch: float = 2.0, value_stretch: float = 1 / 32.,
                  advice_cutoff: float = .01, noise_reduction: float = 1.1,
                  percent_secondary: float = 34, min_secondary: int = 5,
@@ -30,6 +32,7 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
         :param percent_secondary: percentage of not-so-popular moves taken into advisable action. Our 'Dirichlet' noise.
         """
         super().__init__()
+        self.game = game
         self.kappa_s = kappa_s
         self.kappa_d = kappa_d
         self.policy_stretch = policy_stretch
@@ -39,7 +42,7 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
         self.percent_secondary = percent_secondary
         self.min_secondary = min_secondary
         self.value_gauge = value_gauge
-        self.board_size = board_size  # Not used here
+        self.board_size = self.game.board_size
 
         self.raw_patterns = [
             [[0, 0, 0, 0, -5, 1, 1, 1, 1], [0, 0, 0, 0, -5, -5, -5, -5, -5], 0],
@@ -118,9 +121,20 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
             bias_initializer=tf.constant_initializer(0.),
             trainable=False)
 
+        # Here's the reasoning: Hard sigmoid is 0 below -2.5. With a bias of -200 and the phase amplifier of 187.5,
+        # the matching phase will bring the output to -12.5, that is 10 left to go. Faktor k is chosen so that any value
+        # below threshold makes the sum exceed -2.5, hence rapidly increasing the probability of a pass move.
+        threshold = -0.04  # half the value of a single stone
+        k = 10. / threshold
+        self.pass_or_not = tf.keras.layers.Dense(
+            units=1, kernel_initializer=tf.constant_initializer([0., 0., 187.5, 0., 187.5, 0., 0., k]),
+            bias_initializer=tf.constant_initializer(-200.),
+            activation=tf.keras.activations.hard_sigmoid
+        )
 
-    def call(self, state):
-        y = self.detector(state)
+    def call(self, state, **_kwargs):
+        field, phase = state
+        y = self.detector(field)
         y = tf.math.pow(y, self.kappa_s)
         y = self.sum_s(y)
         y = tf.math.pow(y, self.kappa_d/self.kappa_s)
@@ -131,9 +145,22 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
         p = self.peel(tf.expand_dims(p, -1))
         v = self.peel(tf.expand_dims(v, -1))
 
-        probs = tf.reshape(p, (-1, ))
-        probs = tf.keras.layers.Softmax()(self.policy_stretch * probs)
         value = self.value_gauge * tf.nn.tanh(self.value_stretch * tf.math.reduce_sum(v))
+
+        # phase = np.squeeze(phase)
+        # pass_input = np.append(phase, [np.squeeze(value)])
+        # pass_input = np.expand_dims(pass_input, 0)
+        pass_input = tf.keras.layers.Concatenate(axis=1)([phase, tf.reshape(value, (1,1))])
+        pass_output = self.pass_or_not(pass_input)
+        if pass_output > 0.:
+            # recommend passing only if it's allowed and the logic supports it.
+            probs = ([0.] * self.board_size * self.board_size) + [1.0]
+            probs = tf.constant(probs)
+        else:
+            probs = tf.reshape(p, (1, self.board_size * self.board_size))
+            probs = tf.keras.layers.Softmax()(self.policy_stretch * probs)
+            probs = tf.keras.layers.Concatenate(axis=1)([probs, tf.constant([[0.]])])
+
         return probs, value
 
     def get_advisable_actions(self, state, cut_off=None, reduction=None,
@@ -146,12 +173,13 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
         :param min_secondary: override the minumum of low quality moves to include
         :return: List of integers representing the avisable moves
         """
+        field, _ = state
         cut_off = cut_off if cut_off is not None else self.advice_cutoff
         # reduction = reduction if reduction is not None else self.noise_reduction
         percent_secondary = percent_secondary if percent_secondary is not None else self.percent_secondary
         min_secondary = min_secondary if min_secondary is not None else self.min_secondary
 
-        probs, _ = self.evaluate(np.squeeze(state))
+        probs, _ = self.advise(state)
         max_prob = np.max(probs, axis=None)
         probs = np.squeeze(probs)
 
@@ -191,9 +219,8 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
 
         return advisable
 
-    def evaluate(self, state):
-        state = np.expand_dims(state, 0).astype(float)
-        probs, value = self.call(state)
+    def advise(self, state):
+        probs, value = self.call(expand(state))
         return np.squeeze(probs), value.numpy()
 
 

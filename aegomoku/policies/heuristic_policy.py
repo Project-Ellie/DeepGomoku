@@ -1,5 +1,7 @@
 import numpy as np
 import tensorflow as tf
+
+from aegomoku.gomoku_board import expand
 from aegomoku.interfaces import TerminalDetector, Adviser
 from aegomoku.policies.forward_looking import ForwardLookingLayer
 from aegomoku.policies.naive_infuence import NaiveInfluenceLayer
@@ -50,7 +52,7 @@ class HeuristicPolicy(tf.keras.Model, Adviser, TerminalDetector):
         :param: state: batch of a single state. 1 x N x N x 3
         :return: a list of integer move representations with probabilities close enough to the maximum (see: cut_off)
         """
-        probs, _ = self.call(state)
+        probs, _ = self.call(expand(state))
         max_prob = np.max(probs, axis=None)
         probs = probs.reshape(self.board_size * self.board_size)
         advisable = np.where(probs > max_prob * self.cut_off, probs, 0.)
@@ -58,6 +60,9 @@ class HeuristicPolicy(tf.keras.Model, Adviser, TerminalDetector):
 
 
     def logits(self, s):
+
+        # TODO: SWAP2: s must be the board and the phase
+
         raw = self.detector.call(s)
         for i in range(self.n_fwll):
             raw = self.fwll.call(raw)
@@ -70,7 +75,8 @@ class HeuristicPolicy(tf.keras.Model, Adviser, TerminalDetector):
     def squeeze_and_peel(self, raw, layer):
         return np.squeeze(self.peel(tf.expand_dims(raw[:, :, :, layer], -1)))
 
-    def call(self, s):
+    def call(self, s, **_kwargs):
+        s, _ = s  # We're currently not supporting a phase like in SWAP2
         logits_c, logits_o = self.logits(s)
         eps = 1e-8
         logits = logits_c + logits_o
@@ -88,8 +94,7 @@ class HeuristicPolicy(tf.keras.Model, Adviser, TerminalDetector):
         return probs, value
 
 
-    def evaluate(self, state):
-        state = np.expand_dims(state, 0).astype(float)
-        pi, v = self.call(state)
+    def advise(self, state):
+        pi, v = self.call(expand(state))
         pi = np.reshape(pi, self.board_size * self.board_size)
         return pi, v

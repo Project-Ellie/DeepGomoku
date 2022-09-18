@@ -1,18 +1,17 @@
 import argparse
-import copy
 import logging
 import os
 from pathlib import Path
 from pickle import Pickler
 import tensorflow as tf
 
-import numpy as np
 import yaml
 from yaml import Loader
 
+from aegomoku.game_data import one_game
 from aegomoku.gomoku_game import RandomBoardInitializer, GomokuGame, ConstantBoardInitializer
 from aegomoku.gomoku_players import PolicyAdvisedGraphSearchPlayer
-from aegomoku.interfaces import MctsParams, PolicyParams, Player, Board, Game, PolicyAdviser
+from aegomoku.interfaces import MctsParams, PolicyParams, Player, PolicyAdviser
 from aegomoku.policies.topological_value import TopologicalValuePolicy
 
 parser = argparse.ArgumentParser(description="Create Selfplay data with a given parameter config")
@@ -84,50 +83,6 @@ def create_gameplay_data(game, player1: Player, player2: Player, params, seqno):
             player2.refresh()
 
     return gameplay_data
-
-
-def create_example(the_board: Board, player: Player, temperature: float):
-    """
-    Create a single board image with the player's (MCTS-based) evaluation, ready for training
-    """
-    position = [stone.i for stone in the_board.get_stones()]
-    # state = np.expand_dims(the_board.canonical_representation(), 0).astype(float)
-    probs, value = player.evaluate(the_board, temperature)
-    probs = (np.array(probs)*255).astype(np.uint8)
-    return position, probs, value
-
-
-def one_game(seqno: int, game: Game, player1: Player, player2: Player,
-             eval_temperature: float, max_moves: int):
-    """
-    :param seqno: A sequence number for the game in the file
-    :param game:
-    :param player1: the player to make the first move
-    :param player2: the other player
-    :param eval_temperature: the temperature at which to read the MCTS scores
-    :param max_moves: games are considered draw when no winner after this
-    :return: tuple: Player1 name,
-    """
-    game_data = []
-    board = game.get_initial_board()
-    player2.meet(player1)
-    player = player1
-    num_stones = 0
-    while game.get_winner(board) is None and num_stones < max_moves:
-        num_stones += 1
-        prev_board = copy.deepcopy(board)
-        board, move = player.move(board)
-
-        print(f"{seqno:02}: {board}")
-        if game.get_winner(prev_board) is not None:
-            break
-
-        example = create_example(prev_board, player, eval_temperature)
-        game_data.append(example)
-
-        player = player.opponent
-
-    return player1.name, [s.i for s in board.get_stones()], game_data
 
 
 def create_players(game, player1, player2):

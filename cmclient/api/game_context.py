@@ -17,7 +17,7 @@ class GameContext:
         self.temperature = 1.0
 
     def get_advice(self):
-        p_advice, p_value = self.advice.evaluate(self.board.canonical_representation())
+        p_advice, p_value = self.advice.advise(self.board.canonical_representation())
         m_advice = self.mcts.compute_probs(self.board, self.temperature)
         key = self.board.get_string_representation()
         m_value = max([self.mcts.Q.get((key, i), -float('inf')) for i in range(225)])
