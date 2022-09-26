@@ -77,6 +77,8 @@ class MCTS:
         counts = [x ** (1. / temperature) for x in counts]
         counts_sum = float(sum(counts)) or 1.0
         probs = [x / counts_sum for x in counts]
+        if sum(probs) == 0.0:
+            print("Oops")
         return probs
 
 
@@ -99,16 +101,12 @@ class MCTS:
         Returns:
             v: the negative of the value of the current canonical_board
         """
-
         s = board.get_string_representation()
 
-        # winner = None
-
-        # if I don't know whether this state is terminal...
+        # if we don't know whether this state is terminal...
         if s not in self.Es:
             # ... find out
             self.Es[s] = self.game.get_winner(board)
-            # winner = "BLACK (0)" if self.game.get_winner(board) == 0 else 'WHITE (1)'
 
         # Now, if it is terminal, ...
         if self.Es[s] is not None:
@@ -126,31 +124,11 @@ class MCTS:
         # new_value = self.update_node_stats(s, move.i, v)
         self.update_node_stats(s, move.i, v)
 
-        # Only works in self-play
-        # self.update_tree_view(s, move, new_value, next_board, info)
-
-        return -v
-
-
-    def update_tree_view(self, s, move, v, board, info=None):
-        """
-        Maintain a tree view for debug purposes in self-play
-        :param s: the canonical string rep of the prev state
-        :param move: the move from prev to curr state
-        :param v: the value of the new state
-        :param info: a dictionary with debug info
-        :param board: human-readable string rep of the current state
-        """
-        a = move.i
-        parent = self.tree_nodes.get(s)
-        if parent:
-            if parent.children.get(str(move)) is not None:
-                child = parent.children.get(str(move))
-                child.v = v
-                child.nsa = self.Nsa[(s, a)]
-            else:
-                child = parent.add_child(move, board, v, self.Nsa[(s, a)], self.ucb(s, a), info)
-                self.tree_nodes[child.key] = child
+        # Passing passes the original value, obviously.
+        if move == board.board_size * board.board_size:
+            return v
+        else:
+            return -v
 
 
     def update_node_stats(self, s, a, v):
@@ -179,8 +157,8 @@ class MCTS:
         """
 
         # evaluate the policy for the move probablities and the value estimate.
-        inputs = board.canonical_representation()
-        self.Ps[s], v = self.adviser.advise(inputs)
+        state = board.canonical_representation()
+        self.Ps[s], v = self.adviser.advise(state)
 
         # rule out illegal moves and renormalize
         valids = self.game.get_valid_moves(board)
@@ -208,11 +186,17 @@ class MCTS:
         s = board.get_string_representation()
         advisable = self.As.get(s)
         if advisable is None or len(advisable) == 0:
+            if s[-1] == 'P':
+                pass
             inputs = board.canonical_representation()
             advisable = self.adviser.get_advisable_actions(inputs)
-            advisable = set(advisable).difference([s.i for s in board.get_stones()])
+            if advisable is None or len(advisable) == 0:
+                print("No advice?")
+            effective_advisable = set(advisable).difference([s.i for s in board.get_stones()])
+            if effective_advisable is None or len(effective_advisable) == 0:
+                print("No advice?")
 
-            self.As[s] = advisable
+            self.As[s] = effective_advisable
 
         return [board.stone(i) for i in advisable]
 
@@ -220,7 +204,9 @@ class MCTS:
     def best_act(self, board: Board, s: str) -> Tuple[Move, Dict]:
         # pick the move with the highest upper confidence bound from the probable actions
         # We're reducing the action space to those actions deemed probable by the model
-        valids = self.Vs[s]
+        valids = self.Vs.get(s)
+        if valids is None:
+            print("oops.")
         cur_best = -float('inf')
         best_act = None
 

@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from aegomoku.gomoku_board import expand
-from aegomoku.interfaces import Adviser, Game
+from aegomoku.interfaces import Adviser, Game, OpeningBook
 from aegomoku.policies.radial import all_3xnxn
 
 
@@ -14,14 +14,12 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
     parallel line values add like v = sum(v_s ** 6) ** (1/6); s from range(5) - the shifts from ____. to .____
     values of the 4 different directions add like v = (sum(v_d ** 5) ** (1/5); d from range(4) - the directions
     """
-
-
-    def __init__(self, game: Game,
+    def __init__(self, game: Game, opening_book: OpeningBook = None,
                  kappa_s: float = 6.0, kappa_d: float = 5.0,
                  policy_stretch: float = 2.0, value_stretch: float = 1 / 32.,
                  advice_cutoff: float = .01, noise_reduction: float = 1.1,
                  percent_secondary: float = 34, min_secondary: int = 5,
-                 value_gauge: float = 0.1, board_size=None):
+                 value_gauge: float = 0.1):
         """
         :param kappa_s: exponent of the pseudo-euclidean sum of parallel lines-of-five
         :param kappa_d: exponent of the pseudo-euclidean sum of different directions
@@ -132,6 +130,10 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
             activation=tf.keras.activations.hard_sigmoid
         )
 
+        self.opening_book = opening_book
+        self.opening_book.set_policy(self)
+
+
     def call(self, state, **_kwargs):
         field, phase = state
         y = self.detector(field)
@@ -150,16 +152,16 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
         # phase = np.squeeze(phase)
         # pass_input = np.append(phase, [np.squeeze(value)])
         # pass_input = np.expand_dims(pass_input, 0)
-        pass_input = tf.keras.layers.Concatenate(axis=1)([phase, tf.reshape(value, (1,1))])
-        pass_output = self.pass_or_not(pass_input)
-        if pass_output > 0.:
-            # recommend passing only if it's allowed and the logic supports it.
-            probs = ([0.] * self.board_size * self.board_size) + [1.0]
-            probs = tf.constant(probs)
-        else:
-            probs = tf.reshape(p, (1, self.board_size * self.board_size))
-            probs = tf.keras.layers.Softmax()(self.policy_stretch * probs)
-            probs = tf.keras.layers.Concatenate(axis=1)([probs, tf.constant([[0.]])])
+        # pass_input = tf.keras.layers.Concatenate(axis=1)([phase, tf.reshape(value, (1, 1))])
+        # pass_output = self.pass_or_not(pass_input)
+        # if pass_output > 0.:
+        #     # recommend passing only if it's allowed and the logic supports it.
+        #     probs = ([0.] * self.board_size * self.board_size) + [1.0]
+        #     probs = tf.constant(probs)
+        # else:
+        probs = tf.reshape(p, (1, self.board_size * self.board_size))
+        probs = tf.keras.layers.Softmax()(self.policy_stretch * probs)
+        probs = tf.keras.layers.Concatenate(axis=1)([probs, tf.constant([[0.]])])
 
         return probs, value
 
@@ -219,9 +221,28 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
 
         return advisable
 
+
     def advise(self, state):
-        probs, value = self.call(expand(state))
-        return np.squeeze(probs), value.numpy()
+
+        if self.opening_book.should_pass(state):
+            probs = np.zeros(shape=self.board_size * self.board_size + 1)
+            probs[-1] = 1.0
+            value = 0.0
+            return probs, value
+
+        # check if the opening book has something
+        opening_moves = self.opening_book.next_moves(state)
+
+        if opening_moves is not None and len(opening_moves) > 0:
+            n = len(opening_moves)
+            probs = np.zeros(shape=self.board_size * self.board_size + 1)
+            for opening_move in opening_moves:
+                probs[opening_move.i] = 1.0 / n
+            value = 0.0
+            return probs, value
+        else:
+            probs, value = self.call(expand(state))
+            return np.squeeze(probs), value.numpy()
 
 
     def select_patterns(self):

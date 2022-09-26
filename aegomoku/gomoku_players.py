@@ -56,17 +56,18 @@ class PolicyAdvisedGraphSearchPlayer(Player):
         other.opponent = self
 
 
-    def move(self, board: Board, temperature=None) -> Tuple[Board, Optional[Move]]:
+    def move(self, board: Board, temperature=None, verbose=0) -> Tuple[Board, Optional[Move]]:
         """
         Procedural (not functional) interface. It changes the board!
         :param board: the board to use
         :param temperature: if provided, overrides the default training_data of the player. Good for self-play.
+        :param verbose: Verbosity: 1=some, 2=lots
         :return: the very same board instance containing one more stone.
         """
         # No move when game is over
         winner = self.game.get_winner(board)
         if winner is not None:
-            return board, None
+            return board, winner
 
         temperature = temperature if temperature is not None else self.mcts.params.temperature
         probs = self.mcts.get_action_prob(board, temperature=temperature)
@@ -76,9 +77,10 @@ class PolicyAdvisedGraphSearchPlayer(Player):
 
         while patience > 0:
             try:
-                move = board.stone(np.random.choice(list(range(board.board_size**2)), p=probs))
-            except Exception:
-                print("See?")
+                move = board.stone(np.random.choice(list(range(board.board_size**2 + 1)), p=probs))
+
+            except Exception as e:
+                print(f"Exception: {e}")
             if move not in board.get_stones():
                 break
             patience -= 1

@@ -4,7 +4,7 @@ import numpy as np
 from keras import models
 from numpy import ndarray
 
-from aegomoku.interfaces import Board, Move, GameState, DefaultGomokuState, PASS, Adviser, PolicyParams
+from aegomoku.interfaces import Board, Move, GameState, DefaultGomokuState, Adviser, PolicyParams
 
 EMPTY_BOARDS = {
     n: np.rollaxis(
@@ -49,7 +49,7 @@ class GomokuBoard(Board):
             field_size = self.board_size + 2  # The field includes the border
 
             ord_min = 0
-            ord_max = board_size * board_size - 1
+            ord_max = board_size * board_size  # passing = NxN
 
             def __init__(self, r_x: Union[int, str], c_y: int = None):
                 """
@@ -87,11 +87,11 @@ class GomokuBoard(Board):
                     x, y, r, c = None, None, r_x, c_y
 
                 if r_x == self.board_size * self.board_size or r_x == -1:
-                    self.i = -1
-                    self.r = -1
-                    self.x = -1
-                    self.c = -1
-                    self.y = -1
+                    self.i = self.ord_max
+                    self.r = self.ord_max
+                    self.x = self.ord_max
+                    self.c = self.ord_max
+                    self.y = self.ord_max
 
                 else:
                     if r is not None and c is not None:
@@ -117,6 +117,8 @@ class GomokuBoard(Board):
 
 
             def __str__(self):
+                if self.i == -1 or self.i == self.board_size * self.board_size:
+                    return "Pass"
                 return f"{chr(self.c+65)}{self.board_size-self.r}"
 
             __repr__ = __str__
@@ -270,12 +272,15 @@ class GomokuBoard(Board):
 
 
     def __str__(self):
-        next_player = "Black" if len(self.get_stones()) % 2 == 0 else 'White'
+        cp = self.game_state.get_current_player()
+        # Don't count the "Pass" move
+        corr = 1 if self.Stone(self.board_size * self.board_size) in self.get_stones() else 0
+        next_color = 'black' if (len(self.get_stones()) - corr) % 2 == 0 else 'white'
         first, stones = self.stones[:-8], self.stones[-8:]
         if len(first) > 0:
             first = ['...']
         stones = first + stones
-        return " ".join(str(s) for s in stones) + f" ({next_player} next)"
+        return " ".join(str(s) for s in stones) + f" - Player {cp+1} next with {next_color}"
 
     __repr__ = __str__
 
@@ -288,6 +293,9 @@ class GomokuBoard(Board):
         example = self.math_rep, [], 0
         stones, current = stones_from_example(example)
         res = str(sorted(stones))
+
+        if self.Stone(self.game_state.PASS) in self.stones:
+            res += "P"
         return res
 
     def get_legal_actions(self):
@@ -307,11 +315,10 @@ class GomokuBoard(Board):
         return len(self.get_legal_actions()) > 0
 
     def _is_pass(self, obj):
-        alt_pass = self.board_size * self.board_size
-        if obj == PASS or obj == alt_pass:
+        if obj == self.board_size * self.board_size:
             return True
         if isinstance(obj, Move):
-            if obj.i == -1 or obj.i == alt_pass:
+            if obj.i == self.board_size * self.board_size:
                 return True
         return False
 
@@ -329,6 +336,8 @@ class GomokuBoard(Board):
             m[stone.r+1, stone.c+1, 0] = 1
             self.swap()
             self.stones.append(stone)
+        else:
+            self.stones.append(args[0])
 
         self.game_state.transition(*args)
 
@@ -346,7 +355,6 @@ class GomokuBoard(Board):
         self.math_rep[:, :, [0, 1]] = self.math_rep[:, :, [1, 0]]
 
     def canonical_representation(self):
-        # TODO SWAP2: return math_rep and phase
         return self.math_rep, self.game_state.get_phase()
 
 

@@ -1,14 +1,17 @@
 from unittest import TestCase
 
 from aegomoku.gomoku_game import Swap2
-from aegomoku.interfaces import BLACK, SWAP2_FIRST_THREE, PASS, WHITE, SWAP2_AFTER_THREE, SWAP2_AFTER_FIVE, \
+from aegomoku.interfaces import BLACK, SWAP2_FIRST_THREE, WHITE, SWAP2_AFTER_THREE, SWAP2_AFTER_FIVE, \
     SWAP2_PASSED_THREE, SWAP2_DONE, SWAP2_PASSED_FIVE, FIRST_PLAYER, OTHER_PLAYER
+
+BOARD_SIZE = 15
+PASS = BOARD_SIZE * BOARD_SIZE
 
 
 class Swap2Tests(TestCase):
 
     def setUp(self) -> None:
-        self.game = Swap2(15)
+        self.game = Swap2(BOARD_SIZE)
         self.board = self.game.get_initial_board()
 
 

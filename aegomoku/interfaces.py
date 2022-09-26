@@ -3,24 +3,66 @@ from __future__ import annotations
 import abc
 from typing import Tuple, Optional, List
 import numpy as np
+from keras import Model
 from numpy import ndarray
 
-GAMESTATE_NORMAL = [1, 0, 0, 0, 0, 0, 0]
-SWAP2_FIRST_THREE = [0, 1, 0, 0, 0, 0, 0]
-SWAP2_AFTER_THREE = [0, 0, 1, 0, 0, 0, 0]
-SWAP2_PASSED_THREE = [0, 0, 0, 1, 0, 0, 0]
-SWAP2_AFTER_FIVE = [0, 0, 0, 0, 1, 0, 0]
-SWAP2_PASSED_FIVE = [0, 0, 0, 0, 0, 1, 0]
-SWAP2_DONE = [0, 0, 0, 0, 0, 0, 1]
+GAMESTATE_NORMAL = [1, 0, 0, 0, 0, 0, 0, 0, 0]
+SWAP2_FIRST_THREE = [0, 1, 0, 0, 0, 0, 0, 0, 0]
+SWAP2_AFTER_THREE = [0, 0, 1, 0, 0, 0, 0, 0, 0]
+SWAP2_PASSED_THREE = [0, 0, 0, 1, 0, 0, 0, 0, 0]
 
-PASS = -1
+SWAP2_AFTER_FOUR = [0, 0, 0, 0, 1, 0, 0, 0, 0]
+SWAP2_PASSED_FOUR = [0, 0, 0, 0, 0, 1, 0, 0, 0]
 
+SWAP2_AFTER_FIVE = [0, 0, 0, 0, 0, 0, 1, 0, 0]
+SWAP2_PASSED_FIVE = [0, 0, 0, 0, 0, 0, 0, 1, 0]
+
+SWAP2_DONE = [0, 0, 0, 0, 0, 0, 0, 0, 1]
 
 BLACK = 0
 WHITE = 1
 
 FIRST_PLAYER = 0
 OTHER_PLAYER = 1
+
+
+class BoardInitializer:
+    @abc.abstractmethod
+    def initial_stones(self):
+        pass
+
+
+class OpeningBook(abc.ABC):
+
+    @abc.abstractmethod
+    def next_move(self, state):
+        """
+        :param state: NxNx3 canonical state rep
+        :return: the next move from the chosen sequence, or None if opening phase is over.
+        """
+        raise NotImplementedError("Please consider implementing this method.")
+
+    @abc.abstractmethod
+    def next_moves(self, state):
+        """
+        :param state: NxNx3 canonical state rep
+        :return: recommended moves from the chosen sequence, or None if opening phase is over.
+        """
+        raise NotImplementedError("Please consider implementing this method.")
+
+    def set_policy(self, policy: Model):
+        """
+        :param policy: an adviser to estimate position values
+        """
+        raise NotImplementedError("Please consider implementing this method.")
+
+    def should_pass(self, state):
+        """
+        Passing advice is specific to an opening book.
+        :param state: the state NxNx3
+        :return:
+        """
+        raise NotImplementedError("Please consider implementing this method.")
 
 
 class GameState:
@@ -30,6 +72,7 @@ class GameState:
 
     def link(self, board: Board):
         self.board = board
+        self.PASS = self.board.board_size * self.board.board_size
 
     @abc.abstractmethod
     def get_phase(self):
