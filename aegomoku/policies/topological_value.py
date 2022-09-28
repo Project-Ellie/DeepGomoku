@@ -1,3 +1,5 @@
+from typing import List
+
 import numpy as np
 import tensorflow as tf
 
@@ -131,7 +133,8 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
         )
 
         self.opening_book = opening_book
-        self.opening_book.set_policy(self)
+        if self.opening_book is not None:
+            self.opening_book.set_policy(self)
 
 
     def call(self, state, **_kwargs):
@@ -149,24 +152,16 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
 
         value = self.value_gauge * tf.nn.tanh(self.value_stretch * tf.math.reduce_sum(v))
 
-        # phase = np.squeeze(phase)
-        # pass_input = np.append(phase, [np.squeeze(value)])
-        # pass_input = np.expand_dims(pass_input, 0)
-        # pass_input = tf.keras.layers.Concatenate(axis=1)([phase, tf.reshape(value, (1, 1))])
-        # pass_output = self.pass_or_not(pass_input)
-        # if pass_output > 0.:
-        #     # recommend passing only if it's allowed and the logic supports it.
-        #     probs = ([0.] * self.board_size * self.board_size) + [1.0]
-        #     probs = tf.constant(probs)
-        # else:
         probs = tf.reshape(p, (1, self.board_size * self.board_size))
         probs = tf.keras.layers.Softmax()(self.policy_stretch * probs)
-        probs = tf.keras.layers.Concatenate(axis=1)([probs, tf.constant([[0.]])])
+
+        # this policy provides random advice for special moves
+        probs = tf.keras.layers.Concatenate(axis=1)([probs, tf.constant([[0., 0.]])])
 
         return probs, value
 
     def get_advisable_actions(self, state, cut_off=None, reduction=None,
-                              percent_secondary=None, min_secondary=None):
+                              percent_secondary=None, min_secondary=None) -> List[int]:
         """
         :param state: nxnx3 representation of a go board
         :param cut_off: override advice_cutoff
@@ -224,14 +219,18 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
 
     def advise(self, state):
 
-        if self.opening_book.should_pass(state):
-            probs = np.zeros(shape=self.board_size * self.board_size + 1)
-            probs[-1] = 1.0
-            value = 0.0
-            return probs, value
+        if self.opening_book is not None:
+            if self.opening_book.should_pass(state):
+                self.game.get_valid_moves()
+                probs = np.zeros(shape=self.board_size * self.board_size + 1)
+                probs[-1] = 1.0
+                value = 0.0
+                return probs, value
 
-        # check if the opening book has something
-        opening_moves = self.opening_book.next_moves(state)
+            # check if the opening book has something
+            opening_moves = self.opening_book.next_moves(state)
+        else:
+            opening_moves = None
 
         if opening_moves is not None and len(opening_moves) > 0:
             n = len(opening_moves)
@@ -242,8 +241,8 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
             return probs, value
         else:
             probs, value = self.call(expand(state))
-            return np.squeeze(probs), value.numpy()
-
+            p, v = np.squeeze(probs), value.numpy()
+            return p, v
 
     def select_patterns(self):
         return [

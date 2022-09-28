@@ -171,13 +171,14 @@ class MplBoard:
 
         position = new_board.GomokuBoard(self.N, stones=gt.stones_to_string(self.stones[:self.cursor+1]))
         if isinstance(self.policy, (list, np.ndarray)):
-            q = np.reshape(self.policy, (self.N, self.N))
+            # Potentially additional element of the policy may be for passing
+            q = np.reshape(self.policy[:self.N * self.N], (self.N, self.N))
         else:
-            state = np.expand_dims(position.canonical_representation(), 0).astype(float)
-            q, _ = self.policy(state)
+            state = position.canonical_representation()
+            q, _ = self.policy(new_board.expand(state))
 
         heatmap = np.squeeze(self.heatmap(q))
-        heatmap = heatmap.reshape((self.N, self.N))
+        heatmap = heatmap[:self.N * self.N].reshape((self.N, self.N))
 
         for c in range(self.N):
             for r in range(self.N):
@@ -189,4 +190,4 @@ class MplBoard:
             
                 
     def stones_size(self):
-        return 120 / self.N * self.disp_width**2
+        return 120 / self.N * self.disp_width ** 2

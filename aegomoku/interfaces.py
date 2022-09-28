@@ -66,13 +66,16 @@ class OpeningBook(abc.ABC):
 
 
 class GameState:
+
+    def __init__(self):
+        self.board = None
+
     @abc.abstractmethod
     def get_current_player(self):
         raise NotImplementedError("Please consider implementing this method.")
 
     def link(self, board: Board):
         self.board = board
-        self.PASS = self.board.board_size * self.board.board_size
 
     @abc.abstractmethod
     def get_phase(self):
@@ -80,6 +83,10 @@ class GameState:
 
     @abc.abstractmethod
     def transition(self, move):
+        raise NotImplementedError("Please consider implementing this method.")
+
+    @abc.abstractmethod
+    def get_special_moves(self):
         raise NotImplementedError("Please consider implementing this method.")
 
 
@@ -100,6 +107,9 @@ class DefaultGomokuState(GameState):
     def transition(self, move):
         pass
 
+    def get_special_moves(self):
+        return []
+
 
 class MctsParams:
 
@@ -117,18 +127,17 @@ class PolicyParams:
 
 
 class IllegalMoveException(Exception):
-    def __int__(self, message):
+    def __init__(self, message):
         super().__init__(message)
 
 
 class Adviser:
 
     @abc.abstractmethod
-    def get_advisable_actions(self, state: Tuple[ndarray, List[int]]) -> List[float]:
+    def get_advisable_actions(self, state: Tuple[ndarray, List[int]]) -> List[int]:
         """
         :param state: A pair of board rep NxNx3 and the one-hot encoded phase
-        :return: a list of probabilities for the actions. Here we may apply intentional bias and discard any
-            unreasonable actions - as opposed to
+        :return: a list of int representations
         """
         pass
 
@@ -193,7 +202,7 @@ class Board:
         pass
 
     @abc.abstractmethod
-    def act(self, *args):
+    def act(self, *args) -> Board:
         pass
 
     @abc.abstractmethod
@@ -335,10 +344,9 @@ class Game:  # (abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_board_size(self, board: Board):
+    def get_num_fields(self):
         """
-        Returns:
-            (x,y): a tuple of board dimensions
+        Returns number of possible positions
         """
         pass
 
@@ -402,5 +410,17 @@ class Game:  # (abc.ABC):
             symmForms: a list of [(board,pi)] where each tuple is a symmetrical
                        form of the board and the corresponding pi vector. This
                        is used when training the neural network from examples.
+        """
+        pass
+
+    @abc.abstractmethod
+    def is_regular_move(self, board: Board, move: Move):
+        """
+        *regular* moves are those where the other player continues with the other color.
+        That is opposed to Pass and partial moves. MTCS needs this to determine whether
+        or not to flip the sign of the value during backpropagation.
+        :param board: A gomoku board
+        :param move: A valid move
+        :return: True if move is a regular move on board, False otherwise
         """
         pass

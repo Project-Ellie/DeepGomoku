@@ -59,8 +59,8 @@ def expand_trajectory(trajectory, condition: Callable = None):
         board_size = np.sqrt(probs.shape[0]).astype(int)
         game = GomokuGame(board_size)
         probabilities = probs / 255.
-        state = GomokuBoard(board_size, stones).canonical_representation()
-        symmetries = game.get_symmetries(state, probabilities)
+        field, _ = GomokuBoard(board_size, stones=stones).canonical_representation()
+        symmetries = game.get_symmetries(field, probabilities)
         for state, prediction in symmetries:
             examples.append((state, prediction, value))
     return examples

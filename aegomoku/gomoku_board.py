@@ -49,7 +49,8 @@ class GomokuBoard(Board):
             field_size = self.board_size + 2  # The field includes the border
 
             ord_min = 0
-            ord_max = board_size * board_size  # passing = NxN
+            num_special = len(self.game_state.get_special_moves())
+            ord_max = board_size * board_size - 1 + num_special
 
             def __init__(self, r_x: Union[int, str], c_y: int = None):
                 """
@@ -62,8 +63,8 @@ class GomokuBoard(Board):
 
                 if c_y is None:
                     if isinstance(r_x, (int, np.integer)):
-                        assert self.ord_min <= r_x <= self.ord_max + 1, \
-                            f"Expecting a number between {self.ord_min} and {self.ord_max+1}"
+                        assert self.ord_min <= r_x <= self.ord_max, \
+                            f"Expecting a number between {self.ord_min} and {self.ord_max}"
                         r, c = divmod(r_x, self.board_size)
                         x, y = None, None
                     elif isinstance(r_x, str):
@@ -86,12 +87,13 @@ class GomokuBoard(Board):
                 else:
                     x, y, r, c = None, None, r_x, c_y
 
-                if r_x == self.board_size * self.board_size or r_x == -1:
-                    self.i = self.ord_max
-                    self.r = self.ord_max
-                    self.x = self.ord_max
-                    self.c = self.ord_max
-                    self.y = self.ord_max
+                # special moves
+                if isinstance(r_x, (int, np.integer)) and r_x >= self.board_size * self.board_size:
+                    self.i = r_x
+                    self.r = r_x
+                    self.x = r_x
+                    self.c = r_x
+                    self.y = r_x
 
                 else:
                     if r is not None and c is not None:
@@ -280,7 +282,7 @@ class GomokuBoard(Board):
         if len(first) > 0:
             first = ['...']
         stones = first + stones
-        return " ".join(str(s) for s in stones) + f" - Player {cp+1} next with {next_color}"
+        return " ".join(str(s) for s in stones) + f" - Next: player {cp+1} with {next_color}"
 
     __repr__ = __str__
 
@@ -301,11 +303,16 @@ class GomokuBoard(Board):
     def get_legal_actions(self):
         """
         Returns all the legal moves for the current player
+        Policies need to consult game rules as to whether passing is also legal
         """
         positions = np.argwhere(np.sum(self.math_rep, axis=-1) == 0) - np.array([1, 1])
         return [r * self.board_size + c for r, c in positions]
 
     def get_legal_moves(self):
+        """
+        Same as get_legal_actions(), only with moves rather than ints
+        :return:
+        """
         actions = self.get_legal_actions()
         return [self.Stone(action) for action in actions]
 
@@ -315,14 +322,17 @@ class GomokuBoard(Board):
         return len(self.get_legal_actions()) > 0
 
     def _is_pass(self, obj):
-        if obj == self.board_size * self.board_size:
+        if obj >= self.board_size * self.board_size:
             return True
         if isinstance(obj, Move):
-            if obj.i == self.board_size * self.board_size:
+            if obj.i >= self.board_size * self.board_size:
                 return True
         return False
 
-    def act(self, *args):
+    def act(self, *args) -> Board:
+
+        if args[0] == 363:
+            print("Oops")
 
         if not self._is_pass(args[0]):
             if isinstance(args[0], Move):

@@ -82,7 +82,7 @@ class MCTS:
         return probs
 
 
-    def search(self, board: Board):
+    def search(self, board: Board, verbose=0):
         """
         This function performs one iteration of MCTS. It is recursively called
         till a leaf node is found. The move chosen at each node is one that
@@ -124,11 +124,10 @@ class MCTS:
         # new_value = self.update_node_stats(s, move.i, v)
         self.update_node_stats(s, move.i, v)
 
-        # Passing passes the original value, obviously.
-        if move == board.board_size * board.board_size:
-            return v
-        else:
+        if self.game.is_regular_move(board, move):
             return -v
+        else:
+            return v
 
 
     def update_node_stats(self, s, a, v):
