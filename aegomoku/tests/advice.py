@@ -6,6 +6,7 @@ import numpy as np
 from numpy import ndarray
 
 from aegomoku.gomoku_board import stones_from_example
+from aegomoku.gomoku_game import GomokuGame
 from aegomoku.interfaces import Adviser, Board
 
 
@@ -21,11 +22,12 @@ class TestAdviser(Adviser):
     """
     Advises along a given fixed trajectory beginning with the given board
     """
-    def __init__(self, board: Board, moves: List[Any]):
+    def __init__(self, board: Board, moves: List[Any], game: GomokuGame, fallback: Adviser):
         """
         :param board: an initial board
         :param moves: the trajectory along which to advise
         """
+        self.game = game
         board = copy.deepcopy(board)
         self.board = board
         self.moves = {}
@@ -33,11 +35,16 @@ class TestAdviser(Adviser):
             key = _get_key(board.canonical_representation())
             self.moves[key] = moves[i]
             board.act(moves[i])
+        self.fallback = fallback
 
     @abc.abstractmethod
     def get_advisable_actions(self, state: Tuple[ndarray, List[int]]) -> List[float]:
         key = _get_key(state)
-        return [self.moves.get(key)]
+        advice = self.moves.get(key)
+        if advice is not None:
+            return [advice]
+        else:
+            return self.fallback.get_advisable_actions(state)
 
     @abc.abstractmethod
     def advise(self, state: Tuple[ndarray, List[int]]):
@@ -49,6 +56,11 @@ class TestAdviser(Adviser):
                 game.get_action_size
             v: a float in [-1,1] that represents the value of the current board
         """
-        probs = np.zeros(shape=(len(self.board.get_legal_actions()) + 1))
-        probs[self.get_advisable_actions(state)[0]] = 1.0
-        return probs
+        key = _get_key(state)
+        if self.moves.get(key) is not None:
+            probs = np.zeros(shape=(self.game.get_num_fields() + 2))
+            probs[self.get_advisable_actions(state)[0]] = 1.0
+            return probs, 0.
+        else:
+            return self.fallback.advise(state)
+

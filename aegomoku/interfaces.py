@@ -6,18 +6,16 @@ import numpy as np
 from keras import Model
 from numpy import ndarray
 
-GAMESTATE_NORMAL = [1, 0, 0, 0, 0, 0, 0, 0, 0]
-SWAP2_FIRST_THREE = [0, 1, 0, 0, 0, 0, 0, 0, 0]
-SWAP2_AFTER_THREE = [0, 0, 1, 0, 0, 0, 0, 0, 0]
+GAMESTATE_NORMAL =   [1, 0, 0, 0, 0, 0, 0, 0, 0]
+SWAP2_FIRST_THREE =  [0, 1, 0, 0, 0, 0, 0, 0, 0]
+SWAP2_AFTER_THREE =  [0, 0, 1, 0, 0, 0, 0, 0, 0]
 SWAP2_PASSED_THREE = [0, 0, 0, 1, 0, 0, 0, 0, 0]
 
-SWAP2_AFTER_FOUR = [0, 0, 0, 0, 1, 0, 0, 0, 0]
-SWAP2_PASSED_FOUR = [0, 0, 0, 0, 0, 1, 0, 0, 0]
+SWAP2_AFTER_FOUR =   [0, 0, 0, 0, 1, 0, 0, 0, 0]
+SWAP2_YIELDED_FOUR = [0, 0, 0, 0, 0, 1, 0, 0, 0]
 
-SWAP2_AFTER_FIVE = [0, 0, 0, 0, 0, 0, 1, 0, 0]
-SWAP2_PASSED_FIVE = [0, 0, 0, 0, 0, 0, 0, 1, 0]
-
-SWAP2_DONE = [0, 0, 0, 0, 0, 0, 0, 0, 1]
+SWAP2_AFTER_FIVE =   [0, 0, 0, 0, 0, 0, 1, 0, 0]
+SWAP2_PASSED_FIVE =  [0, 0, 0, 0, 0, 0, 0, 1, 0]
 
 BLACK = 0
 WHITE = 1
@@ -69,12 +67,16 @@ class GameState:
 
     def __init__(self):
         self.board = None
+        self.PASS = None
+        self.YIELD = None
 
     @abc.abstractmethod
     def get_current_player(self):
         raise NotImplementedError("Please consider implementing this method.")
 
     def link(self, board: Board):
+        self.PASS = board.board_size * board.board_size
+        self.YIELD = self.PASS + 1
         self.board = board
 
     @abc.abstractmethod
@@ -168,8 +170,11 @@ class Move:
 
 class Board:
 
-    def __int__(self, board_size: int):
+    def __init__(self, board_size: int, game_state: GameState):
         self.board_size = board_size
+        self.game_state = game_state
+        if game_state is not None:
+            self.game_state.link(self)
 
     def get_board_size(self):
         return self.board_size
@@ -334,7 +339,6 @@ class Game:  # (abc.ABC):
     def __init__(self):
         pass
 
-
     @abc.abstractmethod
     def get_initial_board(self) -> Board:
         """
@@ -424,3 +428,13 @@ class Game:  # (abc.ABC):
         :return: True if move is a regular move on board, False otherwise
         """
         pass
+
+    def back_propagate(self, state, value):  # noqa
+        """
+
+        Default: change sign. Override for more complex backprop scenarios
+        :param state: canonical state
+        :param value: the value to be propagated back up
+        :return: the value as perceived by the previous state's player
+        """
+        return -value

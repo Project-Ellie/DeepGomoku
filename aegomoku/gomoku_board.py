@@ -4,7 +4,7 @@ import numpy as np
 from keras import models
 from numpy import ndarray
 
-from aegomoku.interfaces import Board, Move, GameState, DefaultGomokuState, Adviser, PolicyParams
+from aegomoku.interfaces import Board, Move, GameState, Adviser, PolicyParams, DefaultGomokuState
 
 EMPTY_BOARDS = {
     n: np.rollaxis(
@@ -35,9 +35,11 @@ class GomokuBoard(Board):
             "x_means must be a string beginning with 'B' or 'b' for black or 'N' or 'n' for next"
 
         self.x_is_next = True if x_means[0] in ['N', 'n'] else False if x_means[0] in ['B', 'b'] else None
-        self.board_size = board_size
-        self.game_state = game_state if game_state is not None else DefaultGomokuState()
-        self.game_state.link(self)
+
+        if game_state is None:
+            game_state = DefaultGomokuState()
+
+        super().__init__(board_size, game_state)
 
         class Stone(Move):
             """
@@ -119,8 +121,10 @@ class GomokuBoard(Board):
 
 
             def __str__(self):
-                if self.i == -1 or self.i == self.board_size * self.board_size:
+                if self.i == self.board_size * self.board_size:
                     return "Pass"
+                elif self.i == self.board_size * self.board_size + 1:
+                    return "Yield"
                 return f"{chr(self.c+65)}{self.board_size-self.r}"
 
             __repr__ = __str__
@@ -249,7 +253,11 @@ class GomokuBoard(Board):
             return f"{self.board_size-r:2}" if r in range(self.board_size) else "  "
 
         rep = self.math_rep
-        if not x_is_next and len(self.stones) % 2 == 1:
+        if self.Stone(self.game_state.YIELD) in self.get_stones():
+            corr = 1
+        else:
+            corr = 0
+        if not x_is_next and (len(self.stones)+1) % 2 == 1:
             rep = rep.copy()
             rep[:, :, [0, 1]] = rep[:, :, [1, 0]]
 
@@ -275,8 +283,11 @@ class GomokuBoard(Board):
 
     def __str__(self):
         cp = self.game_state.get_current_player()
-        # Don't count the "Pass" move
-        corr = 1 if self.Stone(self.board_size * self.board_size) in self.get_stones() else 0
+        # Don't count the "Pass" or "Yield" moves
+
+        corr1 = 1 if self.Stone(self.board_size * self.board_size) in self.get_stones() else 0
+        corr2 = 1 if self.Stone(self.board_size * self.board_size + 1) in self.get_stones() else 0
+        corr = corr1 + corr2
         next_color = 'black' if (len(self.get_stones()) - corr) % 2 == 0 else 'white'
         first, stones = self.stones[:-8], self.stones[-8:]
         if len(first) > 0:
@@ -298,6 +309,8 @@ class GomokuBoard(Board):
 
         if self.Stone(self.game_state.PASS) in self.stones:
             res += "P"
+        if self.Stone(self.game_state.YIELD) in self.stones:
+            res += "Y"
         return res
 
     def get_legal_actions(self):
@@ -322,23 +335,31 @@ class GomokuBoard(Board):
         return len(self.get_legal_actions()) > 0
 
     def _is_pass(self, obj):
-        if obj >= self.board_size * self.board_size:
-            return True
         if isinstance(obj, Move):
-            if obj.i >= self.board_size * self.board_size:
+            if obj.i == self.board_size * self.board_size:
+                return True
+        elif isinstance(obj, (int, np.integer)):
+            if obj == self.board_size * self.board_size:
+                return True
+        return False
+
+    def _is_yield(self, obj):
+        if isinstance(obj, Move):
+            if obj.i == self.board_size * self.board_size + 1:
+                return True
+        elif isinstance(obj, (int, np.integer)):
+            if obj == self.board_size * self.board_size + 1:
                 return True
         return False
 
     def act(self, *args) -> Board:
 
-        if args[0] == 363:
-            print("Oops")
+        if isinstance(args[0], Move):
+            stone = args[0]
+        else:
+            stone = self.Stone(*args)
 
-        if not self._is_pass(args[0]):
-            if isinstance(args[0], Move):
-                stone = args[0]
-            else:
-                stone = self.Stone(*args)
+        if not self._is_pass(args[0]) and not self._is_yield(args[0]):
             m = self.math_rep
             if m[stone.r+1, stone.c+1, 0] != 0 or m[stone.r+1, stone.c+1, 1] != 0:
                 print("See?")
@@ -347,7 +368,7 @@ class GomokuBoard(Board):
             self.swap()
             self.stones.append(stone)
         else:
-            self.stones.append(args[0])
+            self.stones.append(stone)
 
         self.game_state.transition(*args)
 

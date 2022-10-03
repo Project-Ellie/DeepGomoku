@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from aegomoku.gomoku_game import Swap2
 from aegomoku.interfaces import BLACK, SWAP2_FIRST_THREE, WHITE, SWAP2_AFTER_THREE, SWAP2_AFTER_FIVE, \
-    SWAP2_PASSED_THREE, SWAP2_DONE, SWAP2_PASSED_FIVE, FIRST_PLAYER, OTHER_PLAYER
+    FIRST_PLAYER, OTHER_PLAYER, GAMESTATE_NORMAL
 
 BOARD_SIZE = 15
 PASS = BOARD_SIZE * BOARD_SIZE
@@ -71,7 +71,7 @@ class Swap2Tests(TestCase):
 
         self.assertEqual(BLACK, b.get_current_color())
         self.assertEqual(OTHER_PLAYER, b.get_current_player())
-        self.assertEqual(SWAP2_DONE, b.get_phase())
+        self.assertEqual(GAMESTATE_NORMAL, b.get_phase())
         self.assert_may_pass(b, False)
 
 
@@ -104,13 +104,13 @@ class Swap2Tests(TestCase):
         b.act(PASS)  # other player
 
         self.assertEqual(BLACK, g.get_current_player(b))
-        self.assertEqual(SWAP2_PASSED_THREE, b.get_phase())
+        self.assertEqual(GAMESTATE_NORMAL, b.get_phase())
         self.assert_may_pass(b, False)
 
         b.act('D4')  # first player
 
         self.assertEqual(WHITE, g.get_current_player(b))
-        self.assertEqual(SWAP2_DONE, b.get_phase())
+        self.assertEqual(GAMESTATE_NORMAL, b.get_phase())
         self.assert_may_pass(b, False)
 
     def assert_may_pass(self, b, allowed: bool = True):
@@ -159,11 +159,11 @@ class Swap2Tests(TestCase):
         b.act(PASS)
 
         self.assertEqual(WHITE, b.get_current_player())
-        self.assertEqual(SWAP2_PASSED_FIVE, b.get_phase())
+        self.assertEqual(GAMESTATE_NORMAL, b.get_phase())
         self.assert_may_pass(b, False)
 
         b.act('F6')
 
         self.assertEqual(BLACK, b.get_current_player())
-        self.assertEqual(SWAP2_DONE, b.get_phase())
+        self.assertEqual(GAMESTATE_NORMAL, b.get_phase())
         self.assert_may_pass(b, False)

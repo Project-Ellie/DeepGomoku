@@ -7,8 +7,9 @@ from keras import Model
 
 from aegomoku.gomoku_board import GomokuBoard, expand
 from aegomoku.interfaces import Game, Move, TerminalDetector, SWAP2_FIRST_THREE, \
-    SWAP2_AFTER_THREE, SWAP2_AFTER_FIVE, SWAP2_PASSED_THREE, SWAP2_PASSED_FIVE, FIRST_PLAYER, GameState, \
-    BLACK, SWAP2_DONE, OpeningBook, BoardInitializer, GAMESTATE_NORMAL, SWAP2_AFTER_FOUR, SWAP2_PASSED_FOUR, Board
+    SWAP2_AFTER_THREE, SWAP2_AFTER_FIVE, FIRST_PLAYER, GameState, \
+    BLACK, OpeningBook, BoardInitializer, GAMESTATE_NORMAL, SWAP2_AFTER_FOUR, Board, SWAP2_PASSED_THREE, \
+    SWAP2_PASSED_FIVE
 from aegomoku.policies.heuristic_policy import HeuristicPolicy
 
 
@@ -32,14 +33,13 @@ class Swap2RandomOpeningBook(OpeningBook):
 
     def next_move(self, state):
         field, phase = state
-        if phase in [GAMESTATE_NORMAL, SWAP2_DONE]:
+        if phase == GAMESTATE_NORMAL:
             return None
         return self.Stone(random.randint(0, self.action_size))
 
     def next_moves(self, state):
         field, phase = state
-        if phase in [GAMESTATE_NORMAL, SWAP2_DONE, SWAP2_PASSED_THREE,
-                     SWAP2_PASSED_FOUR, SWAP2_PASSED_FIVE]:
+        if phase == GAMESTATE_NORMAL:
             return None
         return [self.Stone(random.randint(0, self.action_size - 1)) for _ in range(self.num_probs)]
 
@@ -178,8 +178,6 @@ class Swap2OpeningBook(OpeningBook):
         field, phase = state
         if phase == GAMESTATE_NORMAL:
             return None
-        if phase == SWAP2_DONE:
-            return None
         num_stones = np.sum(field[:, :, :2], axis=None)
         if num_stones == 0:
             if self.first_three is None:
@@ -257,7 +255,7 @@ class RandomBoardInitializer(BoardInitializer):
 
 class GomokuGame(Game):
 
-    def __init__(self, board_size, n_special: int=0, initializer: BoardInitializer = None):
+    def __init__(self, board_size, n_special: int = 0, initializer: BoardInitializer = None):
         """
         :param board_size: length of a board side
         :param n_special: number of special moves not represented by positions
@@ -377,17 +375,21 @@ class Swap2GameState(GameState):
         :param move: the move that has just been made.
         :return: resulting phase and player *AFTER* the move.
         """
+        # PASSED_... are an ephemeral states only needed for backpropagation
+        if self.phase in [SWAP2_PASSED_THREE, SWAP2_PASSED_FIVE]:
+            self.phase = GAMESTATE_NORMAL
 
-        if self.phase in [SWAP2_DONE, GAMESTATE_NORMAL]:
+        if self.phase in [GAMESTATE_NORMAL]:
             #
             # Normal game play - nothing special
+            self.phase = GAMESTATE_NORMAL
             self.current_player = 1 - self.current_player
             return self.phase, self.current_player
 
         elif move == self.YIELD or isinstance(move, Move) and move.i == self.YIELD:
             """After setting stone number 4, white yields game play to black"""
             if self.phase == SWAP2_AFTER_FOUR:
-                self.phase = SWAP2_PASSED_FOUR
+                self.phase = GAMESTATE_NORMAL
                 self.current_player = 1 - self.current_player
                 return self.phase, self.current_player
 
@@ -408,12 +410,6 @@ class Swap2GameState(GameState):
         else:
             #
             # Stones
-            if self.phase in [SWAP2_PASSED_THREE, SWAP2_PASSED_FOUR, SWAP2_PASSED_FIVE]:
-                # Passing in the previous move already ended the opening phase.
-                self.phase = SWAP2_DONE
-                self.current_player = 1 - self.current_player
-                return self.phase, self.current_player
-
             if len(self.board.stones) in [1, 2]:
                 # We're in the first two moves of three
                 return self.phase, self.current_player
@@ -425,6 +421,7 @@ class Swap2GameState(GameState):
 
             elif len(self.board.stones) == 4 and self.phase == SWAP2_AFTER_THREE:
                 # We're in the first move of the second two
+                self.phase = SWAP2_AFTER_FOUR
                 return self.phase, self.current_player
 
             elif len(self.board.stones) == 5:
@@ -433,7 +430,7 @@ class Swap2GameState(GameState):
                 return self.phase, self.current_player
 
             else:
-                self.phase = SWAP2_DONE
+                self.phase = GAMESTATE_NORMAL
                 self.current_player = 1 - self.current_player
                 return self.phase, self.current_player
 
@@ -453,8 +450,8 @@ class Swap2(GomokuGame):
 
 
     def is_regular_move(self, board: GomokuBoard, move: Move):
-        if move == board.game_state.PASS:
-            # special moves are: pass
+        if move in [board.game_state.PASS, board.game_state.YIELD]:
+            # special moves are: pass, yield
             return False
         else:
             # ...and parts of multi-stone moves
@@ -471,20 +468,30 @@ class Swap2(GomokuGame):
 
         if len(board.stones) == 3 and board.get_phase() == SWAP2_AFTER_THREE:
             # seocond player may pass immediately
-            return list(super().get_valid_moves(board)) + [0, 1]
-
-        if len(board.stones) == 4 and board.get_phase() == SWAP2_AFTER_THREE:
-            # second player may choose to play 1 stone, then pass
             return list(super().get_valid_moves(board)) + [1, 0]
+
+        if len(board.stones) == 4 and board.get_phase() == SWAP2_AFTER_FOUR:
+            # second player may choose to play 1 stone, then pass
+            return list(super().get_valid_moves(board)) + [0, 1]
 
         elif len(board.stones) == 5 and board.get_phase() == SWAP2_AFTER_FIVE:
             # first player may pass after 2 moves from second
-            return list(super().get_valid_moves(board)) + [1, 0.]
+            return list(super().get_valid_moves(board)) + [1, 0]
 
         else:
-            return list(super().get_valid_moves(board)) + [0., 0.]
+            return list(super().get_valid_moves(board)) + [0, 0]
 
 
     def get_initial_board(self) -> GomokuBoard:
         initial_stones = self.initializer.initial_stones() if self.initializer else ''
         return GomokuBoard(self.board_size, game_state=Swap2GameState(), stones=initial_stones)
+
+    def back_propagate(self, state, value):
+
+        field, phase = state
+        # When the player doesn't change, the value doesn't flip
+        if phase in (SWAP2_FIRST_THREE, SWAP2_AFTER_FOUR):
+            return value
+        else:
+            # that's the default minus sign
+            return super().back_propagate(state, value)

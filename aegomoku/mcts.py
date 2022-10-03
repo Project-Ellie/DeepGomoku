@@ -18,10 +18,10 @@ class MCTS:
     This class handles the MCTS tree.
     """
 
-    def __init__(self, game: Game, advisor: Adviser, params: MctsParams,
+    def __init__(self, game: Game, adviser: Adviser, params: MctsParams,
                  verbose=0):
         self.game = game
-        self.adviser = advisor
+        self.adviser = adviser
         self.params = params
 
         self.Q = {}  # stores Q values for s,a (as defined in the paper)
@@ -115,19 +115,16 @@ class MCTS:
 
         if s not in self.Ps:
             # we'll create a new leaf node and return the value estimated by the guiding player
-            return -self.initialize_and_estimate_value(board, s)
+            value = self.initialize_and_estimate_value(board, s)
+            return self.game.back_propagate(board.canonical_representation(), value)
 
         move, info = self.best_act(board=board, s=s)
         next_board, _ = self.game.get_next_state(board, move)
         v = self.search(next_board)
 
-        # new_value = self.update_node_stats(s, move.i, v)
         self.update_node_stats(s, move.i, v)
 
-        if self.game.is_regular_move(board, move):
-            return -v
-        else:
-            return v
+        return self.game.back_propagate(board.canonical_representation(), v)
 
 
     def update_node_stats(self, s, a, v):
