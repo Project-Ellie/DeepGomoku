@@ -6,7 +6,7 @@ from aegomoku.interfaces import MctsParams, PolicyParams
 def get_player(game: GomokuGame, ai, num_simu):
 
     # TODO: Parameterize
-    mcts = MctsParams(cpuct=4.0, temperature=0.0, num_simulations=num_simu)
+    mcts = MctsParams(cpuct=1.0, temperature=0.0, num_simulations=num_simu)
     if ai is not None:
         policy = PolicyParams(model_file_name=f"DATA/models/{ai}", advice_cutoff=.01)
     else:

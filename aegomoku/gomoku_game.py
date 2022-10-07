@@ -83,7 +83,12 @@ class TopoSwap2BoardInitializer(BoardInitializer):
                     continue
             candidates.append((moves, dist))
 
-        return sorted(candidates, key=lambda e: e[1])[0][0]
+        as_list = sorted(candidates, key=lambda e: e[1])[0][0]
+        as_string = ""
+        for s in as_list:
+            as_string += str(s)
+
+        return as_string
 
 
 class ConstantBoardInitializer(BoardInitializer):

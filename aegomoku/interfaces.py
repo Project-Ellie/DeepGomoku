@@ -61,11 +61,12 @@ class DefaultGomokuState(GameState):
 
 class MctsParams:
 
-    def __init__(self, cpuct: float, temperature: float, num_simulations: int):
+    def __init__(self, cpuct: float, temperature: float, num_simulations: int, gamma=.7):
         self.cpuct = cpuct
         self.num_simulations = num_simulations
         assert temperature == 0 or temperature > .1, "Temperatures near but not exactly zero are numerically instable."
         self.temperature = temperature
+        self.gamma = gamma
 
 
 class PolicyParams:

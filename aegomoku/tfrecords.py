@@ -68,10 +68,10 @@ def to_tfrecords(source, target_dir=None, condition: Callable = None) -> List[st
     if target_dir is None:
         target_dir = Path(tempfile.mkdtemp())
 
-    if os.path.isdir(source):
-        filenames = [(Path(source).resolve() / file).as_posix() for file in list(source.rglob("*.pickle"))]
-    elif isinstance(source, Iterable):
+    if isinstance(source, Iterable):
         filenames = [Path(file).resolve().as_posix() for file in source]
+    elif os.path.isdir(source):
+        filenames = [(Path(source).resolve() / file).as_posix() for file in list(source.rglob("*.pickle"))]
     else:
         raise ValueError(f"Can't interpret {source} as source. Expected directory name or list of filenames")
 
