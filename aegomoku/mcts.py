@@ -108,7 +108,6 @@ class MCTS:
         if s not in self.Es:
             # ... find out
             self.Es[s] = self.game.get_winner(board)
-            # winner = "BLACK (0)" if self.game.get_winner(board) == 0 else 'WHITE (1)'
 
         # Now, if it is terminal, ...
         if self.Es[s] is not None:
@@ -121,7 +120,7 @@ class MCTS:
 
         move, info = self.best_act(board=board, s=s)
         next_board, _ = self.game.get_next_state(board, move)
-        v = self.search(next_board)
+        v = self.params.gamma * self.search(next_board)
 
         # new_value = self.update_node_stats(s, move.i, v)
         self.update_node_stats(s, move.i, v)
