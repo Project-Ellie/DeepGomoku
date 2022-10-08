@@ -62,6 +62,12 @@ class MCTS:
         return self.compute_probs(original_board, temperature)
 
 
+    def ponder(self, board: Board, num_simulations: int):
+        for i in range(num_simulations):
+            board = copy.deepcopy(board)
+            self.search(board)
+
+
     def compute_probs(self, board: Board, temperature: float):
         s = board.get_string_representation()
         counts = [self.Nsa[(s, a)] if (s, a) in self.Nsa else 0

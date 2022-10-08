@@ -51,6 +51,7 @@ class UI:
         pygame.mixer.init()
         self.stone_on_board = pygame.mixer.Sound(self.base_path + "piece.wav")
         self.stone_on_board.set_volume(.1)
+        self.ponder = False
 
     def show(self, title):
         pygame.init()
@@ -71,6 +72,12 @@ class UI:
         self.advice_button = pygame_gui.elements.UIDropDownMenu(relative_rect=rect,
                                                                 options_list=['Policy', 'MCTS', "None"],
                                                                 starting_option='Policy',
+                                                                manager=self.manager)
+
+        rect = pygame.Rect((self.width - 125, 500), (100, 50))
+        self.advice_button = pygame_gui.elements.UIDropDownMenu(relative_rect=rect,
+                                                                options_list=["Don't", "Ponder"],
+                                                                starting_option="Don't ponder",
                                                                 manager=self.manager)
 
         self.run()
@@ -255,6 +262,10 @@ class UI:
                     if event.text in ['MCTS', 'Policy', 'None']:
                         self.show_advice = event.text
                         new_image = self.redraw(self.context.board.get_stones())
+                    elif event.text == 'Ponder':
+                        self.ponder = True
+                    elif event.text == "Don't":
+                        self.ponder = False
 
                 elif event.type == AI_NEXT:
 
@@ -278,6 +289,9 @@ class UI:
                         pygame.event.post(pygame.event.Event(AI_NEXT))
 
                 self.manager.process_events(event)
+
+                if self.ponder:
+                    self.context.ponder()
                 # end for
             # end outer
 

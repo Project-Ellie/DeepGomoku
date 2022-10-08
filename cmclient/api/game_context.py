@@ -86,3 +86,6 @@ class GameContext:
             self.ai_active = False
 
         return self.board.get_stones()
+
+    def ponder(self, num_simulations: int = 1):
+        self.mcts.ponder(self.board, num_simulations)
