@@ -10,11 +10,11 @@ log = logging.getLogger(__name__)
 
 
 def _current_color(board) -> str:
-    return 'white' if board.get_current_player() == 1 else 'black'
+    return 'white' if board.get_current_color() == 1 else 'black'
 
 
 def _previous_color(board) -> str:
-    return 'white' if board.get_current_player() == 0 else 'black'
+    return 'white' if board.get_current_color() == 0 else 'black'
 
 
 class Arena:

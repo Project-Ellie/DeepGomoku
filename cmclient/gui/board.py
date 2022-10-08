@@ -48,6 +48,9 @@ class UI:
         self.new_game_button = None
         self.pass_button = None
         self.advice_button = None
+        pygame.mixer.init()
+        self.stone_on_board = pygame.mixer.Sound(self.base_path + "piece.wav")
+        self.stone_on_board.set_volume(.1)
 
     def show(self, title):
         pygame.init()
@@ -254,8 +257,10 @@ class UI:
                         new_image = self.redraw(self.context.board.get_stones())
 
                 elif event.type == AI_NEXT:
+
                     current_stones = self.context.ai_move()
                     new_image = self.redraw(current_stones)
+                    self.stone_on_board.play()
 
                     if self.context.winner is not None:
                         print(f"Player {self.context.winner} wins")
@@ -263,6 +268,7 @@ class UI:
                 move = self.move_from_event(event)
                 if isinstance(move, Move):
                     current_stones = self.context.move(move)
+                    self.stone_on_board.play()
                     if current_stones is None:  # rogue move, ignoring
                         continue
                     new_image = self.redraw(current_stones)

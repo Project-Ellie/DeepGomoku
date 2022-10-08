@@ -1,5 +1,7 @@
 import numpy as np
 
+from aegomoku.interfaces import Move
+
 
 def print_bin(*_args, **_kwargs):
     print("Deprecated. Use print_channels instead.")
@@ -49,6 +51,9 @@ def stones_to_string(stones):
     returns a string-encoded sequence for an array of pairs.
     e.g. 'a1m14' for [('A',1), ('M',14)]
     """
+    if isinstance(stones[0], Move):
+        return "".join([str(s) for s in stones])
+
     return "".join([(s[0].lower() if type(s[0]) == str else chr(96 + s[0])) + str(s[1]) for s in stones])
 
 
