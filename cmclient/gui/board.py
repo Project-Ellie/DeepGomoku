@@ -77,7 +77,7 @@ class UI:
         rect = pygame.Rect((self.width - 125, 500), (100, 50))
         self.advice_button = pygame_gui.elements.UIDropDownMenu(relative_rect=rect,
                                                                 options_list=["Don't", "Ponder"],
-                                                                starting_option="Don't ponder",
+                                                                starting_option="Don't",
                                                                 manager=self.manager)
 
         self.run()
