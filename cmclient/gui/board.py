@@ -74,11 +74,19 @@ class UI:
                                                                 starting_option='Policy',
                                                                 manager=self.manager)
 
-        rect = pygame.Rect((self.width - 125, 500), (100, 50))
+        rect = pygame.Rect((self.width - 125, 425), (100, 50))
         self.advice_button = pygame_gui.elements.UIDropDownMenu(relative_rect=rect,
                                                                 options_list=["Don't", "Ponder"],
                                                                 starting_option="Don't",
                                                                 manager=self.manager)
+
+        rect = pygame.Rect((self.width - 125, 500), (100, 50))
+        self.advice_button = pygame_gui.elements.UIDropDownMenu(relative_rect=rect,
+                                                                options_list=[str(i) for i in range(400, 2200, 200)],
+                                                                starting_option="400",
+                                                                manager=self.manager)
+
+
 
         self.run()
 
@@ -266,6 +274,8 @@ class UI:
                         self.ponder = True
                     elif event.text == "Don't":
                         self.ponder = False
+                    elif event.text in [str(i) for i in range(400, 2200, 200)]:
+                        self.context.num_simu = int(event.text)
 
                 elif event.type == AI_NEXT:
 
