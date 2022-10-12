@@ -17,10 +17,13 @@ class GameContext:
         self.temperature = 1.0
 
     def get_advice(self):
-        p_advice, p_value = self.advice.evaluate(self.board.canonical_representation())
+        state = self.board.canonical_representation()
+        _, p_value = self.advice.evaluate(state)
+        p_advice = self.advice.advise(state)
         m_advice = self.mcts.compute_probs(self.board, self.temperature)
         key = self.board.get_string_representation()
-        m_value = max([self.mcts.Q.get((key, i), -float('inf')) for i in range(225)])
+
+        m_value = max([self.mcts.Q.get((key, i), -float('inf')) for i in range(self.board.board_size)])
 
         return (p_advice, p_value), (m_advice, m_value)
 
@@ -64,6 +67,7 @@ class GameContext:
                 self.game_play.fwd(stone.i)
                 self.board.act(stone)
 
+        self.dump_game()
         return self.board.get_stones()
 
     def ai_move(self):
@@ -85,7 +89,14 @@ class GameContext:
             self.winner = winner
             self.ai_active = False
 
+        self.dump_game()
         return self.board.get_stones()
+
+    def dump_game(self):
+        stones = "".join([str(stone) for stone in self.board.get_stones()])
+        with open("aegomoku.data", 'w') as f:
+            f.write(stones)
+
 
     def ponder(self, num_simulations: int = 1):
         self.mcts.ponder(self.board, num_simulations)

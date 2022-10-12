@@ -91,7 +91,6 @@ def create_example(the_board: Board, player: Player, temperature: float):
     Create a single board image with the player's (MCTS-based) evaluation, ready for training
     """
     position = [stone.i for stone in the_board.get_stones()]
-    # state = np.expand_dims(the_board.canonical_representation(), 0).astype(float)
     probs, value = player.evaluate(the_board, temperature)
     probs = (np.array(probs)*255).astype(np.uint8)
     return position, probs, value

@@ -86,8 +86,6 @@ class UI:
                                                                 starting_option="400",
                                                                 manager=self.manager)
 
-
-
         self.run()
 
 

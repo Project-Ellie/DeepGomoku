@@ -15,11 +15,11 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
     """
 
 
-    def __init__(self, kappa_s: float = 6.0, kappa_d: float = 5.0,
+    def __init__(self, board_size, kappa_s: float = 6.0, kappa_d: float = 5.0,
                  policy_stretch: float = 2.0, value_stretch: float = 1 / 32.,
                  advice_cutoff: float = .01, noise_reduction: float = 1.1,
                  percent_secondary: float = 34, min_secondary: int = 5,
-                 value_gauge: float = 0.1, board_size=None):
+                 value_gauge: float = 0.1):
         """
         :param kappa_s: exponent of the pseudo-euclidean sum of parallel lines-of-five
         :param kappa_d: exponent of the pseudo-euclidean sum of different directions
@@ -39,7 +39,7 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
         self.percent_secondary = percent_secondary
         self.min_secondary = min_secondary
         self.value_gauge = value_gauge
-        self.board_size = board_size  # Not used here
+        self.board_size = board_size
 
         self.raw_patterns = [
             [[0, 0, 0, 0, -5, 1, 1, 1, 1], [0, 0, 0, 0, -5, -5, -5, -5, -5], 0],
@@ -195,6 +195,19 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
         state = np.expand_dims(state, 0).astype(float)
         probs, value = self.call(state)
         return np.squeeze(probs), value.numpy()
+
+    def advise(self, state):
+        """
+        :param state: nxnx3 representation of a go board
+        :returns: a selection of move probabilities: a subset of the policy, renormalized
+        """
+        bits = np.zeros([self.board_size * self.board_size], dtype=np.uint)
+        advisable = self.get_advisable_actions(np.expand_dims(state, 0).astype(float))
+        bits[advisable] = 1
+        p, _ = self.evaluate(state)
+        probs = bits * p
+        total = np.sum(probs)
+        return probs / total
 
 
     def select_patterns(self):

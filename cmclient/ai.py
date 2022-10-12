@@ -6,10 +6,10 @@ from aegomoku.interfaces import MctsParams, PolicyParams
 def get_player(game: GomokuGame, ai, num_simu):
 
     # TODO: Parameterize
-    mcts = MctsParams(cpuct=1.0, temperature=0.0, num_simulations=num_simu)
+    mcts_params = MctsParams(cpuct=1.0, temperature=0.0, num_simulations=num_simu)
     if ai is not None:
-        policy = PolicyParams(model_file_name=ai, advice_cutoff=.01)
+        policy_params = PolicyParams(model_file_name=ai, advice_cutoff=.01)
     else:
-        policy = PolicyParams(model_file_name=None, advice_cutoff=.01)
-    player = PolicyAdvisedGraphSearchPlayer("Policy-advised graph search", game, mcts, policy)
-    return player, player.mcts, player.advisor
+        policy_params = None
+    player = PolicyAdvisedGraphSearchPlayer("Policy-advised graph search", game, mcts_params, policy_params)
+    return player, player.mcts, player.adviser

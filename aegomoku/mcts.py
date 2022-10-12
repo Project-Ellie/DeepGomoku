@@ -1,14 +1,12 @@
 import copy
 import logging
 import math
-from typing import Dict, Tuple, List
+from typing import Dict, List
 
 import numpy as np
 
 from aegomoku.hr_tree import TreeNode
 from aegomoku.interfaces import Game, Adviser, Board, Move, MctsParams
-
-EPS = 1e-8
 
 log = logging.getLogger(__name__)
 
@@ -108,8 +106,6 @@ class MCTS:
 
         s = board.get_string_representation()
 
-        # winner = None
-
         # if I don't know whether this state is terminal...
         if s not in self.Es:
             # ... find out
@@ -122,40 +118,22 @@ class MCTS:
 
         if s not in self.Ps:
             # we'll create a new leaf node and return the value estimated by the guiding player
-            return -self.initialize_and_estimate_value(board, s)
+            v = self.initialize_and_estimate_value(board, s)
+            return -v
 
-        move, info = self.best_act(board=board, s=s)
+        # while v == -1
+        move = self.best_act(board=board, s=s)
         next_board, _ = self.game.get_next_state(board, move)
         v = self.params.gamma * self.search(next_board)
 
-        # new_value = self.update_node_stats(s, move.i, v)
+        # if the current player has a single immediate winning move, that's enough
+        if v == 1.0:
+            self.Es[s] = 0
+            return -1.
+
         self.update_node_stats(s, move.i, v)
 
-        # Only works in self-play
-        # self.update_tree_view(s, move, new_value, next_board, info)
-
         return -v
-
-
-    def update_tree_view(self, s, move, v, board, info=None):
-        """
-        Maintain a tree view for debug purposes in self-play
-        :param s: the canonical string rep of the prev state
-        :param move: the move from prev to curr state
-        :param v: the value of the new state
-        :param info: a dictionary with debug info
-        :param board: human-readable string rep of the current state
-        """
-        a = move.i
-        parent = self.tree_nodes.get(s)
-        if parent:
-            if parent.children.get(str(move)) is not None:
-                child = parent.children.get(str(move))
-                child.v = v
-                child.nsa = self.Nsa[(s, a)]
-            else:
-                child = parent.add_child(move, board, v, self.Nsa[(s, a)], self.ucb(s, a), info)
-                self.tree_nodes[child.key] = child
 
 
     def update_node_stats(self, s, a, v):
@@ -172,10 +150,6 @@ class MCTS:
         return self.Q[(s, a)]
 
 
-    def pot_best(self, board, s):
-        return {board.stone(int(np.argmax(self.Ps[s], axis=None))): np.max(self.Ps[s], axis=None)}
-
-
     def initialize_and_estimate_value(self, board, s: str):
         """
         :param: board: the board
@@ -186,8 +160,6 @@ class MCTS:
         # evaluate the policy for the move probablities and the value estimate.
         inputs = board.canonical_representation()
         self.Ps[s], v = self.adviser.evaluate(inputs)
-
-        pot_next_move = self.pot_best(board, s)  # noqa: for DEBUG only
 
         # rule out illegal moves and renormalize
         valids = self.game.get_valid_moves(board)
@@ -224,7 +196,7 @@ class MCTS:
         return [board.stone(i) for i in advisable]
 
 
-    def best_act(self, board: Board, s: str) -> Tuple[Move, Dict]:
+    def best_act(self, board: Board, s: str) -> Move:
         # pick the move with the highest upper confidence bound from the probable actions
         # We're reducing the action space to those actions deemed probable by the model
         valids = self.Vs[s]
@@ -233,9 +205,8 @@ class MCTS:
 
         probable_actions = self.probable_actions(board)
         if len(probable_actions) == 1:
-            return probable_actions[0], {'u': float('inf'), 'q': None, 'p': 1, 'nsa': None}
+            return probable_actions[0]
 
-        debug_info = {}
         for move in probable_actions:
             a = move.i  # use the integer representation
             if valids[a]:
@@ -243,9 +214,8 @@ class MCTS:
                     u = self.ucb(s, a)
                 else:
                     p = self.Ps[s][a]
-                    sns = math.sqrt(self.Ns[s] + EPS)
-                    u = self.params.cpuct * p * sns  # Q = 0 ?
-                    debug_info[a] = {'u': u, 'q': None, 'p': p, 'nsa': None}
+                    sns = math.sqrt(self.Ns[s])
+                    u = self.params.cpuct * p * sns
 
                 if u >= cur_best:
                     cur_best = u
@@ -254,7 +224,7 @@ class MCTS:
         if best_act is None:
             print("Oops!")
 
-        return board.stone(best_act), debug_info
+        return board.stone(best_act)
 
 
     def ucb(self, s: str, a: int):
