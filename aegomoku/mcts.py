@@ -113,23 +113,32 @@ class MCTS:
 
         # Now, if it is terminal, ...
         if self.Es[s] is not None:
-            # Any defeat shows for the loser first - that just happened. Hence return -(-1)!
-            return 1
+            v = 1. if self.Es[s] == 0 else -1.
+            return -v
 
         if s not in self.Ps:
             # we'll create a new leaf node and return the value estimated by the guiding player
             v = self.initialize_and_estimate_value(board, s)
             return -v
 
-        # while v == -1
-        move = self.best_act(board=board, s=s)
+        v = 0
+        choice = self.probable_actions(board)
+#        while True:
+
+        move = self.best_act(board=board, s=s, choice=choice)
+        if move is None:
+            print("Ain't got no move no mo'. Giving up.")
+            return -1.0
         next_board, _ = self.game.get_next_state(board, move)
         v = self.params.gamma * self.search(next_board)
+        # if v == -1:
+        #     choice.remove(move)
+        # else:
+        #     break
 
         # if the current player has a single immediate winning move, that's enough
-        if v == 1.0:
-            self.Es[s] = 0
-            return -1.
+        # if v == 1.0:
+        #     self.Es[s] = 0.
 
         self.update_node_stats(s, move.i, v)
 
@@ -196,14 +205,14 @@ class MCTS:
         return [board.stone(i) for i in advisable]
 
 
-    def best_act(self, board: Board, s: str) -> Move:
+    def best_act(self, board: Board, s: str, choice) -> Move:
         # pick the move with the highest upper confidence bound from the probable actions
         # We're reducing the action space to those actions deemed probable by the model
         valids = self.Vs[s]
         cur_best = -float('inf')
         best_act = None
 
-        probable_actions = self.probable_actions(board)
+        probable_actions = choice
         if len(probable_actions) == 1:
             return probable_actions[0]
 

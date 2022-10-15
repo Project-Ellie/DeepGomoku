@@ -22,7 +22,7 @@ players:
       kappa_d: 5
       kappa_s: 6
     mcts:
-        gamma: .9
+        gamma: .97
         cpuct: 1.0
         num_simulations: 1000
         temperature: 0.0
@@ -34,7 +34,7 @@ players:
       kappa_d: 5
       kappa_s: 6
     mcts:
-        gamma: .9
+        gamma: .97
         cpuct: 1.0
         num_simulations: 1000
         temperature: 0.0

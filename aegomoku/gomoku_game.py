@@ -1,15 +1,16 @@
 import abc
 import copy
 import random
-from typing import Tuple, Optional
+from typing import Tuple
 
 import numpy as np
 
 from aegomoku.gomoku_board import GomokuBoard
-from aegomoku.interfaces import Game, Move, TerminalDetector, SWAP2_FIRST_THREE, PASS, \
+from aegomoku.interfaces import Game, Move, SWAP2_FIRST_THREE, PASS, \
     SWAP2_AFTER_THREE, SWAP2_AFTER_FIVE, SWAP2_PASSED_THREE, SWAP2_PASSED_FIVE, FIRST_PLAYER, OTHER_PLAYER, GameState, \
     BLACK, SWAP2_DONE
 from aegomoku.policies.heuristic_policy import HeuristicPolicy
+from aegomoku.policies.terminal_detector import GomokuTerminalDetector
 from aegomoku.policies.topological_value import TopologicalValuePolicy
 
 
@@ -132,7 +133,7 @@ class GomokuGame(Game):
         self.board_size = board_size
         self.initializer = initializer
         self.n_in_row = 5
-        self.detector: Optional[TerminalDetector] = None
+        self.detector = GomokuTerminalDetector(board_size)
 
     def get_initial_board(self) -> GomokuBoard:
         initial_stones = self.initializer.initial_stones() if self.initializer else ''
