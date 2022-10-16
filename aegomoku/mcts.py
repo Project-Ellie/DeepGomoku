@@ -1,6 +1,5 @@
 import copy
 import logging
-import math
 from typing import List
 
 import numpy as np
@@ -22,13 +21,15 @@ class MCTS:
         self.adviser = advisor
         self.params = params
 
-        self.Q = {}  # stores Q values for s,a (as defined in the paper)
-        self.Nsa = {}  # stores #times edge s,a was visited
-        self.Ns = {}  # stores #times board s was visited
-        self.Ps = {}  # stores initial policy (returned by neural net)
-
-        self.Es = {}  # stores game.get_winner  for state s
+        # self.Q = {}  # stores Q values for s,a (as defined in the paper)
+        # self.Nsa = {}  # stores #times edge s,a was visited
+        # self.Ns = {}  # stores #times board s was visited
+        # self.Ps = {}  # stores initial policy (returned by neural net)
+        # self.Vs = {}  # stores game.get_valid_moves for state s
+        #
         self.Vs = {}  # stores game.get_valid_moves for state s
+        self.Es = {}  # stores game.get_winner  for state s
+        self.Is = {}  # Initialized
         self.As = {}  # stores the policy's advice for state s
         if verbose > 0:
             self.verbosity = verbose
@@ -62,9 +63,17 @@ class MCTS:
 
     def compute_probs(self, board: Board, temperature: float):
         s = board.get_string_representation()
-        counts = [self.Nsa[(s, a)] if (s, a) in self.Nsa else 0
-                  for a in range(self.game.get_action_size(board))]
+        counts = np.zeros(self.game.get_action_size(board))
+        ns = self.node_stats.get(s)
+        if ns is None:
+            return counts
 
+        counts = np.zeros(self.game.get_action_size(board))
+        counts[ns.index] = ns.Na
+
+        # counts = [self.Nsa[(s, a)] if (s, a) in self.Nsa else 0
+        #           for a in range(self.game.get_action_size(board))]
+        #
         if temperature == 0:
             best_as = np.array(np.argwhere(counts == np.max(counts))).flatten()
             best_a = np.random.choice(best_as)
@@ -111,7 +120,7 @@ class MCTS:
             v = 1. if self.Es[s] == 0 else -1.
             return -v
 
-        if s not in self.Ps:
+        if s not in self.Is:
             # we'll create a new leaf node and return the value estimated by the guiding player
             v = self.initialize_and_estimate_value(board, s)
             return -v
@@ -134,27 +143,25 @@ class MCTS:
         """
         :return: the updated average value for use in documentation and forensics
         """
-        if (s, a) in self.Q:
-            self.Q[(s, a)] = (self.Nsa[(s, a)] * self.Q[(s, a)] + v) / (self.Nsa[(s, a)] + 1)
-            self.Nsa[(s, a)] += 1
-        else:
-            self.Q[(s, a)] = v
-            self.Nsa[(s, a)] = 1
-        self.Ns[s] += 1
+        # if (s, a) in self.Q:
+        #     self.Q[(s, a)] = (self.Nsa[(s, a)] * self.Q[(s, a)] + v) / (self.Nsa[(s, a)] + 1)
+        #     self.Nsa[(s, a)] += 1
+        # else:
+        #     self.Q[(s, a)] = v
+        #     self.Nsa[(s, a)] = 1
+        # self.Ns[s] += 1
+        #
+        # if ns.Q.loc(0)[a] != self.Q[(s, a)]:
+        #     pandas = ns.loc(0)[a]
+        #     classic = self.Q[(s, a)], self.Ns[s], self.Nsa[(s, a)]
+        #     print("Pandas not the same!!!")
+        #     exit(-1)
+        # return self.Q[(s, a)]
 
         ns = self.node_stats[s]
-
         ns.Q.loc(0)[a] = (ns.Na.loc(0)[a] * ns.Q.loc(0)[a] + v) / (ns.Na.loc(0)[a] + 1)
         ns.N += 1
         ns.Na.loc(0)[a] += 1
-
-        if ns.Q.loc(0)[a] != self.Q[(s, a)]:
-            pandas = ns.loc(0)[a]
-            classic = self.Q[(s, a)], self.Ns[s], self.Nsa[(s, a)]
-            print("Pandas not the same!!!")
-            exit(-1)
-        return self.Q[(s, a)]
-
 
     def initialize_and_estimate_value(self, board, s: str):
         """
@@ -166,7 +173,7 @@ class MCTS:
         # evaluate the policy for the move probablities and the value estimate.
         inputs = board.canonical_representation()
         p, v = self.adviser.evaluate(inputs)
-        self.Ps[s] = p
+        # self.Ps[s] = p
 
         # rule out illegal moves and renormalize
         valids = self.game.get_valid_moves(board)
@@ -188,30 +195,30 @@ class MCTS:
         ns.index = advisable
         self.node_stats[s] = ns
 
-        # rule out illegal moves and renormalize
-        valids = self.game.get_valid_moves(board)
-        self.Ps[s] = self.Ps[s] * valids * adv_mask  # masking invalid moves
-        sum_ps_s = np.sum(self.Ps[s])
-        if sum_ps_s > 0:
-            self.Ps[s] /= sum_ps_s  # renormalize
-        else:
-            # if all valid moves were masked make all valid moves equally probable
-
-            # NB! All valid moves may be masked if either your NNet architecture is insufficient
-            # or you've get overfitting or something else.
-            # If you have got dozens or hundreds of these messages
-            # you should pay attention to your NNet and/or training process.
-            log.error("All valid moves were masked, doing a workaround.")
-            self.Ps[s] = self.Ps[s] + valids
-            self.Ps[s] /= np.sum(self.Ps[s])
-
-        for a in advisable:
-            if self.Ps[s][a] != ns.P.loc(0)[a]:
-                print("Pandas not the same!!!!!")
-                exit(-1)
-
-        self.Vs[s] = valids
-        self.Ns[s] = 0
+        # # rule out illegal moves and renormalize
+        # valids = self.game.get_valid_moves(board)
+        # self.Ps[s] = self.Ps[s] * valids * adv_mask  # masking invalid moves
+        # sum_ps_s = np.sum(self.Ps[s])
+        # if sum_ps_s > 0:
+        #     self.Ps[s] /= sum_ps_s  # renormalize
+        # else:
+        #     # if all valid moves were masked make all valid moves equally probable
+        #
+        #     # NB! All valid moves may be masked if either your NNet architecture is insufficient
+        #     # or you've get overfitting or something else.
+        #     # If you have got dozens or hundreds of these messages
+        #     # you should pay attention to your NNet and/or training process.
+        #     log.error("All valid moves were masked, doing a workaround.")
+        #     self.Ps[s] = self.Ps[s] + valids
+        #     self.Ps[s] /= np.sum(self.Ps[s])
+        #
+        # for a in advisable:
+        #     if self.Ps[s][a] != ns.P.loc(0)[a]:
+        #         print("Pandas not the same!!!!!")
+        #         exit(-1)
+        #
+        # self.Vs[s] = valids
+        # self.Ns[s] = 0
         return v
 
 
@@ -234,31 +241,32 @@ class MCTS:
     def best_act(self, board: Board, s: str, choice) -> Move:
         # pick the move with the highest upper confidence bound from the given choice
         # We're reducing the action space to those actions deemed probable by the model
-        valids = self.Vs[s]
-        cur_best = -float('inf')
-        best_act = None
+
+        # valids = self.Vs[s]
+        # cur_best = -float('inf')
+        # best_act = None
 
         if len(choice) == 1:
             return choice[0]
 
-        for a in choice:
-            if valids[a]:
-                if (s, a) in self.Q:
-                    o = 0
-                    u, q, p, sns, nsa = self.ucb(s, a)
-                else:
-                    o = 1
-                    p = self.Ps[s][a]
-                    # the 1e-8 is needed to distinguish by p when N is still zero.
-                    sns = math.sqrt(self.Ns[s] + 1e-10)
-                    u = self.params.cpuct * p * sns
-                    q = 0
-                    nsa = 1
-
-                if u >= cur_best:
-                    recorded = (u, q, p, sns, nsa, o)
-                    cur_best = u
-                    best_act = a
+        # for a in choice:
+        #     if valids[a]:
+        #         if (s, a) in self.Q:
+        #             o = 0
+        #             u, q, p, sns, nsa = self.ucb(s, a)
+        #         else:
+        #             o = 1
+        #             p = self.Ps[s][a]
+        #             # the 1e-8 is needed to distinguish by p when N is still zero.
+        #             sns = math.sqrt(self.Ns[s] + 1e-10)
+        #             u = self.params.cpuct * p * sns
+        #             q = 0
+        #             nsa = 1
+        #
+        #         if u >= cur_best:
+        #             recorded = (u, q, p, sns, nsa, o)
+        #             cur_best = u
+        #             best_act = a
 
         ns = self.node_stats[s]
         c = self.params.cpuct
@@ -267,26 +275,26 @@ class MCTS:
         u1 = u0.sort_values(ascending=False)
         best = u1.index[0]
 
-        if best != best_act:
-            pandas1 = ns.loc(0)[best]
-            pandas2 = ns.loc(0)[best_act]
-            if best == 0:
-                print("Oops")
-            classic1 = self.Q[(s, best)], self.Ns[s], self.Nsa[(s, best)]
-            classic2 = self.Q[(s, best_act)], self.Ns[s], self.Nsa[(s, best_act)]
-            print("Pandas not the same!!!")
-            exit(-1)
+        # if best != best_act:
+        #     pandas1 = ns.loc(0)[best]
+        #     pandas2 = ns.loc(0)[best_act]
+        #     if best == 0:
+        #         print("Oops")
+        #     classic1 = self.Q[(s, best)], self.Ns[s], self.Nsa[(s, best)]
+        #     classic2 = self.Q[(s, best_act)], self.Ns[s], self.Nsa[(s, best_act)]
+        #     print("Pandas not the same!!!")
+        #     exit(-1)
 
-        if best_act is None:
-            print("Oops!")
+        # if best_act is None:
+        #     print("Oops!")
 
-        return board.stone(best_act)
+        return board.stone(best)
 
 
-    def ucb(self, s: str, a: int):
-        q = self.Q[(s, a)]
-        p = self.Ps[s][a]
-        sns = math.sqrt(self.Ns[s] + 1e-10)
-        nsa = 1 + self.Nsa[(s, a)]
-        u = q + self.params.cpuct * p * sns / nsa
-        return u, q, p, sns, nsa
+    # def ucb(self, s: str, a: int):
+    #     q = self.Q[(s, a)]
+    #     p = self.Ps[s][a]
+    #     sns = math.sqrt(self.Ns[s] + 1e-10)
+    #     nsa = 1 + self.Nsa[(s, a)]
+    #     u = q + self.params.cpuct * p * sns / nsa
+    #     return u, q, p, sns, nsa

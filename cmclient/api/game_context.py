@@ -23,7 +23,8 @@ class GameContext:
         m_advice = self.mcts.compute_probs(self.board, self.temperature)
         key = self.board.get_string_representation()
 
-        m_value = max([self.mcts.Q.get((key, i), -float('inf')) for i in range(self.board.board_size)])
+        # TODO: Re-enable!!!
+        m_value = 0 #max([self.mcts.Q.get((key, i), -float('inf')) for i in range(self.board.board_size)])
 
         return (p_advice, p_value), (m_advice, m_value)
 
