@@ -130,7 +130,8 @@ class PolicyAdviser(Adviser):
         probs = np.squeeze(probs)
         advisable = np.where(probs > max_prob * self.params.advice_cutoff, probs, 0.)
 
-        return [int(n) for n in advisable.nonzero()[0]]
+        return advisable.nonzero()[0].astype(int)
+        # return [int(n) for n in advisable.nonzero()[0]]
 
     def advise(self, state):
         """

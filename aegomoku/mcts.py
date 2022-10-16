@@ -1,11 +1,11 @@
 import copy
 import logging
 import math
-from typing import Dict, List
+from typing import List
 
 import numpy as np
+import pandas as pd
 
-from aegomoku.hr_tree import TreeNode
 from aegomoku.interfaces import Game, Adviser, Board, Move, MctsParams
 
 log = logging.getLogger(__name__)
@@ -34,11 +34,7 @@ class MCTS:
             self.verbosity = verbose
             print(f"verbosity: {self.verbosity}")
 
-        board = game.get_initial_board()
-        key = board.get_string_representation()
-        self.root = TreeNode(None, key, None, board.get_stones(), None, 0, None)
-        self.tree_nodes: Dict[str, TreeNode] = {
-            key: self.root}
+        self.node_stats = {}
 
     def get_action_prob(self, board: Board, temperature=0.0):
         """
@@ -54,7 +50,6 @@ class MCTS:
 
         original_board = board
         for i in range(self.params.num_simulations):
-            board = copy.deepcopy(original_board)
             self.search(board)
 
         return self.compute_probs(original_board, temperature)
@@ -62,7 +57,6 @@ class MCTS:
 
     def ponder(self, board: Board, num_simulations: int):
         for i in range(num_simulations):
-            board = copy.deepcopy(board)
             self.search(board)
 
 
@@ -84,7 +78,7 @@ class MCTS:
         return probs
 
 
-    def search(self, board: Board):
+    def search(self, board: Board, level=1):
         """
         This function performs one iteration of MCTS. It is recursively called
         till a leaf node is found. The move chosen at each node is one that
@@ -104,6 +98,7 @@ class MCTS:
             v: the negative of the value of the current canonical_board
         """
 
+        board = copy.deepcopy(board)
         s = board.get_string_representation()
 
         # if I don't know whether this state is terminal...
@@ -121,24 +116,14 @@ class MCTS:
             v = self.initialize_and_estimate_value(board, s)
             return -v
 
-        v = 0
-        choice = self.probable_actions(board)
-#        while True:
+        advisable = self._advisable_actions(board)
 
-        move = self.best_act(board=board, s=s, choice=choice)
+        move = self.best_act(board=board, s=s, choice=advisable)
         if move is None:
             print("Ain't got no move no mo'. Giving up.")
             return -1.0
         next_board, _ = self.game.get_next_state(board, move)
-        v = self.params.gamma * self.search(next_board)
-        # if v == -1:
-        #     choice.remove(move)
-        # else:
-        #     break
-
-        # if the current player has a single immediate winning move, that's enough
-        # if v == 1.0:
-        #     self.Es[s] = 0.
+        v = self.params.gamma * self.search(next_board, level+1)
 
         self.update_node_stats(s, move.i, v)
 
@@ -156,6 +141,18 @@ class MCTS:
             self.Q[(s, a)] = v
             self.Nsa[(s, a)] = 1
         self.Ns[s] += 1
+
+        ns = self.node_stats[s]
+
+        ns.Q.loc(0)[a] = (ns.Na.loc(0)[a] * ns.Q.loc(0)[a] + v) / (ns.Na.loc(0)[a] + 1)
+        ns.N += 1
+        ns.Na.loc(0)[a] += 1
+
+        if ns.Q.loc(0)[a] != self.Q[(s, a)]:
+            pandas = ns.loc(0)[a]
+            classic = self.Q[(s, a)], self.Ns[s], self.Nsa[(s, a)]
+            print("Pandas not the same!!!")
+            exit(-1)
         return self.Q[(s, a)]
 
 
@@ -168,11 +165,32 @@ class MCTS:
 
         # evaluate the policy for the move probablities and the value estimate.
         inputs = board.canonical_representation()
-        self.Ps[s], v = self.adviser.evaluate(inputs)
+        p, v = self.adviser.evaluate(inputs)
+        self.Ps[s] = p
 
         # rule out illegal moves and renormalize
         valids = self.game.get_valid_moves(board)
-        self.Ps[s] = self.Ps[s] * valids  # masking invalid moves
+        advisable = self._advisable_actions(board)
+        adv_mask = np.zeros(board.board_size * board.board_size)
+        adv_mask[advisable] = 1.0
+        p_s = p * valids * adv_mask  # masking invalid moves
+        p_s = np.array(p_s)[advisable]  # selecting the remaining
+        sum_ps_s = np.sum(p_s)
+        if sum_ps_s > 0:
+            p_s /= sum_ps_s  # renormalize
+
+        a_s = [str(board.stone(i)) for i in advisable]
+        q_s = np.zeros(len(a_s))
+        n_s = np.zeros(len(a_s))
+        n_a = np.zeros(len(a_s))
+        ns = pd.DataFrame.from_dict({'A': a_s, 'P': p_s, 'Q': q_s, 'N': n_s, 'Na': n_a},
+                                    orient='columns')
+        ns.index = advisable
+        self.node_stats[s] = ns
+
+        # rule out illegal moves and renormalize
+        valids = self.game.get_valid_moves(board)
+        self.Ps[s] = self.Ps[s] * valids * adv_mask  # masking invalid moves
         sum_ps_s = np.sum(self.Ps[s])
         if sum_ps_s > 0:
             self.Ps[s] /= sum_ps_s  # renormalize
@@ -187,48 +205,77 @@ class MCTS:
             self.Ps[s] = self.Ps[s] + valids
             self.Ps[s] /= np.sum(self.Ps[s])
 
+        for a in advisable:
+            if self.Ps[s][a] != ns.P.loc(0)[a]:
+                print("Pandas not the same!!!!!")
+                exit(-1)
+
         self.Vs[s] = valids
         self.Ns[s] = 0
         return v
 
 
-    def probable_actions(self, board: Board) -> List:
+    def _advisable_actions(self, board: Board) -> List:
         s = board.get_string_representation()
         advisable = self.As.get(s)
         if advisable is None or len(advisable) == 0:
             inputs = np.expand_dims(board.canonical_representation(), 0).astype(float)
             advisable = self.adviser.get_advisable_actions(inputs)
             advisable = set(advisable).difference([s.i for s in board.get_stones()])
-
             self.As[s] = advisable
 
+        return list(advisable)
+
+    def _advisable_stones(self, board: Board) -> List:
+        advisable = self._advisable_actions(board)
         return [board.stone(i) for i in advisable]
 
 
     def best_act(self, board: Board, s: str, choice) -> Move:
-        # pick the move with the highest upper confidence bound from the probable actions
+        # pick the move with the highest upper confidence bound from the given choice
         # We're reducing the action space to those actions deemed probable by the model
         valids = self.Vs[s]
         cur_best = -float('inf')
         best_act = None
 
-        probable_actions = choice
-        if len(probable_actions) == 1:
-            return probable_actions[0]
+        if len(choice) == 1:
+            return choice[0]
 
-        for move in probable_actions:
-            a = move.i  # use the integer representation
+        for a in choice:
             if valids[a]:
                 if (s, a) in self.Q:
-                    u = self.ucb(s, a)
+                    o = 0
+                    u, q, p, sns, nsa = self.ucb(s, a)
                 else:
+                    o = 1
                     p = self.Ps[s][a]
-                    sns = math.sqrt(self.Ns[s])
+                    # the 1e-8 is needed to distinguish by p when N is still zero.
+                    sns = math.sqrt(self.Ns[s] + 1e-10)
                     u = self.params.cpuct * p * sns
+                    q = 0
+                    nsa = 1
 
                 if u >= cur_best:
+                    recorded = (u, q, p, sns, nsa, o)
                     cur_best = u
                     best_act = a
+
+        ns = self.node_stats[s]
+        c = self.params.cpuct
+
+        u0 = ns.Q + c * ns.P * np.sqrt(ns.N + 1e-10) / (ns.Na + 1)
+        u1 = u0.sort_values(ascending=False)
+        best = u1.index[0]
+
+        if best != best_act:
+            pandas1 = ns.loc(0)[best]
+            pandas2 = ns.loc(0)[best_act]
+            if best == 0:
+                print("Oops")
+            classic1 = self.Q[(s, best)], self.Ns[s], self.Nsa[(s, best)]
+            classic2 = self.Q[(s, best_act)], self.Ns[s], self.Nsa[(s, best_act)]
+            print("Pandas not the same!!!")
+            exit(-1)
 
         if best_act is None:
             print("Oops!")
@@ -239,7 +286,7 @@ class MCTS:
     def ucb(self, s: str, a: int):
         q = self.Q[(s, a)]
         p = self.Ps[s][a]
-        sns = math.sqrt(self.Ns[s])
+        sns = math.sqrt(self.Ns[s] + 1e-10)
         nsa = 1 + self.Nsa[(s, a)]
         u = q + self.params.cpuct * p * sns / nsa
-        return u
+        return u, q, p, sns, nsa

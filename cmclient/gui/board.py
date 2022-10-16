@@ -209,11 +209,11 @@ class UI:
 
         for i, prob in enumerate(advice):
             if prob > self.disp_threshold:
-                by, bx = divmod(i, self.board_size)
-                pos = self.context.board.Stone(bx, by)
+                r, c = divmod(i, self.board_size)
+                pos = self.context.board.Stone(r, c)
                 if pos not in self.context.board.get_stones():
-                    x = bx * GRID_SIZE + PADDING
-                    y = by * GRID_SIZE + PADDING
+                    x = c * GRID_SIZE + PADDING
+                    y = r * GRID_SIZE + PADDING
 
                     intensity = min(1, 2 * prob)
                     color = (255 * intensity, (1 - intensity) * 255, 128 * intensity)
