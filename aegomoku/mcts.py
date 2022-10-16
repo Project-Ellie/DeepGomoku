@@ -162,6 +162,7 @@ class MCTS:
         ns.Q.loc(0)[a] = (ns.Na.loc(0)[a] * ns.Q.loc(0)[a] + v) / (ns.Na.loc(0)[a] + 1)
         ns.N += 1
         ns.Na.loc(0)[a] += 1
+        return ns.Q.loc(0)[a]
 
     def initialize_and_estimate_value(self, board, s: str):
         """
@@ -194,6 +195,7 @@ class MCTS:
                                     orient='columns')
         ns.index = advisable
         self.node_stats[s] = ns
+        self.Is[s] = True
 
         # # rule out illegal moves and renormalize
         # valids = self.game.get_valid_moves(board)
