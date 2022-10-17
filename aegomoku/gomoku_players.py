@@ -6,7 +6,7 @@ import numpy as np
 import tensorflow as tf
 from aegomoku.interfaces import Player, Board, Move, MctsParams, PolicyParams, PolicyAdviser, Game, Adviser
 from aegomoku.mcts import MCTS
-from aegomoku.policies.heuristic_policy import HeuristicPolicy
+from aegomoku.policies.topological_value import TopologicalValuePolicy
 
 
 class PolicyAdvisedGraphSearchPlayer(Player):
@@ -27,15 +27,17 @@ class PolicyAdvisedGraphSearchPlayer(Player):
         if policy_params is not None:
             if policy_params.model_file_name is not None:
                 model = tf.keras.models.load_model(policy_params.model_file_name)
-                self.advisor = PolicyAdviser(model=model, params=policy_params)
+                self.adviser = PolicyAdviser(model=model, params=policy_params, board_size=game.board_size)
             else:
                 raise ValueError("Must provide model file name")
         elif adviser is not None:
-            self.advisor = adviser
+            self.adviser = adviser
         else:
-            self.advisor = HeuristicPolicy(board_size=game.board_size, n_fwll=2)
+            self.adviser = TopologicalValuePolicy(self.game.board_size,
+                                                  percent_secondary=0,
+                                                  min_secondary=0)
 
-        self.mcts = None
+        self.mcts = MCTS(self.game, self.adviser, self.mcts_params)
         self.refresh()
 
         super().__init__()
@@ -46,7 +48,7 @@ class PolicyAdvisedGraphSearchPlayer(Player):
         resets all persistent state
         :return:
         """
-        self.mcts = MCTS(self.game, self.advisor, self.mcts_params)
+        self.mcts = MCTS(self.game, self.adviser, self.mcts_params)
 
 
     def meet(self, other: Player):

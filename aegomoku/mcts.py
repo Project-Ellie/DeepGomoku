@@ -1,14 +1,12 @@
 import copy
 import logging
 import math
-from typing import Dict, Tuple, List
+from typing import List
 
 import numpy as np
+import pandas as pd
 
-from aegomoku.hr_tree import TreeNode
 from aegomoku.interfaces import Game, Adviser, Board, Move, MctsParams
-
-EPS = 1e-8
 
 log = logging.getLogger(__name__)
 
@@ -36,11 +34,7 @@ class MCTS:
             self.verbosity = verbose
             print(f"verbosity: {self.verbosity}")
 
-        board = game.get_initial_board()
-        key = board.get_string_representation()
-        self.root = TreeNode(None, key, None, board.get_stones(), None, 0, None)
-        self.tree_nodes: Dict[str, TreeNode] = {
-            key: self.root}
+        self.node_stats = {}
 
     def get_action_prob(self, board: Board, temperature=0.0):
         """
@@ -56,7 +50,6 @@ class MCTS:
 
         original_board = board
         for i in range(self.params.num_simulations):
-            board = copy.deepcopy(original_board)
             self.search(board)
 
         return self.compute_probs(original_board, temperature)
@@ -64,7 +57,6 @@ class MCTS:
 
     def ponder(self, board: Board, num_simulations: int):
         for i in range(num_simulations):
-            board = copy.deepcopy(board)
             self.search(board)
 
 
@@ -86,7 +78,7 @@ class MCTS:
         return probs
 
 
-    def search(self, board: Board):
+    def search(self, board: Board, level=1):
         """
         This function performs one iteration of MCTS. It is recursively called
         till a leaf node is found. The move chosen at each node is one that
@@ -106,9 +98,8 @@ class MCTS:
             v: the negative of the value of the current canonical_board
         """
 
+        board = copy.deepcopy(board)
         s = board.get_string_representation()
-
-        # winner = None
 
         # if I don't know whether this state is terminal...
         if s not in self.Es:
@@ -117,45 +108,26 @@ class MCTS:
 
         # Now, if it is terminal, ...
         if self.Es[s] is not None:
-            # Any defeat shows for the loser first - that just happened. Hence return -(-1)!
-            return 1
+            v = 1. if self.Es[s] == 0 else -1.
+            return -v
 
         if s not in self.Ps:
             # we'll create a new leaf node and return the value estimated by the guiding player
-            return -self.initialize_and_estimate_value(board, s)
+            v = self.initialize_and_estimate_value(board, s)
+            return -v
 
-        move, info = self.best_act(board=board, s=s)
+        advisable = self._advisable_actions(board)
+
+        move = self.best_act(board=board, s=s, choice=advisable)
+        if move is None:
+            print("Ain't got no move no mo'. Giving up.")
+            return -1.0
         next_board, _ = self.game.get_next_state(board, move)
-        v = self.params.gamma * self.search(next_board)
+        v = self.params.gamma * self.search(next_board, level+1)
 
-        # new_value = self.update_node_stats(s, move.i, v)
         self.update_node_stats(s, move.i, v)
 
-        # Only works in self-play
-        # self.update_tree_view(s, move, new_value, next_board, info)
-
         return -v
-
-
-    def update_tree_view(self, s, move, v, board, info=None):
-        """
-        Maintain a tree view for debug purposes in self-play
-        :param s: the canonical string rep of the prev state
-        :param move: the move from prev to curr state
-        :param v: the value of the new state
-        :param info: a dictionary with debug info
-        :param board: human-readable string rep of the current state
-        """
-        a = move.i
-        parent = self.tree_nodes.get(s)
-        if parent:
-            if parent.children.get(str(move)) is not None:
-                child = parent.children.get(str(move))
-                child.v = v
-                child.nsa = self.Nsa[(s, a)]
-            else:
-                child = parent.add_child(move, board, v, self.Nsa[(s, a)], self.ucb(s, a), info)
-                self.tree_nodes[child.key] = child
 
 
     def update_node_stats(self, s, a, v):
@@ -169,11 +141,19 @@ class MCTS:
             self.Q[(s, a)] = v
             self.Nsa[(s, a)] = 1
         self.Ns[s] += 1
+
+        ns = self.node_stats[s]
+
+        ns.Q.loc(0)[a] = (ns.Na.loc(0)[a] * ns.Q.loc(0)[a] + v) / (ns.Na.loc(0)[a] + 1)
+        ns.N += 1
+        ns.Na.loc(0)[a] += 1
+
+        if ns.Q.loc(0)[a] != self.Q[(s, a)]:
+            pandas = ns.loc(0)[a]
+            classic = self.Q[(s, a)], self.Ns[s], self.Nsa[(s, a)]
+            print("Pandas not the same!!!")
+            exit(-1)
         return self.Q[(s, a)]
-
-
-    def pot_best(self, board, s):
-        return {board.stone(int(np.argmax(self.Ps[s], axis=None))): np.max(self.Ps[s], axis=None)}
 
 
     def initialize_and_estimate_value(self, board, s: str):
@@ -185,13 +165,32 @@ class MCTS:
 
         # evaluate the policy for the move probablities and the value estimate.
         inputs = board.canonical_representation()
-        self.Ps[s], v = self.adviser.evaluate(inputs)
-
-        pot_next_move = self.pot_best(board, s)  # noqa: for DEBUG only
+        p, v = self.adviser.evaluate(inputs)
+        self.Ps[s] = p
 
         # rule out illegal moves and renormalize
         valids = self.game.get_valid_moves(board)
-        self.Ps[s] = self.Ps[s] * valids  # masking invalid moves
+        advisable = self._advisable_actions(board)
+        adv_mask = np.zeros(board.board_size * board.board_size)
+        adv_mask[advisable] = 1.0
+        p_s = p * valids * adv_mask  # masking invalid moves
+        p_s = np.array(p_s)[advisable]  # selecting the remaining
+        sum_ps_s = np.sum(p_s)
+        if sum_ps_s > 0:
+            p_s /= sum_ps_s  # renormalize
+
+        a_s = [str(board.stone(i)) for i in advisable]
+        q_s = np.zeros(len(a_s))
+        n_s = np.zeros(len(a_s))
+        n_a = np.zeros(len(a_s))
+        ns = pd.DataFrame.from_dict({'A': a_s, 'P': p_s, 'Q': q_s, 'N': n_s, 'Na': n_a},
+                                    orient='columns')
+        ns.index = advisable
+        self.node_stats[s] = ns
+
+        # rule out illegal moves and renormalize
+        valids = self.game.get_valid_moves(board)
+        self.Ps[s] = self.Ps[s] * valids * adv_mask  # masking invalid moves
         sum_ps_s = np.sum(self.Ps[s])
         if sum_ps_s > 0:
             self.Ps[s] /= sum_ps_s  # renormalize
@@ -206,61 +205,88 @@ class MCTS:
             self.Ps[s] = self.Ps[s] + valids
             self.Ps[s] /= np.sum(self.Ps[s])
 
+        for a in advisable:
+            if self.Ps[s][a] != ns.P.loc(0)[a]:
+                print("Pandas not the same!!!!!")
+                exit(-1)
+
         self.Vs[s] = valids
         self.Ns[s] = 0
         return v
 
 
-    def probable_actions(self, board: Board) -> List:
+    def _advisable_actions(self, board: Board) -> List:
         s = board.get_string_representation()
         advisable = self.As.get(s)
         if advisable is None or len(advisable) == 0:
             inputs = np.expand_dims(board.canonical_representation(), 0).astype(float)
             advisable = self.adviser.get_advisable_actions(inputs)
             advisable = set(advisable).difference([s.i for s in board.get_stones()])
-
             self.As[s] = advisable
 
+        return list(advisable)
+
+    def _advisable_stones(self, board: Board) -> List:
+        advisable = self._advisable_actions(board)
         return [board.stone(i) for i in advisable]
 
 
-    def best_act(self, board: Board, s: str) -> Tuple[Move, Dict]:
-        # pick the move with the highest upper confidence bound from the probable actions
+    def best_act(self, board: Board, s: str, choice) -> Move:
+        # pick the move with the highest upper confidence bound from the given choice
         # We're reducing the action space to those actions deemed probable by the model
         valids = self.Vs[s]
         cur_best = -float('inf')
         best_act = None
 
-        probable_actions = self.probable_actions(board)
-        if len(probable_actions) == 1:
-            return probable_actions[0], {'u': float('inf'), 'q': None, 'p': 1, 'nsa': None}
+        if len(choice) == 1:
+            return choice[0]
 
-        debug_info = {}
-        for move in probable_actions:
-            a = move.i  # use the integer representation
+        for a in choice:
             if valids[a]:
                 if (s, a) in self.Q:
-                    u = self.ucb(s, a)
+                    o = 0
+                    u, q, p, sns, nsa = self.ucb(s, a)
                 else:
+                    o = 1
                     p = self.Ps[s][a]
-                    sns = math.sqrt(self.Ns[s] + EPS)
-                    u = self.params.cpuct * p * sns  # Q = 0 ?
-                    debug_info[a] = {'u': u, 'q': None, 'p': p, 'nsa': None}
+                    # the 1e-8 is needed to distinguish by p when N is still zero.
+                    sns = math.sqrt(self.Ns[s] + 1e-10)
+                    u = self.params.cpuct * p * sns
+                    q = 0
+                    nsa = 1
 
                 if u >= cur_best:
+                    recorded = (u, q, p, sns, nsa, o)
                     cur_best = u
                     best_act = a
+
+        ns = self.node_stats[s]
+        c = self.params.cpuct
+
+        u0 = ns.Q + c * ns.P * np.sqrt(ns.N + 1e-10) / (ns.Na + 1)
+        u1 = u0.sort_values(ascending=False)
+        best = u1.index[0]
+
+        if best != best_act:
+            pandas1 = ns.loc(0)[best]
+            pandas2 = ns.loc(0)[best_act]
+            if best == 0:
+                print("Oops")
+            classic1 = self.Q[(s, best)], self.Ns[s], self.Nsa[(s, best)]
+            classic2 = self.Q[(s, best_act)], self.Ns[s], self.Nsa[(s, best_act)]
+            print("Pandas not the same!!!")
+            exit(-1)
 
         if best_act is None:
             print("Oops!")
 
-        return board.stone(best_act), debug_info
+        return board.stone(best_act)
 
 
     def ucb(self, s: str, a: int):
         q = self.Q[(s, a)]
         p = self.Ps[s][a]
-        sns = math.sqrt(self.Ns[s])
+        sns = math.sqrt(self.Ns[s] + 1e-10)
         nsa = 1 + self.Nsa[(s, a)]
         u = q + self.params.cpuct * p * sns / nsa
-        return u
+        return u, q, p, sns, nsa

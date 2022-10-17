@@ -36,6 +36,7 @@ class GomokuBoard(Board):
         self.board_size = board_size
         self.game_state = game_state if game_state is not None else DefaultGomokuState()
         self.game_state.link(self)
+        self.str_rep = ""
 
         class Stone(Move):
             """
@@ -163,6 +164,7 @@ class GomokuBoard(Board):
             for stone in stones[::-1]:
                 self.math_rep[stone.r + 1, stone.c + 1, channel] = 1
                 channel = 1 - channel
+            self.compute_string_representation()
 
         else:  # add a tiny polution, because the maths (softmax) don't like zeros only
             self.math_rep[self.board_size // 2 - 1][self.board_size // 2][0] = 1e-5
@@ -271,14 +273,17 @@ class GomokuBoard(Board):
 
 
     def get_string_representation(self):
+        return self.str_rep
+
+    def compute_string_representation(self):
         """
         :return: hash string of the board bits. Note that we don't use the moves,
          because the order of the moves must not matter for this method.
         """
         example = self.math_rep, [], 0
         stones, current = stones_from_example(example)
-        res = str(sorted(stones))
-        return res
+        self.str_rep = str(sorted(stones))
+
 
     def get_legal_actions(self):
         """
@@ -310,6 +315,7 @@ class GomokuBoard(Board):
             self.stones.append(stone)
 
         self.game_state.transition(*args)
+        self.compute_string_representation()
 
         return self
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 from typing import Tuple, Optional
+
 import numpy as np
 from keras import models
 
@@ -25,6 +26,10 @@ OTHER_PLAYER = 1
 
 
 class GameState:
+
+    def __init__(self):
+        self.board = None
+
     @abc.abstractmethod
     def get_current_player(self):
         raise NotImplementedError("Please consider implementing this method.")
@@ -61,7 +66,7 @@ class DefaultGomokuState(GameState):
 
 class MctsParams:
 
-    def __init__(self, cpuct: float, temperature: float, num_simulations: int, gamma=.7):
+    def __init__(self, cpuct: float, temperature: float, num_simulations: int, gamma=0.97):
         self.cpuct = cpuct
         self.num_simulations = num_simulations
         assert temperature == 0 or temperature > .1, "Temperatures near but not exactly zero are numerically instable."
@@ -98,12 +103,22 @@ class Adviser:
         """
         pass
 
+    @abc.abstractmethod
+    def advise(self, state):
+        """
+        :param state: current board in its canonical form NxNx3.
+
+        :returns: a selection of move probabilities: a subset of the policy, renormalized
+        """
+        pass
+
 
 class PolicyAdviser(Adviser):
 
-    def __init__(self, model: models.Model, params: PolicyParams):
+    def __init__(self, model: models.Model, params: PolicyParams, board_size):
         self.model = model
         self.params = params
+        self.board_size = board_size
 
     def get_advisable_actions(self, state):
         """
@@ -115,7 +130,21 @@ class PolicyAdviser(Adviser):
         probs = np.squeeze(probs)
         advisable = np.where(probs > max_prob * self.params.advice_cutoff, probs, 0.)
 
-        return [int(n) for n in advisable.nonzero()[0]]
+        return advisable.nonzero()[0].astype(int)
+        # return [int(n) for n in advisable.nonzero()[0]]
+
+    def advise(self, state):
+        """
+        :param state: nxnx3 representation of a go board
+        :returns: a selection of move probabilities: a subset of the policy, renormalized
+        """
+        bits = np.zeros([self.board_size * self.board_size], dtype=np.uint)
+        advisable = self.get_advisable_actions(np.expand_dims(state, 0).astype(float))
+        bits[advisable] = 1
+        p, _ = self.evaluate(state)
+        probs = bits * p
+        total = np.sum(probs)
+        return probs / total
 
 
     def evaluate(self, state):
