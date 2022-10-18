@@ -4,10 +4,10 @@ game:
     # alternative (one fine day): swap2
     initializer:
       type: random
-      num_stones: 2
-      left: 9
+      num_stones: 4
+      left: 8
       right: 11
-      upper: 9
+      upper: 8
       lower: 11
 
       # alternative
@@ -17,7 +17,7 @@ game:
 players:
   - name: P1000_1.0
     advice:
-      type: 3_c2.model
+      type: 4_c2s.model
       advice_cutoff: .02
       kappa_d: 5
       kappa_s: 6
@@ -29,7 +29,7 @@ players:
 
   - name: P1000_1.0
     advice:
-      type: 3_c2.model
+      type: 4_c2s.model
       advice_cutoff: .02
       kappa_d: 5
       kappa_s: 6
@@ -41,7 +41,7 @@ players:
 
 
 process:
-  num_trajectories_per_file: 1
+  num_trajectories_per_file: 400
   max_moves: 100
   eval_temperature: 3.0
-  output_dir: workspace/Project-Ellie/DATA/selfplay/3/tensorbook
+  output_dir: workspace/Project-Ellie/DATA/selfplay/4/tensorbook

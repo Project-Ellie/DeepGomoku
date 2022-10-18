@@ -145,14 +145,14 @@ def create_players(game, player1, player2):
             kappa_d = advice['kappa_d']
             kappa_s = advice['kappa_s']
             policy_params = PolicyParams(model_file_name=None, advice_cutoff=advice_cutoff)
-            policy = TopologicalValuePolicy(kappa_s=kappa_s, kappa_d=kappa_d)
-            adviser = PolicyAdviser(model=policy, params=policy_params)
+            policy = TopologicalValuePolicy(game.board_size, kappa_s=kappa_s, kappa_d=kappa_d)
+            adviser = PolicyAdviser(model=policy, params=policy_params, board_size=game.board_size)
         else:
             model_file = Path.home() / "workspace" / "Project-Ellie" / "DATA" / 'models' / advice['type']
             advice_cutoff = advice['advice_cutoff']
             policy_params = PolicyParams(model_file_name=model_file.as_posix(), advice_cutoff=advice_cutoff)
             model = tf.keras.models.load_model(model_file.as_posix())
-            adviser = PolicyAdviser(model=model, params=policy_params)
+            adviser = PolicyAdviser(model=model, params=policy_params, board_size=game.board_size)
 
         players.append(PolicyAdvisedGraphSearchPlayer(name, game, mcts_params, adviser=adviser))
 
