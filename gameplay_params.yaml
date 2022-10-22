@@ -15,33 +15,33 @@ game:
       # stones: H8G7I7F7 or so
 
 players:
-  - name: P1000_1.0
+  - name: P1600_2.0
     advice:
-      type: 4_c2s.model
+      type: TOPOLOGICAL_VALUE
       advice_cutoff: .02
       kappa_d: 5
       kappa_s: 6
     mcts:
         gamma: .97
-        cpuct: 1.0
-        num_simulations: 1000
+        cpuct: 2.0
+        num_simulations: 1600
         temperature: 0.0
 
-  - name: P1000_1.0
+  - name: P1600_2.0_2
     advice:
-      type: 4_c2s.model
+      type: TOPOLOGICAL_VALUE
       advice_cutoff: .02
       kappa_d: 5
       kappa_s: 6
     mcts:
         gamma: .97
-        cpuct: 1.0
-        num_simulations: 1000
+        cpuct: 2.0
+        num_simulations: 1600
         temperature: 0.0
 
 
 process:
-  num_trajectories_per_file: 400
+  num_trajectories_per_file: 10
   max_moves: 100
   eval_temperature: 3.0
-  output_dir: workspace/Project-Ellie/DATA/selfplay/4/tensorbook
+  output_dir: workspace/Project-Ellie/DATA/selfplay/0/tensorbook

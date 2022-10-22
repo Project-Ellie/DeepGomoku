@@ -4,7 +4,8 @@ from typing import Tuple, Optional
 
 import numpy as np
 import tensorflow as tf
-from aegomoku.interfaces import Player, Board, Move, MctsParams, PolicyParams, PolicyAdviser, Game, Adviser
+from aegomoku.interfaces import Player, Board, Move, MctsParams, PolicyParams, Game, Adviser
+from aegomoku.advice import PolicyAdviser
 from aegomoku.mcts import MCTS
 from aegomoku.policies.topological_value import TopologicalValuePolicy
 

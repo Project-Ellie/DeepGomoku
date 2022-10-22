@@ -36,13 +36,12 @@ class MCTS:
 
     def get_action_prob(self, board: Board, temperature=0.0):
         """
-        This function performs numMCTSSims simulations of MCTS starting from
-        canonical_board.
+        Performs the simulations and returns the resulting probabilities as a 1-dim probability vector of length NxN
         """
         s = board.get_string_representation()
         advisable = self.As.get(s)
         if advisable is None:
-            state = np.expand_dims(board.canonical_representation(), 0).astype(float)
+            state = board.canonical_representation()
             advisable = self.adviser.get_advisable_actions(state)
             self.As[s] = advisable
 
@@ -185,7 +184,7 @@ class MCTS:
         s = board.get_string_representation()
         advisable = self.As.get(s)
         if advisable is None or len(advisable) == 0:
-            inputs = np.expand_dims(board.canonical_representation(), 0).astype(float)
+            inputs = board.canonical_representation()
             advisable = self.adviser.get_advisable_actions(inputs)
             advisable = set(advisable).difference([s.i for s in board.get_stones()])
             self.As[s] = advisable

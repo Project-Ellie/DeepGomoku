@@ -172,6 +172,9 @@ class MplBoard:
         if self.adviser is None:
             return
 
+        if self.stones is None or len(self.stones) == 0:
+            return
+
         position = new_board.GomokuBoard(self.N, stones=gt.stones_to_string(self.stones[:self.cursor+1]))
         if isinstance(self.adviser, (list, np.ndarray)):
             p = np.reshape(self.adviser, (self.N, self.N))
@@ -186,7 +189,7 @@ class MplBoard:
             for r in range(self.N):
                 value = heatmap[r][c]
                 x_, y_ = gt.m2b((r, c), self.N)
-                if value >= cut_off:
+                if value > cut_off:
                     color = f"#{value:02x}0000"
                     axis.scatter([x_], [y_], color=color, s=self.stones_size() * .5, zorder=10)
             
