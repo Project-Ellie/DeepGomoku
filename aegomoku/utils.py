@@ -51,7 +51,7 @@ def stones_from_example(example) -> Tuple[List[int], str]:
 
 def analyse_example(example, disp_width=7.5, policy_cutoff=1e-5):
     s, p, v = example
-    board_size = int(np.sqrt(len(p)))
+    board_size = int(np.sqrt(len(np.squeeze(p))))
     stones, current = stones_from_example(example)
     analyse_board(board_size, stones, adviser_or_array=p, suppress_move_numbers=True, disp_width=disp_width,
                   policy_cutoff=policy_cutoff)
