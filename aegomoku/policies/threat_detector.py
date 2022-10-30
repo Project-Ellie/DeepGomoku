@@ -9,11 +9,12 @@ from aegomoku.policies.radial import all_3xnxn, radial_3xnxn
 logger = logging.getLogger(__name__)
 
 # Criticality Categories
-WIN_IN_1 = 0  # detects positions that create/prohibit rows of 5
-WIN_IN_2 = 1  # detects positions that create/prohibit double-open 4-rows
-
+IMMEDIATE_THREAT = 0    # detects lines of 4 that create/prohibit rows of 5
+THREAT_OPPORTUNITY = 1  # detects lines of 3 that lead to immediate threats
+THREAT_POTENTIAL = 2    # detects lines of 2 that lead to threat opportunities
+VICINITY = 3            # detects any stones in the vicinity
 CRITICALITIES = [
-    WIN_IN_1, WIN_IN_2
+    IMMEDIATE_THREAT, THREAT_OPPORTUNITY, THREAT_POTENTIAL, VICINITY
 ]
 
 CURRENT = 0
@@ -40,95 +41,152 @@ class ThreatDetector(tf.keras.layers.Layer, Callable):
             # immediate threats
             [
                 [[1, 1, 1, 1, -1, 0, 0, 0, 0],
-                 [0, 0, 0, 0, -1, 0, 0, 0, 0], -3, [999, 333]],
+                 [0, 0, 0, 0, -1, 0, 0, 0, 0], -3],
 
                 [[0, 1, 1, 1, -1, 1, 0, 0, 0],
-                 [0, 0, 0, 0, -1, 0, 0, 0, 0], -3, [999, 333]],
+                 [0, 0, 0, 0, -1, 0, 0, 0, 0], -3],
 
                 [[0, 0, 1, 1, -1, 1, 1, 0, 0],
-                 [0, 0, 0, 0, -1, 0, 0, 0, 0], -3, [999, 333]],
+                 [0, 0, 0, 0, -1, 0, 0, 0, 0], -3],
 
                 [[0, 0, 0, 1, -1, 1, 1, 1, 0],
-                 [0, 0, 0, 0, -1, 0, 0, 0, 0], -3, [999, 333]],
+                 [0, 0, 0, 0, -1, 0, 0, 0, 0], -3],
 
                 [[0, 0, 0, 0, -1, 1, 1, 1, 1],
-                 [0, 0, 0, 0, -1, 0, 0, 0, 0], -3, [999, 333]],
+                 [0, 0, 0, 0, -1, 0, 0, 0, 0], -3],
             ],
 
             # threat ooportunities
             [
                 [[1,  1,  1, -1, -1,  0,  0,  0,  0],
-                 [0,  0,  0, -1, -1,  0,  0,  0,  0], -2, [99, 33]],
+                 [0,  0,  0, -1, -1,  0,  0,  0,  0], -2],
 
                 [[1,  1, -1,  1, -1,  0,  0,  0,  0],
-                 [0,  0, -1,  0, -1,  0,  0,  0,  0], -2, [99, 33]],
+                 [0,  0, -1,  0, -1,  0,  0,  0,  0], -2],
 
                 [[1, -1,  1,  1, -1,  0,  0,  0,  0],
-                 [0, -1,  0,  0, -1,  0,  0,  0,  0], -2, [99, 33]],
+                 [0, -1,  0,  0, -1,  0,  0,  0,  0], -2],
 
                 [[-1,  1,  1,  1, -1,  0,  0,  0,  0],
-                 [-1,  0,  0,  0, -1,  0,  0,  0,  0], -2, [99, 33]],
+                 [-1,  0,  0,  0, -1,  0,  0,  0,  0], -2],
 
 
                 [[0,  1,  1,  1, -1, -1,  0,  0,  0],
-                 [0,  0,  0,  0, -1,  0,  0,  0,  0], -2, [99, 33]],
+                 [0,  0,  0,  0, -1, -1,  0,  0,  0], -2],
 
                 [[0,  1,  1, -1, -1,  1,  0,  0,  0],
-                 [0,  0,  0,  0, -1,  0,  0,  0,  0], -2, [99, 33]],
+                 [0,  0,  0, -1, -1,  0,  0,  0,  0], -2],
 
                 [[0,  1, -1,  1, -1,  1,  0,  0,  0],
-                 [0,  0,  0,  0, -1,  0,  0,  0,  0], -2, [99, 33]],
+                 [0,  0, -1,  0, -1,  0,  0,  0,  0], -2],
 
                 [[0, -1,  1,  1, -1,  1,  0,  0,  0],
-                 [0,  0,  0,  0, -1,  0,  0,  0,  0], -2, [99, 33]],
+                 [0, -1,  0,  0, -1,  0,  0,  0,  0], -2],
 
 
                 [[0,  0,  1,  1, -1,  1, -1,  0,  0],
-                 [0,  0,  0,  0, -1,  0, -1,  0,  0], -2, [99, 33]],
+                 [0,  0,  0,  0, -1,  0, -1,  0,  0], -2],
 
                 [[0,  0,  1,  1, -1, -1,  1,  0,  0],
-                 [0,  0,  0,  0, -1, -1,  0,  0,  0], -2, [99, 33]],
+                 [0,  0,  0,  0, -1, -1,  0,  0,  0], -2],
 
                 [[0,  0,  1, -1, -1,  1,  1,  0,  0],
-                 [0,  0,  0, -1, -1,  1,  0,  0,  0], -2, [99, 33]],
+                 [0,  0,  0, -1, -1,  0,  0,  0,  0], -2],
 
                 [[0,  0, -1,  1, -1,  1,  1,  0,  0],
-                 [0,  0, -1,  0, -1,  0,  0,  0,  0], -2, [99, 33]],
+                 [0,  0, -1,  0, -1,  0,  0,  0,  0], -2],
 
 
                 [[0,  0,  0,  1, -1,  1,  1, -1,  0],
-                 [0,  0,  0,  0, -1,  0,  0, -1,  0], -2, [99, 33]],
+                 [0,  0,  0,  0, -1,  0,  0, -1,  0], -2],
 
                 [[0,  0,  0,  1, -1,  1, -1,  1,  0],
-                 [0,  0,  0,  0, -1,  0, -1,  0,  0], -2, [99, 33]],
+                 [0,  0,  0,  0, -1,  0, -1,  0,  0], -2],
 
                 [[0,  0,  0,  1, -1, -1,  1,  1,  0],
-                 [0,  0,  0,  0, -1, -1,  0,  0,  0], -2, [99, 33]],
+                 [0,  0,  0,  0, -1, -1,  0,  0,  0], -2],
 
                 [[0,  0,  0, -1, -1,  1,  1,  1,  0],
-                 [0,  0,  0, -1, -1,  0,  0,  0,  0], -2, [99, 33]],
+                 [0,  0,  0, -1, -1,  0,  0,  0,  0], -2],
 
 
                 [[0,  0,  0,  0, -1,  1,  1,  1, -1],
-                 [0,  0,  0,  0, -1,  0,  0,  0, -1], -2, [99, 33]],
+                 [0,  0,  0,  0, -1,  0,  0,  0, -1], -2],
 
                 [[0,  0,  0,  0, -1,  1,  1, -1,  1],
-                 [0,  0,  0,  0, -1,  0,  0, -1,  0], -2, [99, 33]],
+                 [0,  0,  0,  0, -1,  0,  0, -1,  0], -2],
 
                 [[0,  0,  0,  0, -1,  1, -1,  1,  1],
-                 [0,  0,  0,  0, -1,  0, -1,  0,  0], -2, [99, 33]],
+                 [0,  0,  0,  0, -1,  0, -1,  0,  0], -2],
 
                 [[0,  0,  0,  0, -1, -1,  1,  1,  1],
-                 [0,  0,  0,  0, -1, -1,  0,  0,  0], -2, [99, 33]],
-            ]
+                 [0,  0,  0,  0, -1, -1,  0,  0,  0], -2]
 
+            ], [
+
+                [[-1,  1,  1, -1, -1, -1,  0,  0,  0],
+                 [-1,  0,  0, -1, -1, -1,  0,  0,  0], -1],
+
+                [[-1,  1, -1,  1, -1,  -1,  0,  0,  0],
+                 [-1,  0, -1,  0, -1,  -1,  0,  0,  0], -1],
+
+                [[-1, -1,  1,  1, -1,  -1, -1,  0,  0],
+                 [0,  -1,  0,  0, -1,  -1, -1,  0,  0], -1],
+
+                [[-1, -1,  1,  1, -1, -1,  0,  0,  0],
+                 [-1, -1,  0,  0, -1, -1,  0,  0,  0], -1],
+
+
+                [[0, -1,  1, -1, -1,  1, -1, -1,  0],
+                 [0, -1,  0, -1, -1,  0, -1,  0,  0], -1],
+
+                [[0, -1, -1,  1, -1,  1, -1,  0,  0],
+                 [0, -1, -1,  0, -1,  0, -1,  0,  0], -1],
+
+                [[0,  0, -1,  1, -1,  1, -1, -1,  0],
+                 [0,  0, -1,  0, -1,  0, -1, -1,  0], -1],
+
+                [[0,  0, -1,  1, -1, -1,  1, -1,  0],
+                 [0,  0, -1,  0, -1, -1,  0, -1,  0], -1],
+
+
+                # . . . - _ x x - -
+                [[0,  0,  0, -1, -1,  1,  1, -1, -1],
+                 [0,  0,  0, -1, -1,  0,  0, -1, -1], -1],
+
+                # . . - - _ x x - .
+                [[0,  0, -1, -1, -1,  1,  1, -1, -1],
+                 [0,  0, -1, -1, -1,  0,  0, -1,  0], -1],
+
+                # . . . - _ x - x -
+                [[0,  0,  0, -1, -1,  1, -1,  1, -1],
+                 [0,  0,  0, -1, -1,  0, -1,  0, -1], -1],
+
+                # . . . - _ - x x -
+                [[0,  0,  0, -1, -1, -1,  1,  1, -1],
+                 [0,  0,  0, -1, -1, -1,  0,  0, -1], -1]
+            ], [
+
+                # Anything in the vicinity? No logic - just anything
+                [[-1, -1,  1, -1, -1, -1, -1, -1, -1],
+                 [0,   0,  0,  0, -1,  0,  0,  0,  0], 0],
+
+                [[-1, -1, -1,  1, -1, -1, -1, -1, -1],
+                 [0,   0,  0,  0, -1,  0,  0,  0,  0], 0],
+
+                [[-1, -1, -1, -1, -1,  1, -1, -1, -1],
+                 [0,   0,  0,  0, -1,  0,  0,  0,  0], 0],
+
+                [[-1, -1, -1, -1, -1, -1,  1, -1, -1],
+                 [0,   0,  0,  0, -1,  0,  0,  0,  0], 0],
+            ]
         ]
 
-        filters, biases, weights = self.assemble_filters()
+        filters, biases = self.assemble_filters()
 
         n_filters = len(biases)
 
-        # Layer 1. Output: (curr/oth) x 4 directions x 32 patterns + 3 projectors => 259 channels per board
+        # Layer 1. Output: (curr/oth) x 4 directions x num patterns
         self.detector = tf.keras.layers.Conv2D(
             name="heuristic_detector",
             filters=n_filters, kernel_size=(9, 9),
@@ -139,34 +197,44 @@ class ThreatDetector(tf.keras.layers.Layer, Callable):
             trainable=False)
 
         # Layer 2. Output: curr / other / boundary / inf_curr / inf_other
-        weights = self.spread_weights(weights)
+        weights = self.spread_weights()
         weights = np.rollaxis(np.array(weights), axis=-1)
 
         self.combine = tf.keras.layers.Conv2D(
             name='heuristic_priority',
-            filters=4, kernel_size=(1, 1),
+            filters=8, kernel_size=(1, 1),
             activation=activation,
             trainable=False,
             kernel_initializer=tf.constant_initializer(weights))
 
     @staticmethod
-    def spread_weights(weights):
+    def spread_weights():
         """
         distribute the weights
         """
-        # threat of the current stones
-        i0 = list(np.array([1, 1, 1, 1, 0, 0, 0, 0] * 5) * weights[:40]) + [0] * 160
+        # threat of the current player
+        i0 = [1, 1, 1, 1, 0, 0, 0, 0] * 5 + [0] * 288
 
-        # threat of the other stones
-        j0 = list(np.array([0, 0, 0, 0, 1, 1, 1, 1] * 5) * weights[:40]) + [0] * 160
+        # threat of the other player
+        j0 = [0, 0, 0, 0, 1, 1, 1, 1] * 5 + [0] * 288
 
-        # opportunities of the current stones
-        i1 = [0] * 40 + list(np.array([1, 1, 1, 1, 0, 0, 0, 0] * 20) * weights[40:])
+        # opportunities of the current player
+        i1 = [0] * 40 + [1, 1, 1, 1, 0, 0, 0, 0] * 20 + [0] * 128
+
+        # opportunities of the other player
+        j1 = [0] * 40 + [0, 0, 0, 0, 1, 1, 1, 1] * 20 + [0] * 128
+
+        # potential positions of current player
+        i2 = [0] * 200 + [1, 1, 1, 1, 0, 0, 0, 0] * 12 + [0] * 32
 
         # opportunities of the other stones
-        j1 = [0] * 40 + list(np.array([0, 0, 0, 0, 1, 1, 1, 1] * 20) * weights[40:])
+        j2 = [0] * 200 + [0, 0, 0, 0, 1, 1, 1, 1] * 12 + [0] * 32
 
-        return [i0, j0, i1, j1]
+        i3 = [0] * 296 + [1, 1, 1, 1, 0, 0, 0, 0] * 4
+
+        j3 = [0] * 296 + [0, 0, 0, 0, 1, 1, 1, 1] * 4
+
+        return [i0, j0, i1, j1, i2, j2, i3, j3]
 
     def call(self, state):
         """
@@ -194,11 +262,11 @@ class ThreatDetector(tf.keras.layers.Layer, Callable):
         criticalities = [criticality] if criticality is not None else CRITICALITIES
 
         patterns = [
-            [[offense, defense, defense], bias, weights[0]]
+            [[offense, defense, defense], bias]
             if channel == CURRENT
-            else [[defense, offense, defense], bias, weights[1]]
+            else [[defense, offense, defense], bias]
             for criticality in criticalities
-            for offense, defense, bias, weights in self.patterns[criticality]
+            for offense, defense, bias in self.patterns[criticality]
             for channel in channels
         ]
 
@@ -212,18 +280,16 @@ class ThreatDetector(tf.keras.layers.Layer, Callable):
         """
         patterns = self.select_patterns()
         biases = []
-        weights = []
 
         for pattern in patterns:
             biases = biases + [pattern[1]] * 4
-            weights = weights + [pattern[2]] * 4
 
         stacked = np.stack([
             all_3xnxn(pattern[0])
             for pattern in patterns], axis=3)
         reshaped = np.reshape(stacked, (9, 9, 3, 4 * np.shape(patterns)[0]))
 
-        return reshaped, biases, weights
+        return reshaped, biases
 
 
     @staticmethod

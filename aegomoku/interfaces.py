@@ -74,7 +74,8 @@ class MctsParams:
 
 
 class PolicyParams:
-    def __init__(self, model_file_name: Optional[str], advice_cutoff: float):
+    def __init__(self, board_size: int, model_file_name: Optional[str], advice_cutoff: float):
+        self.board_size = board_size
         self.model_file_name = model_file_name
         self.advice_cutoff = advice_cutoff
 

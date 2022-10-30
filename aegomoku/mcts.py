@@ -118,27 +118,28 @@ class MCTS:
 
         v0 = -1
         v = None
-        while v0 == -1:
-            move = self.best_act(board=board, s=s, choice=advisable)
-            if move is None:
-                print("Ain't got no move no mo'. Giving up.")
-                return -1.0
-            next_board, _ = self.game.get_next_state(board, move)
+        # while v0 == -1:
 
-            # Go deeper
-            v0 = self.search(next_board, level+1)
-            if v0 == 1.:
-                v = 1.
-                self.Es[s] = 0
-            elif v0 == -1.:
-                v = -1.
-            else:
-                v = self.params.gamma * v0
+        move = self.best_act(board=board, s=s, choice=advisable)
+        if move is None:
+            print("Ain't got no move no mo'. Giving up.")
+            return -1.0
+        next_board, _ = self.game.get_next_state(board, move)
 
-            self.update_node_stats(s, move.i, v)
+        # Go deeper
+        v0 = self.search(next_board, level+1)
+        if v0 == 1.:
+            v = 1.
+            self.Es[s] = 0
+        elif v0 == -1.:
+            v = -1.
+        else:
+            v = self.params.gamma * v0
 
-        if v == -1:
-            self.Es[s] = 1
+        self.update_node_stats(s, move.i, v)
+
+        # if v == -1:
+        #     self.Es[s] = 1
 
         return -v
 

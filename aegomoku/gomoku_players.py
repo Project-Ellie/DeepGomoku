@@ -3,38 +3,30 @@ from __future__ import annotations
 from typing import Tuple, Optional
 
 import numpy as np
-import tensorflow as tf
-from aegomoku.interfaces import Player, Board, Move, MctsParams, PolicyParams, Game, Adviser
-from aegomoku.advice import PolicyAdviser
+
+from aegomoku.interfaces import Player, Board, Move, MctsParams, PolicyParams, Game
 from aegomoku.mcts import MCTS
-from aegomoku.policies.topological_value import TopologicalValuePolicy
 
 
 class PolicyAdvisedGraphSearchPlayer(Player):
 
-    def __init__(self, game: Game, mcts_params: MctsParams,
-                 policy_params: PolicyParams = None, adviser: Adviser = None, name=None):
+    def __init__(self, game: Game, adviser_factory,
+                 mcts_params: MctsParams,
+                 policy_params: PolicyParams = None, name=None):
         """
         :param name: Name of the player for logging and analysis
         :param game: the game, obviously
         :param mcts_params:
         :param policy_params: if provided, a PolicyAdvisor is created from these. Must be from a model file.
-        :param adviser: if provided, that advisor is used, otherwise a Naive Heuristic Policy is created.
+        :param adviser_factory: A method that takes the policyParams and returns an Adviser instance
         """
         self.opponent: Optional[Player] = None
         self.name = name
         self.game = game
+        self.adviser_factory = adviser_factory
         self.mcts_params = mcts_params
-        self.adviser = adviser
-        if adviser is None:
-            if policy_params is not None:
-                if policy_params.model_file_name is not None:
-                    model = tf.keras.models.load_model(policy_params.model_file_name)
-                    self.adviser = PolicyAdviser(model=model, params=policy_params, board_size=game.board_size)
-                else:
-                    self.adviser = TopologicalValuePolicy(self.game.board_size,
-                                                          percent_secondary=0,
-                                                          min_secondary=0)
+
+        self.adviser = adviser_factory(policy_params)
 
         self.mcts = MCTS(self.game, self.adviser, self.mcts_params)
         self.refresh()

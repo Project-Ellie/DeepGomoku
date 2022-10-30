@@ -7,10 +7,10 @@ from aegomoku.utils import expand
 
 class PolicyAdviser(Adviser):
 
-    def __init__(self, model: models.Model, params: PolicyParams, board_size):
+    def __init__(self, model: models.Model, params: PolicyParams):
         self.model = model
         self.params = params
-        self.board_size = board_size
+        self.board_size = params.board_size
 
     def get_advisable_actions(self, state):
         """
@@ -48,4 +48,3 @@ class PolicyAdviser(Adviser):
         inputs = np.expand_dims(state, 0).astype(float)
         p, v = self.model(inputs)
         return np.squeeze(p), np.squeeze(v)
-
