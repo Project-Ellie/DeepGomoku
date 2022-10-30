@@ -21,7 +21,7 @@ class MCTS:
         self.adviser = advisor
         self.params = params
 
-        self.Q = {}  # stores Q values for s,a (as defined in the paper)
+        self.Q = {}  # stores Q values for s,a
         self.Nsa = {}  # stores #times edge s,a was visited
         self.Ns = {}  # stores #times board s was visited
         self.Ps = {}  # stores initial policy (returned by neural net)
@@ -46,6 +46,7 @@ class MCTS:
             self.As[s] = advisable
 
         original_board = board
+        print(f"Considering {self.params.num_simulations} positions:")
         for i in range(self.params.num_simulations):
             self.search(board)
 
@@ -115,14 +116,29 @@ class MCTS:
 
         advisable = self._advisable_actions(board)
 
-        move = self.best_act(board=board, s=s, choice=advisable)
-        if move is None:
-            print("Ain't got no move no mo'. Giving up.")
-            return -1.0
-        next_board, _ = self.game.get_next_state(board, move)
-        v = self.params.gamma * self.search(next_board, level+1)
+        v0 = -1
+        v = None
+        while v0 == -1:
+            move = self.best_act(board=board, s=s, choice=advisable)
+            if move is None:
+                print("Ain't got no move no mo'. Giving up.")
+                return -1.0
+            next_board, _ = self.game.get_next_state(board, move)
 
-        self.update_node_stats(s, move.i, v)
+            # Go deeper
+            v0 = self.search(next_board, level+1)
+            if v0 == 1.:
+                v = 1.
+                self.Es[s] = 0
+            elif v0 == -1.:
+                v = -1.
+            else:
+                v = self.params.gamma * v0
+
+            self.update_node_stats(s, move.i, v)
+
+        if v == -1:
+            self.Es[s] = 1
 
         return -v
 
@@ -131,13 +147,18 @@ class MCTS:
         """
         :return: the updated average value for use in documentation and forensics
         """
-        if (s, a) in self.Q:
-            self.Q[(s, a)] = (self.Nsa[(s, a)] * self.Q[(s, a)] + v) / (self.Nsa[(s, a)] + 1)
-            self.Nsa[(s, a)] += 1
+        if v == 1:
+            self.Ns[s] = 1e5  # Just an overwhelmingly big number
+            self.Q[(s, a)] = 1
+            self.Nsa[(s, a)] = self.Ns[s]
         else:
-            self.Q[(s, a)] = v
-            self.Nsa[(s, a)] = 1
-        self.Ns[s] += 1
+            if (s, a) in self.Q:
+                self.Q[(s, a)] = (self.Nsa[(s, a)] * self.Q[(s, a)] + v) / (self.Nsa[(s, a)] + 1)
+                self.Nsa[(s, a)] += 1
+            else:
+                self.Q[(s, a)] = v
+                self.Nsa[(s, a)] = 1
+            self.Ns[s] += 1
 
         return self.Q[(s, a)]
 
@@ -209,19 +230,19 @@ class MCTS:
         for a in choice:
             if valids[a]:
                 if (s, a) in self.Q:
+                    if self.Q[(s, a)] == -1.:
+                        valids[a] = 0
+                        continue
                     u, q, p, sns, nsa = self.ucb(s, a)
                 else:
                     p = self.Ps[s][a]
-                    # the 1e-8 is needed to distinguish by p when N is still zero.
+                    # the 1e-10 is needed to distinguish by p when N is still zero.
                     sns = math.sqrt(self.Ns[s] + 1e-10)
                     u = self.params.cpuct * p * sns
 
                 if u >= cur_best:
                     cur_best = u
                     best_act = a
-
-        if best_act is None:
-            print("Oops!")
 
         return board.stone(best_act)
 

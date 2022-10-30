@@ -17,7 +17,7 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
 
     def __init__(self, board_size, kappa_s: float = 6.0, kappa_d: float = 5.0,
                  policy_stretch: float = 2.0, value_stretch: float = 1 / 32.,
-                 advice_cutoff: float = .01, noise_reduction: float = 1.1,
+                 advice_cutoff: float = .001, noise_reduction: float = 1.1,
                  percent_secondary: float = 34, min_secondary: int = 5,
                  value_gauge: float = 0.1):
         """

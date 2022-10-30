@@ -12,8 +12,8 @@ from aegomoku.policies.topological_value import TopologicalValuePolicy
 
 class PolicyAdvisedGraphSearchPlayer(Player):
 
-    def __init__(self, name: str, game: Game, mcts_params: MctsParams,
-                 policy_params: PolicyParams = None, adviser: Adviser = None):
+    def __init__(self, game: Game, mcts_params: MctsParams,
+                 policy_params: PolicyParams = None, adviser: Adviser = None, name=None):
         """
         :param name: Name of the player for logging and analysis
         :param game: the game, obviously
@@ -25,18 +25,16 @@ class PolicyAdvisedGraphSearchPlayer(Player):
         self.name = name
         self.game = game
         self.mcts_params = mcts_params
-        if policy_params is not None:
-            if policy_params.model_file_name is not None:
-                model = tf.keras.models.load_model(policy_params.model_file_name)
-                self.adviser = PolicyAdviser(model=model, params=policy_params, board_size=game.board_size)
-            else:
-                raise ValueError("Must provide model file name")
-        elif adviser is not None:
-            self.adviser = adviser
-        else:
-            self.adviser = TopologicalValuePolicy(self.game.board_size,
-                                                  percent_secondary=0,
-                                                  min_secondary=0)
+        self.adviser = adviser
+        if adviser is None:
+            if policy_params is not None:
+                if policy_params.model_file_name is not None:
+                    model = tf.keras.models.load_model(policy_params.model_file_name)
+                    self.adviser = PolicyAdviser(model=model, params=policy_params, board_size=game.board_size)
+                else:
+                    self.adviser = TopologicalValuePolicy(self.game.board_size,
+                                                          percent_secondary=0,
+                                                          min_secondary=0)
 
         self.mcts = MCTS(self.game, self.adviser, self.mcts_params)
         self.refresh()
