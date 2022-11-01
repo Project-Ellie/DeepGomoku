@@ -1,6 +1,7 @@
 from aegomoku.gomoku_board import GomokuBoard
 
-__JUST_ANY_BOARD_19_x_19__ = GomokuBoard(19)
+__BOARD_SIZE__ = 19
+__JUST_ANY_BOARD_19_x_19__ = GomokuBoard(__BOARD_SIZE__)
 
 A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U = \
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U'

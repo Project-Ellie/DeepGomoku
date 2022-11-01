@@ -5,7 +5,7 @@ from typing import List
 
 import numpy as np
 
-from aegomoku.interfaces import Game, Adviser, Board, Move, MctsParams
+from aegomoku.interfaces import Game, Adviser, Board, MctsParams
 
 log = logging.getLogger(__name__)
 
@@ -116,30 +116,23 @@ class MCTS:
 
         advisable = self._advisable_actions(board)
 
-        v0 = -1
-        v = None
-        # while v0 == -1:
-
-        move = self.best_act(board=board, s=s, choice=advisable)
+        move = self.best_act(s=s, choice=advisable)
         if move is None:
             print("Ain't got no move no mo'. Giving up.")
             return -1.0
+        else:
+            move = board.stone(move)
         next_board, _ = self.game.get_next_state(board, move)
 
         # Go deeper
         v0 = self.search(next_board, level+1)
-        if v0 == 1.:
-            v = 1.
-            self.Es[s] = 0
-        elif v0 == -1.:
+
+        if v0 == -1.:
             v = -1.
         else:
             v = self.params.gamma * v0
 
         self.update_node_stats(s, move.i, v)
-
-        # if v == -1:
-        #     self.Es[s] = 1
 
         return -v
 
@@ -148,18 +141,13 @@ class MCTS:
         """
         :return: the updated average value for use in documentation and forensics
         """
-        if v == 1:
-            self.Ns[s] = 1e5  # Just an overwhelmingly big number
-            self.Q[(s, a)] = 1
-            self.Nsa[(s, a)] = self.Ns[s]
+        if (s, a) in self.Q:
+            self.Q[(s, a)] = (self.Nsa[(s, a)] * self.Q[(s, a)] + v) / (self.Nsa[(s, a)] + 1)
+            self.Nsa[(s, a)] += 1
         else:
-            if (s, a) in self.Q:
-                self.Q[(s, a)] = (self.Nsa[(s, a)] * self.Q[(s, a)] + v) / (self.Nsa[(s, a)] + 1)
-                self.Nsa[(s, a)] += 1
-            else:
-                self.Q[(s, a)] = v
-                self.Nsa[(s, a)] = 1
-            self.Ns[s] += 1
+            self.Q[(s, a)] = v
+            self.Nsa[(s, a)] = 1
+        self.Ns[s] += 1
 
         return self.Q[(s, a)]
 
@@ -218,7 +206,7 @@ class MCTS:
         return [board.stone(i) for i in advisable]
 
 
-    def best_act(self, board: Board, s: str, choice) -> Move:
+    def best_act(self, s: str, choice) -> int:
         # pick the move with the highest upper confidence bound from the given choice
         # We're reducing the action space to those actions deemed probable by the model
         valids = self.Vs[s]
@@ -226,7 +214,7 @@ class MCTS:
         best_act = None
 
         if len(choice) == 1:
-            return board.stone(choice[0])
+            return choice[0]
 
         for a in choice:
             if valids[a]:
@@ -245,7 +233,7 @@ class MCTS:
                     cur_best = u
                     best_act = a
 
-        return board.stone(best_act)
+        return best_act
 
 
     def ucb(self, s: str, a: int):

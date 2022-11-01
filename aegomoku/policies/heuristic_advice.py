@@ -13,29 +13,40 @@ class HeuristicAdviserParams:
                  advice_threshold: float = .05,
                  criticalities: List[float] = None,
                  percent_secondary: float = 0.,
-                 min_secondary: float = 0):
+                 min_secondary: float = 0,
+                 aggregator_power: int = 4):
 
         self.board_size = board_size
         self.advice_threshold = advice_threshold
-        self.criticalities = [999, 333, 4, 4, 2, 2, 1, 1] if criticalities is None else criticalities
+        self.criticalities = [999, 333, 99, 33, 2, 2, 2, 2, 1, 1] if criticalities is None else criticalities
         self.percent_secondary = percent_secondary
         self.min_secondary = min_secondary
+        self.aggregator_power = aggregator_power
 
 
 class HeuristicAdviser(tf.keras.Model, Adviser):
 
-    def __init__(self, params: HeuristicAdviserParams):
+    def __init__(self, params: HeuristicAdviserParams, value_model):
         super().__init__()
         self.params = params
         self.board_size = params.board_size
         self.detector = ThreatDetector(self.params.board_size)
-        self.value_model = TopologicalValuePolicy(board_size=params.board_size)
+        self.value_model = value_model
+
+        kernel = np.diag(params.criticalities)
 
         self.criticality = tf.keras.layers.Conv2D(
             name='weights',
+            filters=10, kernel_size=(1, 1),
+            trainable=False,
+            kernel_initializer=tf.constant_initializer(kernel))
+
+        self.sum_channels = tf.keras.layers.Conv2D(
+            name='heuristic_priority',
             filters=1, kernel_size=(1, 1),
             trainable=False,
-            kernel_initializer=tf.constant_initializer(self.params.criticalities))
+            kernel_initializer=tf.constant_initializer([1.] * 10))
+
         self.flatten = tf.keras.layers.Flatten()
 
         self.peel = tf.keras.layers.Conv2D(
@@ -48,13 +59,18 @@ class HeuristicAdviser(tf.keras.Model, Adviser):
 
     def call(self, state):
         output = self.detector.call(state)
-        crit = self.criticality(tf.sign(output))
+        crit = self.criticality(output)
+
+        crit = tf.pow(crit, self.params.aggregator_power)
+        crit = self.sum_channels(crit)
+        crit = tf.pow(crit, 1./self.params.aggregator_power)
+
         crit = self.peel(crit)
         crit = self.flatten(crit)
 
         softmax = tf.keras.layers.Softmax()(crit)
 
-        value = self.value_model.call(state)[1]
+        value = self.value_model.call(state)
         return softmax, value
 
     def get_advisable_actions(self, state, cut_off=None,

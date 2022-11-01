@@ -3,6 +3,7 @@ from aegomoku.gomoku_game import ConstantBoardInitializer, \
     GomokuGame  # , RandomBoardInitializer, TopoSwap2BoardInitializer
 from aegomoku.interfaces import MctsParams, PolicyParams
 from aegomoku.policies.heuristic_advice import HeuristicAdviser, HeuristicAdviserParams
+from aegomoku.policies.heuristic_value_model import HeuristicValueModel
 from aegomoku.policies.topological_value import TopologicalValuePolicy
 from cmclient.api.basics import CompManConfig
 from cmclient.api.game_context import GameContext
@@ -17,11 +18,18 @@ def create_adviser(params: PolicyParams):
         return PolicyAdviser(model=model, params=params)
     else:
         params = HeuristicAdviserParams(board_size=params.board_size,
-                                        advice_threshold=.02,
+                                        advice_threshold=.3,
                                         criticalities=None,
-                                        min_secondary=5,
+                                        min_secondary=0,
                                         percent_secondary=0)
-        return HeuristicAdviser(params)
+        return HeuristicAdviser(params,
+                                value_model=HeuristicValueModel(params.board_size,
+                                                                value_gauge=1.0,
+                                                                value_stretch=.02,
+                                                                kappa_d=2,
+                                                                kappa_s=5,
+                                                                current_advantage=.1,
+                                                                bias=-0.5))
 
 
 def creata_topo_adviser(params: PolicyParams):
@@ -31,13 +39,13 @@ def creata_topo_adviser(params: PolicyParams):
                                   value_stretch=1 / 32.,
                                   advice_cutoff=policy_params.advice_cutoff,
                                   noise_reduction=1.1,
-                                  value_gauge=0.1)
+                                  value_gauge=1.0)
 
 
 if __name__ == '__main__':
     # initializer = RandomBoardInitializer(config.board_size, 4, 9, 12, 9, 12)
     # initializer = TopoSwap2BoardInitializer(config.board_size)
-    initializer = ConstantBoardInitializer("C11F9E9G8F7G7G9H8")
+    initializer = ConstantBoardInitializer("J10")  # "C11F9E9G8F7G7G9H8")
     model_file_name = None  # "DATA/models/4_c2s.model"
     import tensorflow as tf
     print(tf.config.list_physical_devices('GPU'))

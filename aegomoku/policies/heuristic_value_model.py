@@ -1,11 +1,10 @@
 import numpy as np
 import tensorflow as tf
 
-from aegomoku.interfaces import Adviser
 from aegomoku.policies.radial import all_3xnxn
 
 
-class TopologicalValuePolicy(tf.keras.Model, Adviser):
+class HeuristicValueModel(tf.keras.Model):
     """
     computes a value af each position as a pseudo-euclidean sum of the values of all that position's lines of five
     The value of a line of five is the number of stones of a color if that color is exclusive
@@ -16,46 +15,40 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
 
 
     def __init__(self, board_size, kappa_s: float = 6.0, kappa_d: float = 5.0,
-                 policy_stretch: float = 2.0, value_stretch: float = 1 / 32.,
-                 advice_cutoff: float = .001, noise_reduction: float = 1.1,
-                 percent_secondary: float = 34, min_secondary: int = 5,
+                 value_stretch: float = 1 / 32., current_advantage=.1, bias=-.5,
                  value_gauge: float = 0.1):
         """
         :param kappa_s: exponent of the pseudo-euclidean sum of parallel lines-of-five
         :param kappa_d: exponent of the pseudo-euclidean sum of different directions
-        :param policy_stretch: A factor, applied to logits before they're fed into the softwmax
         :param value_stretch: A factor, applied to the raw value before it's fed into the tanh
         :param value_gauge: factor applied to the value after tanh has been applied
-        :param noise_reduction: factor applied to lowest prob before subtracting from signal
-        :param percent_secondary: percentage of not-so-popular moves taken into advisable action. Our 'Dirichlet' noise.
+        :param current_advantage: The additional value (as fraction of total) for the current player
+        :param bias: added to the number of stones counted. A good value is -0.5 to bias against single stones
         """
         super().__init__()
         self.kappa_s = kappa_s
         self.kappa_d = kappa_d
-        self.policy_stretch = policy_stretch
         self.value_stretch = value_stretch
-        self.advice_cutoff = advice_cutoff
-        self.noise_reduction = noise_reduction
-        self.percent_secondary = percent_secondary
-        self.min_secondary = min_secondary
         self.value_gauge = value_gauge
+        self.current_advantage = current_advantage
+        self.bias = bias
         self.board_size = board_size
 
         self.raw_patterns = [
             [[0, 0, 0, 0, -5, 1, 1, 1, 1],
-             [0, 0, 0, 0, -5, -5, -5, -5, -5], 0],
+             [0, 0, 0, 0, -5, -5, -5, -5, -5], self.bias],
 
             [[0, 0, 0, 1, -5, 1, 1, 1, 0],
-             [0, 0, 0, -5, -5, -5, -5, -5, 0], 0],
+             [0, 0, 0, -5, -5, -5, -5, -5, 0], self.bias],
 
             [[0, 0, 1, 1, -5, 1, 1, 0, 0],
-             [0, 0, -5, -5, -5, -5, -5, 0, 0], 0],
+             [0, 0, -5, -5, -5, -5, -5, 0, 0], self.bias],
 
             [[0, 1, 1, 1, -5, 1, 0, 0, 0],
-             [0, -5, -5, -5, -5, -5, 0, 0, 0], 0],
+             [0, -5, -5, -5, -5, -5, 0, 0, 0], self.bias],
 
             [[1, 1, 1, 1, -5, 0, 0, 0, 0],
-             [-5, -5, -5, -5, -5, 0, 0, 0, 0], 0]]
+             [-5, -5, -5, -5, -5, 0, 0, 0, 0], self.bias]]
 
         self.num_filters = len(self.raw_patterns) * 8
 
@@ -107,14 +100,11 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
             padding='same',
             trainable=False)
 
-        self.p_v = tf.keras.layers.Conv2D(
-            name="sum_d",
-            filters=2,
+        self.diff = tf.keras.layers.Conv2D(
+            name="diff",
+            filters=1,
             kernel_size=1,
-            kernel_initializer=tf.constant_initializer([
-                    [1, 1],
-                    [1, -1]
-                ]),
+            kernel_initializer=tf.constant_initializer([1 + self.current_advantage, -1]),
             bias_initializer=tf.constant_initializer(0.),
             padding='same',
             trainable=False)
@@ -134,76 +124,16 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
         y = self.sum_s(y)
         y = tf.math.pow(y, self.kappa_d/self.kappa_s)
         y = self.sum_d(y)
-        y = tf.math.pow(y, 1 / self.kappa_d)
-        y = self.p_v(y)
-        p, v = y[:, :, :, 0], y[:, :, :, 1]
-        p = self.peel(tf.expand_dims(p, -1))
-        v = self.peel(tf.expand_dims(v, -1))
 
-        probs = tf.reshape(p, (-1, ))
-        probs = tf.keras.layers.Softmax()(self.policy_stretch * probs)
+        v = self.peel(self.diff(y))
+
         value = self.value_gauge * tf.nn.tanh(self.value_stretch * tf.math.reduce_sum(v))
-        return probs, value
-
-    def get_advisable_actions(self, state, cut_off=None, reduction=None,
-                              percent_secondary=None, min_secondary=None):
-        """
-        :param state: nxnx3 representation of a go board
-        :param cut_off: override advice_cutoff
-        :param reduction: override noise reduction
-        :param percent_secondary: override the percentage of low quality moves to include.
-        :param min_secondary: override the minumum of low quality moves to include
-        :return: List of integers representing the avisable moves
-        """
-        cut_off = cut_off if cut_off is not None else self.advice_cutoff
-        # reduction = reduction if reduction is not None else self.noise_reduction
-        percent_secondary = percent_secondary if percent_secondary is not None else self.percent_secondary
-        min_secondary = min_secondary if min_secondary is not None else self.min_secondary
-
-        probs, _ = self.evaluate(np.squeeze(state))
-        max_prob = np.max(probs, axis=None)
-        probs = np.squeeze(probs)
-
-        # noise = np.min(probs, axis=None)
-        # probs = tf.keras.activations.relu(probs - reduction * noise)
-
-        threshold = max_prob * cut_off
-
-        advisable = np.where(probs > threshold, probs, 0.)
-        advisable = [int(n) for n in advisable.nonzero()[0]]
-
-        # Occasionally consider an underdog - you never know...;-)
-        underdogs = np.where(probs <= threshold, probs, 0.)
-        secondary = [int(n) for n in underdogs.nonzero()[0]]
-
-        # stretch to increase the softmax focus
-        subset = probs[secondary]
-
-        # rule out the lowest of the lower quality moves
-
-        if len(subset > 0):
-            min_p = min(subset)
-            subset = (subset - min_p) * 10.0
-
-            # probability on the subset for random choice
-            secondary_probs = tf.nn.softmax(subset).numpy()
-
-            # normalize potential numerical errors
-            sum_probs = sum(secondary_probs)
-            secondary_probs /= sum_probs
-
-            # take a certain percentage of sub-prime choices, but at least two.
-            num_additional = max(min_secondary, int((len(advisable) * percent_secondary / 100)))
-            selected_secondary = np.random.choice(secondary, size=num_additional, p=secondary_probs)
-
-            advisable += list(selected_secondary)
-
-        return advisable
+        return value
 
     def evaluate(self, state):
         state = np.expand_dims(state, 0).astype(float)
-        probs, value = self.call(state)
-        return np.squeeze(probs), value.numpy()
+        value = self.call(state)
+        return value.numpy()
 
     def advise(self, state):
         """
@@ -243,3 +173,5 @@ class TopologicalValuePolicy(tf.keras.Model, Adviser):
             the_biases += 4 * [pattern[1]]
 
         return np.reshape(the_filters, (9, 9, 3, -1)), the_biases
+
+#%%

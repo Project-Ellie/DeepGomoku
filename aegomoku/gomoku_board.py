@@ -101,6 +101,9 @@ class GomokuBoard(Board):
 
                 # single-digit representation for vector operations in the ML game_context
                 self.i = self.r * self.board_size + self.c
+                if x is None:
+                    x = c + 1
+                    y = self.board_size - r
                 self.x = x
                 self.y = y
 
