@@ -15,33 +15,61 @@ game:
       # stones: H8G7I7F7 or so
 
 players:
-  - name: P1600_2.0
+  - name: P2000_3.0
     advice:
-      type: TOPOLOGICAL_VALUE
-      advice_cutoff: .02
-      kappa_d: 5
-      kappa_s: 6
+      class: aegomoku.policies.heuristic_advice.HeuristicAdviser
+      policy:
+        class: aegomoku.policies.heuristic_advice.HeuristicPolicyParams
+        params:
+          advice_threshold: .3
+
+      value:
+        value_model_class: aegomoku.policies.heuristic_value_model.HeuristicValueModel
+        params_class: aegomoku.policies.heuristic_advice.HeuristicValueParams
+        params:
+          kappa_d: 2
+          kappa_s: 5
+          value_stretch: 0.02
+          value_gauge: 1.0
+          current_advantage: 0.1
+          bias: -0.5
+
     mcts:
-        gamma: .97
-        cpuct: 2.0
-        num_simulations: 1600
+        gamma: 1.0
+        cpuct: 3.0
+        num_simulations: 400
         temperature: 0.0
 
-  - name: P1600_2.0_2
+
+  - name: P2000_2.0
     advice:
-      type: TOPOLOGICAL_VALUE
-      advice_cutoff: .02
-      kappa_d: 5
-      kappa_s: 6
+      class: aegomoku.policies.heuristic_advice.HeuristicAdviser
+      policy:
+        class: aegomoku.policies.heuristic_advice.HeuristicPolicyParams
+        params:
+          advice_threshold: .3
+
+      value:
+        value_model_class: aegomoku.policies.heuristic_value_model.HeuristicValueModel
+        params_class: aegomoku.policies.heuristic_advice.HeuristicValueParams
+        params:
+          kappa_d: 2
+          kappa_s: 5
+          value_stretch: 0.02
+          value_gauge: 1.0
+          current_advantage: 0.1
+          bias: -0.5
+
     mcts:
-        gamma: .97
-        cpuct: 2.0
-        num_simulations: 1600
-        temperature: 0.0
+      gamma: 1.0
+      cpuct: 2.0
+      num_simulations: 400
+      temperature: 0.0
 
 
 process:
-  num_trajectories_per_file: 10
+  phase: 0  # untrained heuristic
+  num_trajectories_per_file: 2
   max_moves: 100
   eval_temperature: 3.0
-  output_dir: workspace/Project-Ellie/DATA/selfplay/0/tensorbook
+  output_dir: workspace/Project-Ellie/DATA/selfplay2

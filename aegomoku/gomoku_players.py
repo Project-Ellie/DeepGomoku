@@ -4,29 +4,25 @@ from typing import Tuple, Optional
 
 import numpy as np
 
-from aegomoku.interfaces import Player, Board, Move, MctsParams, PolicyParams, Game
+from aegomoku.interfaces import Player, Board, Move, MctsParams, Game
 from aegomoku.mcts import MCTS
 
 
 class PolicyAdvisedGraphSearchPlayer(Player):
 
-    def __init__(self, game: Game, adviser_factory,
+    def __init__(self, game: Game, adviser,
                  mcts_params: MctsParams,
-                 policy_params: PolicyParams = None, name=None):
+                 name=None):
         """
         :param name: Name of the player for logging and analysis
         :param game: the game, obviously
-        :param mcts_params:
-        :param policy_params: if provided, a PolicyAdvisor is created from these. Must be from a model file.
-        :param adviser_factory: A method that takes the policyParams and returns an Adviser instance
+        :param mcts_params: params to create MCTS instances on refresh
         """
         self.opponent: Optional[Player] = None
         self.name = name
         self.game = game
-        self.adviser_factory = adviser_factory
+        self.adviser = adviser
         self.mcts_params = mcts_params
-
-        self.adviser = adviser_factory(policy_params)
 
         self.mcts = MCTS(self.game, self.adviser, self.mcts_params)
         self.refresh()

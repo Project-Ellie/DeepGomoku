@@ -1,3 +1,4 @@
+import dataclasses
 from typing import List
 
 import numpy as np
@@ -5,28 +6,40 @@ import tensorflow as tf
 
 from aegomoku.interfaces import Adviser
 from aegomoku.policies.threat_detector import ThreatDetector
-from aegomoku.policies.topological_value import TopologicalValuePolicy
 
 
-class HeuristicAdviserParams:
-    def __init__(self, board_size: int,
-                 advice_threshold: float = .05,
-                 criticalities: List[float] = None,
-                 percent_secondary: float = 0.,
-                 min_secondary: float = 0,
-                 aggregator_power: int = 4):
+@dataclasses.dataclass
+class HeuristicPolicyParams:
+    board_size: int
+    advice_threshold: float = .3
+    criticalities: List[float] = dataclasses.field(default_factory=lambda: [999, 333, 99, 33, 2, 2, 2, 2, 1, 1])
+    percent_secondary: float = 0.
+    min_secondary: float = 0
+    aggregator_power: int = 4
 
-        self.board_size = board_size
-        self.advice_threshold = advice_threshold
-        self.criticalities = [999, 333, 99, 33, 2, 2, 2, 2, 1, 1] if criticalities is None else criticalities
-        self.percent_secondary = percent_secondary
-        self.min_secondary = min_secondary
-        self.aggregator_power = aggregator_power
+
+@dataclasses.dataclass
+class HeuristicValueParams:
+    """
+    :param kappa_s: exponent of the pseudo-euclidean sum of parallel lines-of-five
+    :param kappa_d: exponent of the pseudo-euclidean sum of different directions
+    :param value_stretch: A factor, applied to the raw value before it's fed into the tanh
+    :param value_gauge: factor applied to the value after tanh has been applied
+    :param current_advantage: The additional value (as fraction of total) for the current player
+    :param bias: added to the number of stones counted. A good value is -0.5 to bias against single stones
+    """
+    board_size: int
+    kappa_s: int = 5
+    kappa_d: int = 2
+    value_stretch: float = .02
+    value_gauge: float = 1.0
+    current_advantage: float = .1
+    bias: float = -0.5
 
 
 class HeuristicAdviser(tf.keras.Model, Adviser):
 
-    def __init__(self, params: HeuristicAdviserParams, value_model):
+    def __init__(self, params: HeuristicPolicyParams, value_model):
         super().__init__()
         self.params = params
         self.board_size = params.board_size

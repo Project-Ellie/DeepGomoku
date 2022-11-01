@@ -46,7 +46,7 @@ class MCTS:
             self.As[s] = advisable
 
         original_board = board
-        print(f"Considering {self.params.num_simulations} positions:")
+
         for i in range(self.params.num_simulations):
             self.search(board)
 

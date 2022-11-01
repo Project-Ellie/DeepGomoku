@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
+from aegomoku.policies.heuristic_advice import HeuristicValueParams
 from aegomoku.policies.radial import all_3xnxn
 
 
@@ -14,25 +15,15 @@ class HeuristicValueModel(tf.keras.Model):
     """
 
 
-    def __init__(self, board_size, kappa_s: float = 6.0, kappa_d: float = 5.0,
-                 value_stretch: float = 1 / 32., current_advantage=.1, bias=-.5,
-                 value_gauge: float = 0.1):
-        """
-        :param kappa_s: exponent of the pseudo-euclidean sum of parallel lines-of-five
-        :param kappa_d: exponent of the pseudo-euclidean sum of different directions
-        :param value_stretch: A factor, applied to the raw value before it's fed into the tanh
-        :param value_gauge: factor applied to the value after tanh has been applied
-        :param current_advantage: The additional value (as fraction of total) for the current player
-        :param bias: added to the number of stones counted. A good value is -0.5 to bias against single stones
-        """
+    def __init__(self, params: HeuristicValueParams):
         super().__init__()
-        self.kappa_s = kappa_s
-        self.kappa_d = kappa_d
-        self.value_stretch = value_stretch
-        self.value_gauge = value_gauge
-        self.current_advantage = current_advantage
-        self.bias = bias
-        self.board_size = board_size
+        self.kappa_s = params.kappa_s
+        self.kappa_d = params.kappa_d
+        self.value_stretch = params.value_stretch
+        self.value_gauge = params.value_gauge
+        self.current_advantage = params.current_advantage
+        self.bias = params.bias
+        self.board_size = params.board_size
 
         self.raw_patterns = [
             [[0, 0, 0, 0, -5, 1, 1, 1, 1],

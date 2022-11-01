@@ -5,8 +5,7 @@ from aegomoku.interfaces import Move
 
 
 class GameContext:
-    def __init__(self, game: GomokuGame,
-                 mcts_params, policy_params, adviser_factory):
+    def __init__(self, game: GomokuGame, adviser, mcts_params):
         self.game = game
         self.mcts_params = mcts_params
         self.board = game.get_initial_board()
@@ -14,9 +13,8 @@ class GameContext:
         self.winner = None
         self.ai_active = True
         self.temperature = 1.0
-        self.adviser_factory = adviser_factory
-        self.adviser = self.adviser_factory(policy_params)
-        self.player = PolicyAdvisedGraphSearchPlayer(game, self.adviser_factory, mcts_params, policy_params)
+        self.adviser = adviser
+        self.player = PolicyAdvisedGraphSearchPlayer(game, self.adviser, mcts_params)
 
     def get_advice(self):
         state = self.board.canonical_representation()
