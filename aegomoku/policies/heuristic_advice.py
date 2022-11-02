@@ -15,7 +15,7 @@ class HeuristicPolicyParams:
     criticalities: List[float] = dataclasses.field(default_factory=lambda: [999, 333, 99, 33, 2, 2, 2, 2, 1, 1])
     percent_secondary: float = 0.
     min_secondary: float = 0
-    aggregator_power: int = 4
+    aggregator_power: int = 2.5
 
 
 @dataclasses.dataclass

@@ -25,6 +25,7 @@ class MCTS:
         self.Nsa = {}  # stores #times edge s,a was visited
         self.Ns = {}  # stores #times board s was visited
         self.Ps = {}  # stores initial policy (returned by neural net)
+        self.Usa = {}  # stores the UCB values for diagnostic purposes
 
         self.Es = {}  # stores game.get_winner  for state s
         self.Vs = {}  # stores game.get_valid_moves for state s
@@ -34,7 +35,7 @@ class MCTS:
             print(f"verbosity: {self.verbosity}")
 
 
-    def get_action_prob(self, board: Board, temperature=0.0):
+    def get_action_prob(self, board: Board, temperature=0.0, debug=0):
         """
         Performs the simulations and returns the resulting probabilities as a 1-dim probability vector of length NxN
         """
@@ -45,10 +46,15 @@ class MCTS:
             advisable = self.adviser.get_advisable_actions(state)
             self.As[s] = advisable
 
+        for a in self.As[s]:
+            self.Usa[(s, a)] = []
+
         original_board = board
 
         for i in range(self.params.num_simulations):
             self.search(board)
+            for a in self.As[s]:
+                self.Usa[(s, a)].append(self.ucb(s, a))
 
         return self.compute_probs(original_board, temperature)
 
@@ -219,9 +225,9 @@ class MCTS:
         for a in choice:
             if valids[a]:
                 if (s, a) in self.Q:
-                    if self.Q[(s, a)] == -1.:
-                        valids[a] = 0
-                        continue
+                    # if self.Q[(s, a)] == -1.:
+                    #     valids[a] = 0
+                    #     continue
                     u, q, p, sns, nsa = self.ucb(s, a)
                 else:
                     p = self.Ps[s][a]
@@ -237,9 +243,9 @@ class MCTS:
 
 
     def ucb(self, s: str, a: int):
-        q = self.Q[(s, a)]
+        q = self.Q.get((s, a), 0)
         p = self.Ps[s][a]
         sns = math.sqrt(self.Ns[s] + 1e-10)
-        nsa = 1 + self.Nsa[(s, a)]
+        nsa = 1 + self.Nsa.get((s, a), 0)
         u = q + self.params.cpuct * p * sns / nsa
         return u, q, p, sns, nsa
