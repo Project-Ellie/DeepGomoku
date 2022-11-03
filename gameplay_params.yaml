@@ -15,7 +15,7 @@ game:
       # stones: H8G7I7F7 or so
 
 players:
-  - name: P2000_3.0
+  - name: P1200_3.0
     advice:
       class: aegomoku.policies.heuristic_advice.HeuristicAdviser
       policy:
@@ -30,18 +30,18 @@ players:
           kappa_d: 2
           kappa_s: 5
           value_stretch: 0.02
-          value_gauge: 1.0
+          value_gauge: .5
           current_advantage: 0.1
           bias: -0.5
 
     mcts:
         gamma: 1.0
         cpuct: 3.0
-        num_simulations: 400
+        num_simulations: 1200
         temperature: 0.0
 
 
-  - name: P2000_2.0
+  - name: P1200_2.0
     advice:
       class: aegomoku.policies.heuristic_advice.HeuristicAdviser
       policy:
@@ -56,20 +56,20 @@ players:
           kappa_d: 2
           kappa_s: 5
           value_stretch: 0.02
-          value_gauge: 1.0
+          value_gauge: .5
           current_advantage: 0.1
           bias: -0.5
 
     mcts:
       gamma: 1.0
       cpuct: 2.0
-      num_simulations: 400
+      num_simulations: 1200
       temperature: 0.0
 
 
 process:
   phase: 0  # untrained heuristic
-  num_trajectories_per_file: 2
-  max_moves: 100
+  num_trajectories_per_file: 40
+  max_moves: 200
   eval_temperature: 3.0
   output_dir: workspace/Project-Ellie/DATA/selfplay2
