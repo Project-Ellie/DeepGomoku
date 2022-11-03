@@ -34,7 +34,6 @@ class MCTS:
             self.verbosity = verbose
             print(f"verbosity: {self.verbosity}")
 
-        self.node_stats = {}
 
     def get_action_prob(self, board: Board, temperature=0.0):
         """
@@ -60,7 +59,7 @@ class MCTS:
             self.search(board)
 
 
-    def compute_probs(self, board: Board, temperature: float):
+    def compute_probs(self, board: Board, temperature: float = .2):
         s = board.get_string_representation()
         counts = [self.Nsa[(s, a)] if (s, a) in self.Nsa else 0
                   for a in range(self.game.get_action_size(board))]
@@ -142,17 +141,6 @@ class MCTS:
             self.Nsa[(s, a)] = 1
         self.Ns[s] += 1
 
-        ns = self.node_stats[s]
-
-        ns.Q.loc(0)[a] = (ns.Na.loc(0)[a] * ns.Q.loc(0)[a] + v) / (ns.Na.loc(0)[a] + 1)
-        ns.N += 1
-        ns.Na.loc(0)[a] += 1
-
-        if ns.Q.loc(0)[a] != self.Q[(s, a)]:
-            pandas = ns.loc(0)[a]
-            classic = self.Q[(s, a)], self.Ns[s], self.Nsa[(s, a)]
-            print("Pandas not the same!!!")
-            exit(-1)
         return self.Q[(s, a)]
 
 
@@ -186,7 +174,6 @@ class MCTS:
         ns = pd.DataFrame.from_dict({'A': a_s, 'P': p_s, 'Q': q_s, 'N': n_s, 'Na': n_a},
                                     orient='columns')
         ns.index = advisable
-        self.node_stats[s] = ns
 
         # rule out illegal moves and renormalize
         valids = self.game.get_valid_moves(board)
@@ -244,38 +231,16 @@ class MCTS:
         for a in choice:
             if valids[a]:
                 if (s, a) in self.Q:
-                    o = 0
                     u, q, p, sns, nsa = self.ucb(s, a)
                 else:
-                    o = 1
                     p = self.Ps[s][a]
                     # the 1e-8 is needed to distinguish by p when N is still zero.
                     sns = math.sqrt(self.Ns[s] + 1e-10)
                     u = self.params.cpuct * p * sns
-                    q = 0
-                    nsa = 1
 
                 if u >= cur_best:
-                    recorded = (u, q, p, sns, nsa, o)
                     cur_best = u
                     best_act = a
-
-        ns = self.node_stats[s]
-        c = self.params.cpuct
-
-        u0 = ns.Q + c * ns.P * np.sqrt(ns.N + 1e-10) / (ns.Na + 1)
-        u1 = u0.sort_values(ascending=False)
-        best = u1.index[0]
-
-        if best != best_act:
-            pandas1 = ns.loc(0)[best]
-            pandas2 = ns.loc(0)[best_act]
-            if best == 0:
-                print("Oops")
-            classic1 = self.Q[(s, best)], self.Ns[s], self.Nsa[(s, best)]
-            classic2 = self.Q[(s, best_act)], self.Ns[s], self.Nsa[(s, best_act)]
-            print("Pandas not the same!!!")
-            exit(-1)
 
         if best_act is None:
             print("Oops!")
