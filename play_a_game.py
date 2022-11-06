@@ -13,8 +13,8 @@ config = CompManConfig(board_size=19)
 
 if __name__ == '__main__':
     # initializer = RandomBoardInitializer(config.board_size, 4, 9, 12, 9, 12)
-    initializer = TopoSwap2BoardInitializer(config.board_size)
-    # initializer = ConstantBoardInitializer("C11F9E9G8F7G7G9H8")
+    # initializer = TopoSwap2BoardInitializer(config.board_size)
+    initializer = ConstantBoardInitializer("j10")
     model_file_name = "../DATA/models/0_c2s.model"
     import tensorflow as tf
     print(tf.config.list_physical_devices('GPU'))

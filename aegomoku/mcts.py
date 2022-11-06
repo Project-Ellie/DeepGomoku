@@ -143,6 +143,19 @@ class MCTS:
         return -v
 
 
+    def best_act_safe(self, board):
+        """
+        like best_act(), but safe to use. Mainly for game analysis
+        :param board:
+        :return:
+        """
+        choice = self._advisable_actions(board)
+        s = board.get_string_representation()
+        if s not in self.Ps:
+            self.initialize_and_estimate_value(board, s)
+        return self.best_act(s, choice)
+
+
     def update_node_stats(self, s, a, v):
         """
         :return: the updated average value for use in documentation and forensics
