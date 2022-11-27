@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     game = GomokuGame(board_size=config.board_size, initializer=initializer)
 
-    model_file_name = "../DATA/models/0_c2s.model"
+    model_file_name = None # "../DATA/models/0_c2s.model"
 
     if model_file_name is None:
         policy_params = HeuristicPolicyParams(board_size=config.board_size)
