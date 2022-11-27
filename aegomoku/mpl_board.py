@@ -1,10 +1,12 @@
+from typing import Union, List
+
 import numpy as np
 import matplotlib.pyplot as plt
 
 import aegomoku.gomoku_board as new_board
 import aegomoku.tools as gt
 
-from aegomoku.interfaces import Move
+from aegomoku.interfaces import Move, Adviser
 
 
 def maybe_convert(x):
@@ -21,10 +23,11 @@ class MplBoard:
     A display tools based on Matplotlib
     """
     
-    def __init__(self, n, policy=None, disp_width=6, stones=None, suppress_move_numbers=False,
+    def __init__(self, n, adviser: Union[Adviser, np.ndarray, List] = None,
+                 disp_width=6, stones=None, suppress_move_numbers=False,
                  policy_cutoff=50):
         self.N = n
-        self.policy = policy
+        self.adviser = adviser
         self.suppress_move_numbers = suppress_move_numbers
         stones = stones or []
         if isinstance(stones, str):
@@ -166,24 +169,27 @@ class MplBoard:
 
     def display_policy(self, axis, cut_off=50):
 
-        if self.policy is None:
+        if self.adviser is None:
+            return
+
+        if self.stones is None or len(self.stones) == 0:
             return
 
         position = new_board.GomokuBoard(self.N, stones=gt.stones_to_string(self.stones[:self.cursor+1]))
-        if isinstance(self.policy, (list, np.ndarray)):
-            q = np.reshape(self.policy, (self.N, self.N))
+        if isinstance(self.adviser, (list, np.ndarray)):
+            p = np.reshape(self.adviser, (self.N, self.N))
         else:
-            state = np.expand_dims(position.canonical_representation(), 0).astype(float)
-            q, _ = self.policy(state)
+            state = position.canonical_representation()
+            p = self.adviser.advise(state)
 
-        heatmap = np.squeeze(self.heatmap(q))
+        heatmap = np.squeeze(self.heatmap(p))
         heatmap = heatmap.reshape((self.N, self.N))
 
         for c in range(self.N):
             for r in range(self.N):
                 value = heatmap[r][c]
                 x_, y_ = gt.m2b((r, c), self.N)
-                if value >= cut_off:
+                if value > cut_off:
                     color = f"#{value:02x}0000"
                     axis.scatter([x_], [y_], color=color, s=self.stones_size() * .5, zorder=10)
             

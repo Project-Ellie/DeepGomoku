@@ -4,7 +4,6 @@ import logging
 import os
 from pathlib import Path
 from pickle import Pickler
-import tensorflow as tf
 
 import numpy as np
 import yaml
@@ -12,8 +11,8 @@ from yaml import Loader
 
 from aegomoku.gomoku_game import RandomBoardInitializer, GomokuGame, ConstantBoardInitializer
 from aegomoku.gomoku_players import PolicyAdvisedGraphSearchPlayer
-from aegomoku.interfaces import MctsParams, PolicyParams, Player, Board, Game, PolicyAdviser
-from aegomoku.policies.topological_value import TopologicalValuePolicy
+from aegomoku.interfaces import MctsParams, Player, Board, Game
+from aegomoku.tools import discover_class
 
 parser = argparse.ArgumentParser(description="Create Selfplay data with a given parameter config")
 parser.add_argument('--params', '-p', action='store', default="gameplay_params.yaml",
@@ -24,6 +23,8 @@ parser.add_argument('--seqno', '-s', action='store', type=int,
                     help="Sequence Number", default=0)
 parser.add_argument('--info', '-i', action='store_true',
                     help="Dont actually act - just say", default=False)
+parser.add_argument('--append', '-a', action='store_true',
+                    help="Append to existing files", default=False)
 
 
 args = parser.parse_args()
@@ -67,13 +68,17 @@ def prepare():
 
 
 def create_gameplay_data(game, player1: Player, player2: Player, params, seqno):
-    output_dir = Path.home() / params['output_dir'] / os.uname()[1]
+    output_dir = Path.home() / params['output_dir'] / str(params['phase']) / os.uname()[1]
     os.makedirs(output_dir, exist_ok=True)
     logger.info(f"Writing results to directory: {output_dir}")
     temperature = params['eval_temperature']
     max_moves = params['max_moves']
     gameplay_data = []
-    with open(os.path.join(output_dir, f"{seqno:05}.pickle"), 'wb+') as f:
+    if args.append:
+        print("Appending to existing file if there's one")
+    mode = "ab+" if args.append else "wb"
+
+    with open(os.path.join(output_dir, f"{seqno:05}.pickle"), mode) as f:
         for seqno in range(params['num_trajectories_per_file']):
             one_game_data = one_game(seqno, game, player1, player2, temperature, max_moves)
             gameplay_data.append(one_game_data)
@@ -91,7 +96,6 @@ def create_example(the_board: Board, player: Player, temperature: float):
     Create a single board image with the player's (MCTS-based) evaluation, ready for training
     """
     position = [stone.i for stone in the_board.get_stones()]
-    # state = np.expand_dims(the_board.canonical_representation(), 0).astype(float)
     probs, value = player.evaluate(the_board, temperature)
     probs = (np.array(probs)*255).astype(np.uint8)
     return position, probs, value
@@ -130,32 +134,47 @@ def one_game(seqno: int, game: Game, player1: Player, player2: Player,
     return player1.name, [s.i for s in board.get_stones()], game_data
 
 
+def create_new_player():
+    pass
+
+
 def create_players(game, player1, player2):
 
     players = []
     for player in [player1, player2]:
-        name = player['name']
         cpuct = player['mcts']['cpuct']
         temperature = player['mcts']['temperature']
         num_simulations = player['mcts']['num_simulations']
         mcts_params = MctsParams(cpuct, temperature, num_simulations)
         advice = player['advice']
 
-        if advice['type'] == 'TOPOLOGICAL_VALUE':
-            advice_cutoff = advice['advice_cutoff']
-            kappa_d = advice['kappa_d']
-            kappa_s = advice['kappa_s']
-            policy_params = PolicyParams(model_file_name=None, advice_cutoff=advice_cutoff)
-            policy = TopologicalValuePolicy(kappa_s=kappa_s, kappa_d=kappa_d)
-            adviser = PolicyAdviser(model=policy, params=policy_params)
-        else:
-            model_file = Path.home() / "workspace" / "Project-Ellie" / "DATA" / 'models' / advice['type']
-            advice_cutoff = advice['advice_cutoff']
-            policy_params = PolicyParams(model_file_name=model_file.as_posix(), advice_cutoff=advice_cutoff)
-            model = tf.keras.models.load_model(model_file.as_posix())
-            adviser = PolicyAdviser(model=model, params=policy_params)
+        adviser_class_name = advice['class']
+        adviser_class = discover_class(adviser_class_name)
 
-        players.append(PolicyAdvisedGraphSearchPlayer(name, game, mcts_params, adviser=adviser))
+        policy = advice['policy']
+        policy_params_class_name = policy['class']
+        policy_params_class = discover_class(policy_params_class_name)
+        policy_params = policy_params_class(board_size=game.board_size, **policy['params'])
+
+        value = advice['value']
+        value_params_class_name = value['params_class']
+        value_model_class_name = value['value_model_class']
+        value_model_class = discover_class(value_model_class_name)
+        value_params_class = discover_class(value_params_class_name)
+        value_params = value_params_class(game.board_size, **value['params'])
+        value_model = value_model_class(value_params)
+
+        adviser = adviser_class(policy_params, value_model)
+
+        # trained advisers
+        #
+        # model_file = Path.home() / "workspace" / "Project-Ellie" / "DATA" / 'models' / advice['type']
+        # advice_cutoff = advice['advice_cutoff']
+        # policy_params = PolicyParams(model_file_name=model_file.as_posix(), advice_cutoff=advice_cutoff)
+        # model = tf.keras.models.load_model(model_file.as_posix())
+        # adviser = PolicyAdviser(model=model, params=policy_params, board_size=game.board_size)
+
+        players.append(PolicyAdvisedGraphSearchPlayer(game, adviser, mcts_params))
 
     return players
 
@@ -169,7 +188,7 @@ def main():
     print()
     print("create_gameplay: ")
     print(f"Parameters from {os.path.join(os.getcwd(), args.params)}")
-    print(f"Writing to: {params['process']['output_dir']}")
+    print(f"Writing to: {params['process']['output_dir']}/{params['process']['phase']}")
 
     if args.info:
         exit(0)

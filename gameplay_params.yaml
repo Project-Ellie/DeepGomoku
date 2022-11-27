@@ -5,9 +5,9 @@ game:
     initializer:
       type: random
       num_stones: 4
-      left: 7
+      left: 8
       right: 11
-      upper: 7
+      upper: 8
       lower: 11
 
       # alternative
@@ -15,31 +15,61 @@ game:
       # stones: H8G7I7F7 or so
 
 players:
-  - name: P600_3.0
+  - name: P1200_3.0
     advice:
-      type: 2_c1.model
-      advice_cutoff: .02
-      kappa_d: 5
-      kappa_s: 6
-    mcts:
-        cpuct: 3.0
-        num_simulations: 600
-        temperature: .0
+      class: aegomoku.policies.heuristic_advice.HeuristicAdviser
+      policy:
+        class: aegomoku.policies.heuristic_advice.HeuristicPolicyParams
+        params:
+          advice_threshold: .3
 
-  - name: P200_1.0
-    advice:
-      type: 2_c1.model
-      advice_cutoff: .02
-      kappa_d: 5
-      kappa_s: 6
+      value:
+        value_model_class: aegomoku.policies.heuristic_value_model.HeuristicValueModel
+        params_class: aegomoku.policies.heuristic_advice.HeuristicValueParams
+        params:
+          kappa_d: 2
+          kappa_s: 5
+          value_stretch: 0.02
+          value_gauge: .5
+          current_advantage: 0.1
+          bias: -0.5
+
     mcts:
+        gamma: 1.0
         cpuct: 3.0
-        num_simulations: 400
-        temperature: 0.
+        num_simulations: 1200
+        temperature: 0.0
+
+
+  - name: P1200_2.0
+    advice:
+      class: aegomoku.policies.heuristic_advice.HeuristicAdviser
+      policy:
+        class: aegomoku.policies.heuristic_advice.HeuristicPolicyParams
+        params:
+          advice_threshold: .3
+
+      value:
+        value_model_class: aegomoku.policies.heuristic_value_model.HeuristicValueModel
+        params_class: aegomoku.policies.heuristic_advice.HeuristicValueParams
+        params:
+          kappa_d: 2
+          kappa_s: 5
+          value_stretch: 0.02
+          value_gauge: .5
+          current_advantage: 0.1
+          bias: -0.5
+
+    mcts:
+      gamma: 1.0
+      cpuct: 2.0
+      num_simulations: 1200
+      temperature: 0.0
 
 
 process:
-  num_trajectories_per_file: 50
-  max_moves: 80
+  phase: 0  # untrained heuristic
+  num_trajectories_per_file: 40
+  max_moves: 200
   eval_temperature: 3.0
-  output_dir: workspace/Project-Ellie/DATA/selfplay/2.1
+  output_dir: workspace/Project-Ellie/DATA/selfplay2

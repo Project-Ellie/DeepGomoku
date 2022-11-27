@@ -1,31 +1,35 @@
 from aegomoku.game_play import GamePlay
 from aegomoku.gomoku_game import GomokuGame
+from aegomoku.gomoku_players import PolicyAdvisedGraphSearchPlayer
 from aegomoku.interfaces import Move
-from cmclient.ai import get_player
 
 
 class GameContext:
-    def __init__(self, game: GomokuGame, ai, num_simu):
+    def __init__(self, game: GomokuGame, adviser, mcts_params):
         self.game = game
-        self.num_simu = num_simu
-        self.ai_spec = ai
-        self.ai, self.mcts, self.advice = get_player(game, ai, num_simu)
+        self.mcts_params = mcts_params
         self.board = game.get_initial_board()
         self.game_play = GamePlay([s.i for s in self.board.stones])
         self.winner = None
         self.ai_active = True
         self.temperature = 1.0
+        self.adviser = adviser
+        self.player = PolicyAdvisedGraphSearchPlayer(game, self.adviser, mcts_params)
 
     def get_advice(self):
-        p_advice, p_value = self.advice.evaluate(self.board.canonical_representation())
-        m_advice = self.mcts.compute_probs(self.board, self.temperature)
+        state = self.board.canonical_representation()
+        _, p_value = self.adviser.evaluate(state)
+        p_advice = self.adviser.advise(state)
+        m_advice = self.player.mcts.compute_probs(self.board, self.temperature)
         key = self.board.get_string_representation()
-        m_value = max([self.mcts.Q.get((key, i), -float('inf')) for i in range(225)])
+
+        m_value = max([self.player.mcts.Q.get((key, i), -float('inf')) for i in range(self.board.board_size)])
 
         return (p_advice, p_value), (m_advice, m_value)
 
     def new_game(self):
-        self.ai, self.mcts, self.advice = get_player(self.game, self.ai_spec, self.num_simu)
+        self.player.refresh()
+        self.adviser = self.player.adviser
         self.board = self.game.get_initial_board()
         self.game_play = GamePlay([stone.i for stone in self.board.stones])
         self.winner = None
@@ -64,6 +68,7 @@ class GameContext:
                 self.game_play.fwd(stone.i)
                 self.board.act(stone)
 
+        self.dump_game()
         return self.board.get_stones()
 
     def ai_move(self):
@@ -74,10 +79,7 @@ class GameContext:
             self.ai_active = False
             return self.board.get_stones()
 
-        if self.ai is None:
-            self.ai, self.mcts, self.advice = get_player(self.game, self.ai_spec, self.num_simu)
-
-        _, move = self.ai.move(self.board)
+        _, move = self.player.move(self.board)
         self.game_play.fwd(move)
 
         if self.game.get_winner(self.board) is not None:
@@ -85,7 +87,14 @@ class GameContext:
             self.winner = winner
             self.ai_active = False
 
+        self.dump_game()
         return self.board.get_stones()
 
+    def dump_game(self):
+        stones = "".join([str(stone) for stone in self.board.get_stones()])
+        with open("aegomoku.data", 'w') as f:
+            f.write(stones)
+
+
     def ponder(self, num_simulations: int = 1):
-        self.mcts.ponder(self.board, num_simulations)
+        self.player.mcts.ponder(self.board, num_simulations)

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import abc
 from typing import Tuple, Optional
+
 import numpy as np
-from keras import models
 
 GAMESTATE_NORMAL = 0
 
@@ -25,6 +25,10 @@ OTHER_PLAYER = 1
 
 
 class GameState:
+
+    def __init__(self):
+        self.board = None
+
     @abc.abstractmethod
     def get_current_player(self):
         raise NotImplementedError("Please consider implementing this method.")
@@ -61,7 +65,7 @@ class DefaultGomokuState(GameState):
 
 class MctsParams:
 
-    def __init__(self, cpuct: float, temperature: float, num_simulations: int, gamma=.7):
+    def __init__(self, cpuct: float, temperature: float, num_simulations: int, gamma=0.97):
         self.cpuct = cpuct
         self.num_simulations = num_simulations
         assert temperature == 0 or temperature > .1, "Temperatures near but not exactly zero are numerically instable."
@@ -70,7 +74,8 @@ class MctsParams:
 
 
 class PolicyParams:
-    def __init__(self, model_file_name: Optional[str], advice_cutoff: float):
+    def __init__(self, board_size: int, model_file_name: Optional[str], advice_cutoff: float):
+        self.board_size = board_size
         self.model_file_name = model_file_name
         self.advice_cutoff = advice_cutoff
 
@@ -98,34 +103,14 @@ class Adviser:
         """
         pass
 
-
-class PolicyAdviser(Adviser):
-
-    def __init__(self, model: models.Model, params: PolicyParams):
-        self.model = model
-        self.params = params
-
-    def get_advisable_actions(self, state):
+    @abc.abstractmethod
+    def advise(self, state):
         """
-        :param state: nxnx3 representation of a go board
-        :return:
-        """
-        probs, _ = self.model(state)
-        max_prob = np.max(probs, axis=None)
-        probs = np.squeeze(probs)
-        advisable = np.where(probs > max_prob * self.params.advice_cutoff, probs, 0.)
+        :param state: current board in its canonical form NxNx3.
 
-        return [int(n) for n in advisable.nonzero()[0]]
-
-
-    def evaluate(self, state):
+        :returns: a selection of move probabilities: a subset of the policy, renormalized
         """
-        :param state: nxnx3 representation of a go board
-        :return:
-        """
-        inputs = np.expand_dims(state, 0).astype(float)
-        p, v = self.model(inputs)
-        return np.squeeze(p), np.squeeze(v)
+        pass
 
 
 class Move:

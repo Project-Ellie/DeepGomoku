@@ -1,14 +1,11 @@
 import copy
 import logging
 import math
-from typing import Dict, Tuple, List
+from typing import List
 
 import numpy as np
 
-from aegomoku.hr_tree import TreeNode
-from aegomoku.interfaces import Game, Adviser, Board, Move, MctsParams
-
-EPS = 1e-8
+from aegomoku.interfaces import Game, Adviser, Board, MctsParams
 
 log = logging.getLogger(__name__)
 
@@ -24,10 +21,11 @@ class MCTS:
         self.adviser = advisor
         self.params = params
 
-        self.Q = {}  # stores Q values for s,a (as defined in the paper)
+        self.Q = {}  # stores Q values for s,a
         self.Nsa = {}  # stores #times edge s,a was visited
         self.Ns = {}  # stores #times board s was visited
         self.Ps = {}  # stores initial policy (returned by neural net)
+        self.Usa = {}  # stores the UCB values for diagnostic purposes
 
         self.Es = {}  # stores game.get_winner  for state s
         self.Vs = {}  # stores game.get_valid_moves for state s
@@ -36,35 +34,33 @@ class MCTS:
             self.verbosity = verbose
             print(f"verbosity: {self.verbosity}")
 
-        board = game.get_initial_board()
-        key = board.get_string_representation()
-        self.root = TreeNode(None, key, None, board.get_stones(), None, 0, None)
-        self.tree_nodes: Dict[str, TreeNode] = {
-            key: self.root}
 
-    def get_action_prob(self, board: Board, temperature=0.0):
+    def get_action_prob(self, board: Board, temperature=0.0, debug=0):
         """
-        This function performs numMCTSSims simulations of MCTS starting from
-        canonical_board.
+        Performs the simulations and returns the resulting probabilities as a 1-dim probability vector of length NxN
         """
         s = board.get_string_representation()
         advisable = self.As.get(s)
         if advisable is None:
-            state = np.expand_dims(board.canonical_representation(), 0).astype(float)
+            state = board.canonical_representation()
             advisable = self.adviser.get_advisable_actions(state)
             self.As[s] = advisable
 
+        for a in self.As[s]:
+            self.Usa[(s, a)] = []
+
         original_board = board
+
         for i in range(self.params.num_simulations):
-            board = copy.deepcopy(original_board)
             self.search(board)
+            for a in self.As[s]:
+                self.Usa[(s, a)].append(self.ucb(s, a))
 
         return self.compute_probs(original_board, temperature)
 
 
     def ponder(self, board: Board, num_simulations: int):
         for i in range(num_simulations):
-            board = copy.deepcopy(board)
             self.search(board)
 
 
@@ -86,7 +82,7 @@ class MCTS:
         return probs
 
 
-    def search(self, board: Board):
+    def search(self, board: Board, level=1):
         """
         This function performs one iteration of MCTS. It is recursively called
         till a leaf node is found. The move chosen at each node is one that
@@ -106,9 +102,8 @@ class MCTS:
             v: the negative of the value of the current canonical_board
         """
 
+        board = copy.deepcopy(board)
         s = board.get_string_representation()
-
-        # winner = None
 
         # if I don't know whether this state is terminal...
         if s not in self.Es:
@@ -117,45 +112,50 @@ class MCTS:
 
         # Now, if it is terminal, ...
         if self.Es[s] is not None:
-            # Any defeat shows for the loser first - that just happened. Hence return -(-1)!
-            return 1
+            v = 1. if self.Es[s] == 0 else -1.
+            return -v
 
         if s not in self.Ps:
             # we'll create a new leaf node and return the value estimated by the guiding player
-            return -self.initialize_and_estimate_value(board, s)
+            v = self.initialize_and_estimate_value(board, s)
+            return -v
 
-        move, info = self.best_act(board=board, s=s)
+        advisable = self._advisable_actions(board)
+
+        move = self.best_act(s=s, choice=advisable)
+        if move is None:
+            # that happens in the context of overlines
+            # Needs thorough research!!!
+            print("No move appears to be possible - that can't be!")
+            return -1.0
+        else:
+            move = board.stone(move)
         next_board, _ = self.game.get_next_state(board, move)
-        v = self.params.gamma * self.search(next_board)
 
-        # new_value = self.update_node_stats(s, move.i, v)
+        # Go deeper
+        v0 = self.search(next_board, level+1)
+
+        if v0 == -1.:
+            v = -1.
+        else:
+            v = self.params.gamma * v0
+
         self.update_node_stats(s, move.i, v)
-
-        # Only works in self-play
-        # self.update_tree_view(s, move, new_value, next_board, info)
 
         return -v
 
 
-    def update_tree_view(self, s, move, v, board, info=None):
+    def best_act_safe(self, board):
         """
-        Maintain a tree view for debug purposes in self-play
-        :param s: the canonical string rep of the prev state
-        :param move: the move from prev to curr state
-        :param v: the value of the new state
-        :param info: a dictionary with debug info
-        :param board: human-readable string rep of the current state
+        like best_act(), but safe to use. Mainly for game analysis
+        :param board:
+        :return:
         """
-        a = move.i
-        parent = self.tree_nodes.get(s)
-        if parent:
-            if parent.children.get(str(move)) is not None:
-                child = parent.children.get(str(move))
-                child.v = v
-                child.nsa = self.Nsa[(s, a)]
-            else:
-                child = parent.add_child(move, board, v, self.Nsa[(s, a)], self.ucb(s, a), info)
-                self.tree_nodes[child.key] = child
+        choice = self._advisable_actions(board)
+        s = board.get_string_representation()
+        if s not in self.Ps:
+            self.initialize_and_estimate_value(board, s)
+        return self.best_act(s, choice)
 
 
     def update_node_stats(self, s, a, v):
@@ -169,11 +169,8 @@ class MCTS:
             self.Q[(s, a)] = v
             self.Nsa[(s, a)] = 1
         self.Ns[s] += 1
+
         return self.Q[(s, a)]
-
-
-    def pot_best(self, board, s):
-        return {board.stone(int(np.argmax(self.Ps[s], axis=None))): np.max(self.Ps[s], axis=None)}
 
 
     def initialize_and_estimate_value(self, board, s: str):
@@ -185,24 +182,26 @@ class MCTS:
 
         # evaluate the policy for the move probablities and the value estimate.
         inputs = board.canonical_representation()
-        self.Ps[s], v = self.adviser.evaluate(inputs)
+        p, v = self.adviser.evaluate(inputs)
+        self.Ps[s] = p
 
-        pot_next_move = self.pot_best(board, s)  # noqa: for DEBUG only
+        advisable = self._advisable_actions(board)
+        adv_mask = np.zeros(board.board_size * board.board_size)
+        adv_mask[advisable] = 1.0
 
         # rule out illegal moves and renormalize
         valids = self.game.get_valid_moves(board)
-        self.Ps[s] = self.Ps[s] * valids  # masking invalid moves
+        self.Ps[s] = self.Ps[s] * valids * adv_mask  # masking invalid moves
         sum_ps_s = np.sum(self.Ps[s])
         if sum_ps_s > 0:
             self.Ps[s] /= sum_ps_s  # renormalize
         else:
             # if all valid moves were masked make all valid moves equally probable
-
             # NB! All valid moves may be masked if either your NNet architecture is insufficient
             # or you've get overfitting or something else.
             # If you have got dozens or hundreds of these messages
             # you should pay attention to your NNet and/or training process.
-            log.error("All valid moves were masked, doing a workaround.")
+            # Indeed, we have seen this in the context of rare overline opportunities that look too tempting
             self.Ps[s] = self.Ps[s] + valids
             self.Ps[s] /= np.sum(self.Ps[s])
 
@@ -211,56 +210,56 @@ class MCTS:
         return v
 
 
-    def probable_actions(self, board: Board) -> List:
+    def _advisable_actions(self, board: Board) -> List:
         s = board.get_string_representation()
         advisable = self.As.get(s)
         if advisable is None or len(advisable) == 0:
-            inputs = np.expand_dims(board.canonical_representation(), 0).astype(float)
+            inputs = board.canonical_representation()
             advisable = self.adviser.get_advisable_actions(inputs)
             advisable = set(advisable).difference([s.i for s in board.get_stones()])
-
             self.As[s] = advisable
 
+        return list(advisable)
+
+    def _advisable_stones(self, board: Board) -> List:
+        advisable = self._advisable_actions(board)
         return [board.stone(i) for i in advisable]
 
 
-    def best_act(self, board: Board, s: str) -> Tuple[Move, Dict]:
-        # pick the move with the highest upper confidence bound from the probable actions
+    def best_act(self, s: str, choice) -> int:
+        # pick the move with the highest upper confidence bound from the given choice
         # We're reducing the action space to those actions deemed probable by the model
         valids = self.Vs[s]
         cur_best = -float('inf')
         best_act = None
 
-        probable_actions = self.probable_actions(board)
-        if len(probable_actions) == 1:
-            return probable_actions[0], {'u': float('inf'), 'q': None, 'p': 1, 'nsa': None}
+        if len(choice) == 1:
+            return choice[0]
 
-        debug_info = {}
-        for move in probable_actions:
-            a = move.i  # use the integer representation
+        for a in choice:
             if valids[a]:
                 if (s, a) in self.Q:
-                    u = self.ucb(s, a)
+                    # if self.Q[(s, a)] == -1.:
+                    #     valids[a] = 0
+                    #     continue
+                    u, q, p, sns, nsa = self.ucb(s, a)
                 else:
                     p = self.Ps[s][a]
-                    sns = math.sqrt(self.Ns[s] + EPS)
-                    u = self.params.cpuct * p * sns  # Q = 0 ?
-                    debug_info[a] = {'u': u, 'q': None, 'p': p, 'nsa': None}
+                    # the 1e-10 is needed to distinguish by p when N is still zero.
+                    sns = math.sqrt(self.Ns[s] + 1e-10)
+                    u = self.params.cpuct * p * sns
 
                 if u >= cur_best:
                     cur_best = u
                     best_act = a
 
-        if best_act is None:
-            print("Oops!")
-
-        return board.stone(best_act), debug_info
+        return best_act
 
 
     def ucb(self, s: str, a: int):
-        q = self.Q[(s, a)]
+        q = self.Q.get((s, a), 0)
         p = self.Ps[s][a]
-        sns = math.sqrt(self.Ns[s])
-        nsa = 1 + self.Nsa[(s, a)]
+        sns = math.sqrt(self.Ns[s] + 1e-10)
+        nsa = 1 + self.Nsa.get((s, a), 0)
         u = q + self.params.cpuct * p * sns / nsa
-        return u
+        return u, q, p, sns, nsa

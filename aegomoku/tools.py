@@ -1,3 +1,5 @@
+import importlib
+
 import numpy as np
 
 from aegomoku.interfaces import Move
@@ -155,3 +157,11 @@ def line_for_xo(xo_string):
     return [sum([1 if (ch == 'x' and c == 0)
                 or (ch == 'o' and c == 1)
                  else 0 for ch in xo_string] * powers) for c in [0, 1]]
+
+
+def discover_class(class_name: str) -> type:
+    package = '.'.join(class_name.split('.')[:-1])
+    class_name = class_name.split('.')[-1]
+    module = importlib.import_module(package)
+    class_ = getattr(module, class_name)
+    return class_

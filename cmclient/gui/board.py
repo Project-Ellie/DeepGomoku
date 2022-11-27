@@ -17,7 +17,7 @@ COLOR_WHITE_STONES = (160, 192, 192)
 COLOR_BLACK_STONES = (92, 64, 64)
 STONE_COLORS = [COLOR_BLACK_STONES, COLOR_WHITE_STONES]
 
-GRID_SIZE = 45
+GRID_SIZE = 55
 SIDE_BUFFER = 30
 PADDING = GRID_SIZE + SIDE_BUFFER
 
@@ -85,8 +85,6 @@ class UI:
                                                                 options_list=[str(i) for i in range(400, 2200, 200)],
                                                                 starting_option="400",
                                                                 manager=self.manager)
-
-
 
         self.run()
 
@@ -211,11 +209,11 @@ class UI:
 
         for i, prob in enumerate(advice):
             if prob > self.disp_threshold:
-                by, bx = divmod(i, self.board_size)
-                pos = self.context.board.Stone(bx, by)
+                r, c = divmod(i, self.board_size)
+                pos = self.context.board.Stone(r, c)
                 if pos not in self.context.board.get_stones():
-                    x = bx * GRID_SIZE + PADDING
-                    y = by * GRID_SIZE + PADDING
+                    x = c * GRID_SIZE + PADDING
+                    y = r * GRID_SIZE + PADDING
 
                     intensity = min(1, 2 * prob)
                     color = (255 * intensity, (1 - intensity) * 255, 128 * intensity)

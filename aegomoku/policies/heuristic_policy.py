@@ -4,9 +4,14 @@ from aegomoku.interfaces import TerminalDetector, Adviser
 from aegomoku.policies.forward_looking import ForwardLookingLayer
 from aegomoku.policies.naive_infuence import NaiveInfluenceLayer
 from aegomoku.policies.primary_detector import PrimaryDetector
+from aegomoku.utils import expand
 
 
 class HeuristicPolicy(tf.keras.Model, Adviser, TerminalDetector):
+
+    def advise(self, state):
+        return self.call(expand(state))[0]
+
 
     def __init__(self, board_size: int, cut_off: float = 0.8, n_fwll: int = 1):
         """
