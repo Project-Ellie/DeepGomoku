@@ -124,7 +124,9 @@ class MCTS:
 
         move = self.best_act(s=s, choice=advisable)
         if move is None:
-            print("Ain't got no move no mo'. Giving up.")
+            # that happens in the context of overlines
+            # Needs thorough research!!!
+            print("No move appears to be possible - that can't be!")
             return -1.0
         else:
             move = board.stone(move)
@@ -195,12 +197,11 @@ class MCTS:
             self.Ps[s] /= sum_ps_s  # renormalize
         else:
             # if all valid moves were masked make all valid moves equally probable
-
             # NB! All valid moves may be masked if either your NNet architecture is insufficient
             # or you've get overfitting or something else.
             # If you have got dozens or hundreds of these messages
             # you should pay attention to your NNet and/or training process.
-            log.error("All valid moves were masked, doing a workaround.")
+            # Indeed, we have seen this in the context of rare overline opportunities that look too tempting
             self.Ps[s] = self.Ps[s] + valids
             self.Ps[s] /= np.sum(self.Ps[s])
 
